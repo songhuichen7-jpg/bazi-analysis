@@ -53,6 +53,9 @@ def check_jieqi_boundary(year: int, month: int, day: int,
     输入时间最近的那个。若分钟差 <= threshold_minutes，返回 hint。
 
     Returns: {isNearBoundary, jieqi, jieqiTime, minutesDiff, hint}
+
+    Note: jieqiTime is a raw lunar_python.Solar (mirror of Node closest.solar);
+    callers unwrap via .getYear() / .getMonth() / .getDay() / .getHour() / .getMinute().
     """
     # NOTE: ziHourAndJieqi.js:56 — birth timestamp for comparison
     birth_dt = datetime(year, month, day, hour, minute, 0)
