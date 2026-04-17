@@ -4,12 +4,21 @@ paipan-engine/src/ziHourAndJieqi.js.
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from lunar_python import Solar
 
 _HOST_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def _js_round(x: float) -> int:
+    """Match JS Math.round (half-away-from-zero). Python round() uses banker's
+    rounding which drifts at .5 boundaries; oracle fixtures固化 against Node."""
+    if x >= 0:
+        return math.floor(x + 0.5)
+    return -math.floor(-x + 0.5)
 
 
 def _host_utc_timestamp(y: int, mo: int, d: int, h: int, mi: int, s: int = 0) -> float:
@@ -97,8 +106,9 @@ def check_jieqi_boundary(year: int, month: int, day: int,
                 closest_solar = s
                 closest_diff_seconds = diff_seconds
 
-    # NOTE: ziHourAndJieqi.js:76 — Math.round(diff / 60000) → round to integer minutes
-    minutes_diff = round(closest_diff_seconds / 60.0) if closest_diff_seconds is not None else None
+    # NOTE: ziHourAndJieqi.js:76 — Math.round(diff / 60000) → round to integer minutes.
+    # Use JS-compatible rounding to avoid banker's-rounding drift on .5 boundaries.
+    minutes_diff = _js_round(closest_diff_seconds / 60.0) if closest_diff_seconds is not None else None
     is_near_boundary = (minutes_diff is not None
                         and minutes_diff <= threshold_minutes)
 

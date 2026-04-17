@@ -6,7 +6,10 @@ During DST the wall clock was advanced +1h, so to recover real (standard)
 time we subtract 1 hour from the clock reading.
 """
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+_HOST_TZ = ZoneInfo("Asia/Shanghai")
 
 
 # NOTE: chinaDst.js:16-24 — CHINA_DST_PERIODS 照抄 Node 源码数据。
@@ -63,31 +66,21 @@ def correct_china_dst(
             "wasDst": False,
         }
     # NOTE: chinaDst.js:56 — new Date(y, m-1, d, hour-1, minute, 0)
-    # Python datetime 自动处理跨日/跨月回滚，等价于 Node 的 Date 构造。
-    #
-    # BUG-PARITY: Node runs under Asia/Shanghai host TZ; on the DST start day
-    # the wall clock jumps 02:00 → 03:00 so 02:xx doesn't exist. Subtracting
-    # 1h from (start_day, 03:xx) lands on a non-existent 02:xx, which JS Date
-    # normalizes forward to 03:xx. Net effect: correction "runs" (wasDst=True)
-    # but hour/minute stay at the input. Oracle fixtures capture this; we must
-    # reproduce it. See chinaDst.js:56 cross-checked against oracle
-    # dst-004-1986-05-04-entry-day.json.
-    sm, sd, _, _ = _DST_TABLE[year]
-    if month == sm and day == sd and hour == 3:
-        return {
-            "year": year,
-            "month": month,
-            "day": day,
-            "hour": hour,
-            "minute": minute,
-            "wasDst": True,
-        }
-    dt = datetime(year, month, day, hour, minute, 0) - timedelta(hours=1)
+    # JS Date constructor under host Asia/Shanghai does "wall-clock construction
+    # with forward-normalize on DST gap" — uses IANA tzdata. If hour-1 lands in
+    # a non-existent wall-clock (spring-forward), JS normalizes forward.
+    # Critically, IANA's 1988 CDT start is 1988-04-17, not Node table's 04-10,
+    # so JS's behavior varies per year. Replicate via zoneinfo UTC round-trip.
+    wc = (
+        datetime(year, month, day, hour - 1, minute, 0, tzinfo=_HOST_TZ)
+        .astimezone(timezone.utc)
+        .astimezone(_HOST_TZ)
+    )
     return {
-        "year": dt.year,
-        "month": dt.month,
-        "day": dt.day,
-        "hour": dt.hour,
-        "minute": dt.minute,
+        "year": wc.year,
+        "month": wc.month,
+        "day": wc.day,
+        "hour": wc.hour,
+        "minute": wc.minute,
         "wasDst": True,
     }
