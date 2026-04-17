@@ -4,9 +4,21 @@ paipan-engine/src/ziHourAndJieqi.js.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from lunar_python import Solar
+
+_HOST_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def _host_utc_timestamp(y: int, mo: int, d: int, h: int, mi: int, s: int = 0) -> float:
+    """Convert wall-clock (y, mo, d, h, mi, s) in Asia/Shanghai to UTC seconds.
+
+    Matches Node's ``new Date(y, m-1, d, h, mi, s).getTime()`` on a host in
+    Asia/Shanghai — critically, crosses 1986-1991 CDT gap / overlap correctly.
+    """
+    return datetime(y, mo, d, h, mi, s, tzinfo=_HOST_TZ).astimezone(timezone.utc).timestamp()
 
 
 def convert_to_late_zi_convention(year: int, month: int, day: int,
@@ -57,8 +69,10 @@ def check_jieqi_boundary(year: int, month: int, day: int,
     Note: jieqiTime is a raw lunar_python.Solar (mirror of Node closest.solar);
     callers unwrap via .getYear() / .getMonth() / .getDay() / .getHour() / .getMinute().
     """
-    # NOTE: ziHourAndJieqi.js:56 — birth timestamp for comparison
-    birth_dt = datetime(year, month, day, hour, minute, 0)
+    # NOTE: ziHourAndJieqi.js:56 — birth timestamp for comparison.
+    # Node 用 `new Date(y, m-1, d, h, mi, 0).getTime()` 取 UTC ms，宿主 Asia/Shanghai
+    # 时会跨过 1986-1991 CDT gap — 用 aware UTC timestamp 复现。
+    birth_ts = _host_utc_timestamp(year, month, day, hour, minute, 0)
 
     closest_name: str | None = None
     closest_solar = None
@@ -73,9 +87,11 @@ def check_jieqi_boundary(year: int, month: int, day: int,
             s = table.get(name)
             if s is None:
                 continue
-            jq_dt = datetime(s.getYear(), s.getMonth(), s.getDay(),
-                             s.getHour(), s.getMinute(), s.getSecond())
-            diff_seconds = abs((jq_dt - birth_dt).total_seconds())
+            jq_ts = _host_utc_timestamp(
+                s.getYear(), s.getMonth(), s.getDay(),
+                s.getHour(), s.getMinute(), s.getSecond(),
+            )
+            diff_seconds = abs(jq_ts - birth_ts)
             if closest_diff_seconds is None or diff_seconds < closest_diff_seconds:
                 closest_name = name
                 closest_solar = s

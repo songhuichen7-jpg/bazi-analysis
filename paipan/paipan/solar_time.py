@@ -10,15 +10,19 @@
      造成的太阳相对于平太阳的快慢。使用 Meeus 简化公式，
      精度约 ±1 分钟，足够命理使用。
 
-INVARIANT: Node 版 toTrueSolarTime 最后的 shift 用 local-TZ Date 字段加减。
-本 Python port 用 naive datetime 做同样的字段加减，这要求 oracle dump
-跑在 TZ=UTC 下（无 DST 干扰）。若 oracle 以其他 TZ 重新生成，本模块需
-同步调整。
+INVARIANT: Node 版 toTrueSolarTime 最后的 shift 在宿主 TZ（Asia/Shanghai）
+下用 Date 做绝对-时戳加减，所以 1986-1991 中国夏令时的春跳/秋回会让
+wall-clock 越过 gap（例如 1986-05-04 03:00 - 11.2min → 01:48 而不是 02:48）。
+本 Python port 用 zoneinfo("Asia/Shanghai") 的 aware datetime 做同样的绝对
+加减，以复现 Node 宿主-TZ 行为。
 """
 from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+_HOST_TZ = ZoneInfo("Asia/Shanghai")
 
 
 def equation_of_time(utc_dt: datetime) -> float:
@@ -96,11 +100,14 @@ def to_true_solar_time(
     shift_minutes = longitude_minutes + eot_minutes
 
     # 应用到北京时间上
-    # NOTE: solarTime.js:60-68 — Node 用 local-TZ Date 做加减；在 UTC/无 DST 环境下
-    # 等价于纯字段加减。Oracle dump 在 TZ=UTC (via +08:00 literal) 下生成，
-    # 我们用 naive datetime 字段加减来匹配。
-    base = datetime(year, month, day, hour, minute, 0)
-    corrected = base + timedelta(minutes=shift_minutes)
+    # NOTE: solarTime.js:60-68 — Node 用 host-TZ Date 做绝对时戳加减。Oracle 在
+    # Asia/Shanghai 下生成，1986-1991 DST gap 会跨过（例如 1986-5-4 3:00-11.2min
+    # 跨 gap 回到 1:48 wall-clock）。必须通过 UTC 做绝对-时戳加减后再转回宿主 TZ；
+    # 直接 `aware + timedelta` 走的是 wall-clock 加减，会漏掉 DST gap。
+    base_host = datetime(year, month, day, hour, minute, 0, tzinfo=_HOST_TZ)
+    base_utc = base_host.astimezone(timezone.utc)
+    corrected_utc = base_utc + timedelta(minutes=shift_minutes)
+    corrected = corrected_utc.astimezone(_HOST_TZ)
 
     # NOTE: solarTime.js:76-78 — Math.round(x * 10) / 10，四舍五入到 0.1
     # JS Math.round 对 .5 向 +∞ 取整（与 Python round 的 banker's rounding 不同），

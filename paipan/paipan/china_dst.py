@@ -63,7 +63,25 @@ def correct_china_dst(
             "wasDst": False,
         }
     # NOTE: chinaDst.js:56 — new Date(y, m-1, d, hour-1, minute, 0)
-    # Python datetime 自动处理跨日/跨月回滚，等价于 Node 的 Date 构造
+    # Python datetime 自动处理跨日/跨月回滚，等价于 Node 的 Date 构造。
+    #
+    # BUG-PARITY: Node runs under Asia/Shanghai host TZ; on the DST start day
+    # the wall clock jumps 02:00 → 03:00 so 02:xx doesn't exist. Subtracting
+    # 1h from (start_day, 03:xx) lands on a non-existent 02:xx, which JS Date
+    # normalizes forward to 03:xx. Net effect: correction "runs" (wasDst=True)
+    # but hour/minute stay at the input. Oracle fixtures capture this; we must
+    # reproduce it. See chinaDst.js:56 cross-checked against oracle
+    # dst-004-1986-05-04-entry-day.json.
+    sm, sd, _, _ = _DST_TABLE[year]
+    if month == sm and day == sd and hour == 3:
+        return {
+            "year": year,
+            "month": month,
+            "day": day,
+            "hour": hour,
+            "minute": minute,
+            "wasDst": True,
+        }
     dt = datetime(year, month, day, hour, minute, 0) - timedelta(hours=1)
     return {
         "year": dt.year,
