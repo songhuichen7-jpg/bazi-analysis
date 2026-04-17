@@ -122,10 +122,10 @@ paipan(opts) → Object
 
 **处理顺序：**
 1. hour === -1 → 标记 hourUnknown，占位 h = 12（不做 DST/真太阳时/子时处理）
-2. DST 修正（仅非未知时辰）→ `correctChinaDst()`
-3. 真太阳时修正（仅非未知时辰 + longitude 可解析）→ `toTrueSolarTime()`
-4. 晚子时转换（仅非未知时辰 + ziConvention === 'late'）→ `convertToLateZiConvention()`
-5. 节气交界检查（仅非未知时辰）→ `checkJieqiBoundary()`
+2. DST 修正（仅非未知时辰）→ `correctChinaDst()` `# NOTE: paipan.js:58` — `if (!hourUnknown)` 明确跳过
+3. 真太阳时修正（仅非未知时辰 + longitude 可解析）→ `toTrueSolarTime()` `# NOTE: paipan.js:83`
+4. 晚子时转换（仅非未知时辰 + ziConvention === 'late'）→ `convertToLateZiConvention()` `# NOTE: paipan.js:99`
+5. 节气交界检查（仅非未知时辰）→ `checkJieqiBoundary()` `# NOTE: paipan.js:112`
 6. `Solar.fromYmdHms()` → `getLunar()` → `getEightChar()` 算四柱
 
 **外部依赖：** `lunar-javascript`（`Solar`），本项目的 `solarTime`, `chinaDst`, `ziHourAndJieqi`, `cities`
@@ -165,6 +165,7 @@ toTrueSolarTime(year, month, day, hour, minute, longitude) → Object
    - `N` = 年内第几天（从 Jan 1 起）
    - `B = 2π(N-81)/365`
    - `EoT = 9.87·sin(2B) - 7.53·cos(B) - 1.5·sin(B)`（分钟）
+   - `# NOTE: solarTime.js:30-32` — 三个系数（9.87 / 7.53 / 1.5）是 Meeus 公式的 simplified form；port 必须按**同样常量、同样运算顺序**计算，否则 EoT 会有浮点偏差，oracle 对不上。
 3. 总修正 = 经度时差 + EoT，加到北京时间上
 
 **实现细节（`# NOTE: solarTime.js:21`）：**
@@ -185,7 +186,7 @@ isChinaDst(year, month, day, hour) → boolean
 correctChinaDst(year, month, day, hour, minute) → { year, month, day, hour, minute, wasDst }
 ```
 
-**数据（`CHINA_DST_PERIODS`）：**
+**数据（`CHINA_DST_PERIODS`）：** `# NOTE: chinaDst.js:16-24` — 6 年 DST 起止日期是硬编码的数据源，port 必须逐字节一致。
 ```js
 // 年份, 开始[月,日], 结束[月,日]
 { year: 1986, start: [5, 4],  end: [9, 14] }
@@ -376,6 +377,12 @@ getBenQi(zhi: string) → string   // 本气天干
 
 ### `ming/liLiang.js` — 力量擂台
 
+> ⚠️ **PORT DIRECTIVE — keDiscount**: The source defines `keDiscount: 0.6` at liLiang.js:30 but **NEVER applies it** in any calculation. Only `heDiscount` is used (lines 101-117 block).
+>
+> The Python port MUST replicate this exactly — define the constant in the weights dict, do NOT implement the "被克减分" logic. Oracle regression will fail if you "fix" this in Python.
+>
+> If the ke-reduction is truly wanted, that is a separate algorithm-correction project: update Node liLiang.js first, regenerate all oracle fixtures, THEN update Python in lockstep. See `paipan/tests/regression/generate_oracle.md` freeze policy.
+
 **导出：** `{ analyzeForce, WEIGHTS }`
 
 **签名：**
@@ -423,6 +430,7 @@ analyzeForce(bazi: Object) → Object
 2. **得令**：月支本气天干对应十神 `+4.0`（月支本气已在得令算，根阶段跳过避免重复）
 3. **根**：所有地支藏干按本气/中气/余气权重 × 藏干本身 weight 累加
 4. **合调整**：用 `findGanHe()` 找天干合对，被合者得分 × 0.4（减到 40%）
+   - `# NOTE: liLiang.js:105-117` — 关键：reduction 公式是 `scores[ss] * (1 - heDiscount) = scores[ss] * 0.6`，然后 `scores[ss] -= reduction`。这不是"乘 0.4"的语义，而是"减掉 60%" = 保留 40%。`adjustments[].reduction` 字段也被 oracle 固化（四舍五入到 0.1），port 必须精确匹配中间值，不能重写成 `scores[ss] *= 0.4`。
 
 **归一化：** 最高原始分映射到 10，其余等比缩放，结果保留 1 位小数。
 
@@ -642,6 +650,30 @@ ming/ganzhi.js             (无依赖, 被上述多模块引用)
 ### EC-10：从格候选阈值
 **状态：已验证。**
 `liLiang.js:141`：`sameRatio <= 0.15` 时 `congCandidate = true`，在 `analyze.js` 的 notes 中触发 `cong_candidate` 提醒。
+
+---
+
+## Edge Case 输入覆盖清单（for Task 5）
+
+下表是 Task 5（写 `birth_inputs.json` 的 50 条用例）的覆盖起点——每行可直接作为 JSON 数组中的一条。所有字段按 `paipan(opts)` 的签名命名；未写的字段用默认值。
+
+| EC# | 触发条件 | 最小输入示例 | 断言 |
+|-----|---------|-------------|------|
+| EC-1 | hour = -1（未知时辰） | `{year:1990,month:6,day:15,hour:-1,minute:0,gender:"male"}` | `hourUnknown=true`；`sizhu.hour=null`；`shishen.hour=null`；`cangGan.hour=null`；`naYin.hour=null`；`dayun.list.length=8` |
+| EC-2 | 晚子时派 + hour=23 | `{year:2024,month:3,day:15,hour:23,minute:30,ziConvention:"late",longitude:116.4,gender:"male"}` | `meta.corrections` 含 `type:"late_zi"`；`solarCorrected` 对应次日（2024-03-16）0:30 附近；日柱为次日干支 |
+| EC-3 | useTrueSolarTime=false | `{year:1990,month:6,day:15,hour:10,minute:0,city:"长沙",useTrueSolarTime:false,gender:"female"}` | `meta.corrections` 不含 `type:"true_solar_time"`；`solarCorrected` 时分与输入完全一致 |
+| EC-4 | 城市不识别 | `{year:1990,month:6,day:15,hour:10,minute:0,city:"火星基地一号",useTrueSolarTime:true,gender:"male"}` | `warnings` 含"未识别城市" 字样；`meta.cityUnknown=true`；`meta.corrections` 不含 true_solar_time |
+| EC-5 | DST 边界（1988-05 区间内） | `{year:1988,month:6,day:10,hour:10,minute:0,longitude:116.4,gender:"male"}` | `meta.corrections[0].type="china_dst"`；`warnings` 含"夏令时"字样；修正后 hour=9 |
+| EC-6 | 节气交界 ±120 分钟 | `{year:2024,month:2,day:4,hour:17,minute:0,longitude:116.4,gender:"male"}` | `meta.jieqiCheck.isNearBoundary=true`；`meta.jieqiCheck.jieqi="立春"`；`warnings` 含节气提示 |
+| EC-7 | longitude 直接提供 | `{year:1990,month:6,day:15,hour:10,minute:0,longitude:113.0,gender:"male"}` | `meta.corrections` 中 `longitude=113.0`；city 字段可缺省，不走城市查询 |
+| EC-8 | 海外城市（新加坡） | `{year:1990,month:6,day:15,hour:10,minute:0,city:"新加坡",gender:"male"}` | `meta.corrections` 含 true_solar_time，且 `longitude≈103.82`；`resolvedCity="新加坡"` |
+| EC-9 | 月令得令+根去重验证 | `{year:1984,month:3,day:5,hour:12,minute:0,longitude:116.4,gender:"male"}`（甲子年丙寅月甲辰日庚午时：月支寅本气甲） | `force.contributions["比肩"].deling.benQi="甲"`；`force.contributions["比肩"].roots` 不含 `{pos:"月支", role:"本气"}` 的条目（去重生效） |
+| EC-10 | 从格候选（sameRatio≤0.15） | `{year:1990,month:10,day:15,hour:10,minute:0,longitude:116.4,gender:"female"}`（示例候选；若该盘 sameRatio > 0.15 需替换为同类极弱的盘） | `force.congCandidate=true`；`force.sameRatio≤0.15`；`notes` 含 `type:"cong_candidate"` |
+
+**使用提示：**
+- EC-9 / EC-10 的干支需要 oracle 生成后核对，若选定的输入未触发预期条件，替换成其他符合日期；目标是覆盖**逻辑分支**，不是具体某日某时。
+- 每条建议加 `id: "EC-N"` 字段，方便断言脚本按 id 拿对应 fixture。
+- 另建议补充常规无 edge 的"普通"输入若干条（Task 5 凑到 50 条），覆盖不同年份/性别/子时派组合。
 
 ---
 

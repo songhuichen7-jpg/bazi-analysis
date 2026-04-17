@@ -20,3 +20,7 @@ Oracle 一旦生成**不再改**。如发现 Node 版 bug：
 - 单独立项修"paipan 算法修正"——同时更新 Node 和 Python 版 + 重跑 oracle
 
 Node 版将打 tag `paipan-engine-oracle-v1` 并归档到 `archive/paipan-engine/`。
+
+## 已知 silent TODO（不要在 port 阶段 fix）
+
+- `liLiang.js` 定义了 `keDiscount: 0.6` 但从未应用。Python port 必须同样"定义但不应用"。详见 `docs/paipan-port-inventory.md` 的 `ming/liLiang.js` 章节顶部 callout。
