@@ -187,3 +187,19 @@ def get_city_coords(raw: Optional[str]) -> Optional[City]:
                 return City(lng=lng, lat=lat, canonical=canonical)
 
     return None
+
+
+def all_cities() -> list[tuple[str, float, float]]:
+    """Return every canonical (name, lng, lat) known to paipan.
+
+    Name-sorted for stable hashing / ETag. Includes mainland dataset from
+    cities-data.json plus the _OVERSEAS supplement. Server exposes this
+    via GET /api/cities.
+    """
+    # NOTE: reuse the already-cached index built by _build_index(); the
+    # exact map's keys are canonical names.
+    idx = _build_index()
+    return sorted(
+        [(name, lng, lat) for name, (lng, lat) in idx.exact.items()],
+        key=lambda t: t[0],
+    )
