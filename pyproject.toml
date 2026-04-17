@@ -1,7 +1,7 @@
 [tool.uv.workspace]
-members = ["paipan"]
+members = ["paipan", "server"]
 
 [tool.pytest.ini_options]
-testpaths = ["paipan/tests"]
+testpaths = ["paipan/tests", "server/tests"]
 addopts = "-ra --strict-markers"
 pythonpath = ["."]
