@@ -29,5 +29,6 @@ def user_dek_context(dek: bytes) -> Iterator[bytes]:
 
 # Re-export the type classes (imported lazily by alembic / models).
 from app.db_types.encrypted_text import EncryptedText  # noqa: E402
+from app.db_types.encrypted_json import EncryptedJSONB  # noqa: E402
 
-__all__ = ["EncryptedText", "user_dek_context", "get_current_dek"]
+__all__ = ["EncryptedText", "EncryptedJSONB", "user_dek_context", "get_current_dek"]
