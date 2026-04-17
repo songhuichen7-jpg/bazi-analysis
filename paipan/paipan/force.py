@@ -23,10 +23,22 @@ Bug/quirk notes (preserved verbatim from Node):
 """
 from __future__ import annotations
 
+import math
+
 from paipan.cang_gan import get_ben_qi, get_cang_gan_weighted
 from paipan.ganzhi import GAN_WUXING, WUXING_KE, WUXING_SHENG
 from paipan.he_ke import find_gan_he, is_gan_he
 from paipan.shi_shen import SHI_SHEN_PAIRS, get_shi_shen
+
+
+def _js_round(x: float) -> int:
+    """Match JS ``Math.round`` (half-away-from-zero). Python ``round`` uses
+    banker's rounding, which drifts at ``.5`` boundaries; oracle fixtures
+    are 固化 against Node's ``Math.round`` so the port must match."""
+    # NOTE: liLiang.js uses Math.round; Python round() diverges on .5 halves.
+    if x >= 0:
+        return math.floor(x + 0.5)
+    return -math.floor(-x + 0.5)
 
 # NOTE: ming/liLiang.js:23-31  力量权重配置
 #  - keDiscount is **defined but never applied** in Node (dead constant).
@@ -188,14 +200,14 @@ def analyze_force(bazi: dict) -> dict:
             contributions[ss]["adjustments"].append({
                 "type": "被合",
                 "with": he["b"] if g == he["a"] else he["a"],
-                "reduction": round(reduction * 10) / 10,
+                "reduction": _js_round(reduction * 10) / 10,
             })
 
     # NOTE: ming/liLiang.js:120-124  归一化到 0-10 (最高分 → 10)
     max_score = max(max(scores.values()), 1)
     normalized: dict[str, float] = {}
     for s in ALL_SHI_SHEN:
-        normalized[s] = round((scores[s] / max_score) * 10 * 10) / 10
+        normalized[s] = _js_round((scores[s] / max_score) * 10 * 10) / 10
 
     # NOTE: ming/liLiang.js:127-133  同类 vs 异类
     same_side_score = (
@@ -240,9 +252,9 @@ def analyze_force(bazi: dict) -> dict:
         "scoresNormalized": normalized,
         "contributions": contributions,
         "dayStrength": day_strength,
-        "sameSideScore": round(same_side_score * 10) / 10,
-        "otherSideScore": round(other_side_score * 10) / 10,
-        "sameRatio": round(same_ratio * 100) / 100,
+        "sameSideScore": _js_round(same_side_score * 10) / 10,
+        "otherSideScore": _js_round(other_side_score * 10) / 10,
+        "sameRatio": _js_round(same_ratio * 100) / 100,
         "congCandidate": cong_candidate,
         "pairs": pairs,
         "relations": relations,
@@ -265,10 +277,16 @@ def compute_force(paipan: dict, day_gan: str) -> dict[str, float]:
     def _zhi(k: str) -> str | None:
         return paipan.get(k, {}).get("zhi")
 
+    chart_day_gan = _gan("day")
+    if chart_day_gan is not None and chart_day_gan != day_gan:
+        raise ValueError(
+            f"day_gan mismatch: arg={day_gan!r} vs paipan['day']['gan']={chart_day_gan!r}"
+        )
+
     bazi = {
         "yearGan": _gan("year"), "yearZhi": _zhi("year"),
         "monthGan": _gan("month"), "monthZhi": _zhi("month"),
-        "dayGan": _gan("day") or day_gan, "dayZhi": _zhi("day"),
+        "dayGan": chart_day_gan or day_gan, "dayZhi": _zhi("day"),
         "hourGan": _gan("hour"), "hourZhi": _zhi("hour"),
     }
     result = analyze_force(bazi)
