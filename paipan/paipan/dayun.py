@@ -26,8 +26,13 @@ def compute_dayun(
         - startAge: float  起运虚岁 (年 + 月/12 + 日/365)
         - startYearsDesc: str  "{年}年{月}月{天}天后起运"
         - list: List[dict]  8 条大运 (Node slice(1, 9))
+
+    Policy: ``hour == -1`` (unknown-hour sentinel) is coerced to noon, mirroring
+    ``compute.py`` upstream. 大运起运仅取决于月柱 + 日/分粒度的节气边界，不依赖
+    时辰，所以 noon 占位是安全的——但调用方若绕过 ``compute()`` 直接传 -1，
+    需理解此策略。
     """
-    # 未知时辰时 Node 侧在外层保底，此处同样兜底到正午避免 Solar 构造异常。
+    # NOTE: paipan.js 外层对 hour=-1 已兜底；此处保持同一策略。
     safe_hour = hour if hour >= 0 else 12
     solar = Solar.fromYmdHms(year, month, day, safe_hour, minute, 0)
     ec = solar.getLunar().getEightChar()
