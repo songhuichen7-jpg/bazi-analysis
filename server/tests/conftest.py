@@ -64,6 +64,27 @@ def database_url(postgres_container) -> str:
     return raw
 
 
+@pytest.fixture(scope="session", autouse=True)
+def apply_migrations(database_url):
+    """Ensure the schema is in place before ANY test that touches the DB runs.
+
+    Critical under pytest-xdist: each worker has its own session, so without
+    this autouse fixture test_models (which just assumes tables exist) can run
+    before test_migrations (which explicitly upgrades), and the insert fails
+    with 'relation users does not exist'. Running upgrade once per worker
+    session is cheap (<1s on warm cache).
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    # alembic env.py uses async_engine_from_config; pass the asyncpg URL directly.
+    cfg = Config("server/alembic.ini")
+    cfg.set_main_option("script_location", "server/alembic")
+    cfg.set_main_option("sqlalchemy.url", str(database_url))
+    command.upgrade(cfg, "head")
+    yield
+
+
 @pytest_asyncio.fixture
 async def async_client() -> AsyncIterator[AsyncClient]:
     """httpx AsyncClient bound to the FastAPI app via ASGI — no uvicorn."""
