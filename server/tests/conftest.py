@@ -23,6 +23,27 @@ from httpx import ASGITransport, AsyncClient
 from testcontainers.postgres import PostgresContainer
 
 
+@pytest.fixture(autouse=True)
+def _restore_config_after_reloads():
+    """Some tests monkeypatch ENCRYPTION_KEK and ``importlib.reload(app.core.config)``
+    to exercise startup validation. That leaves ``app.core.config.settings`` stuck
+    on the test value in ``sys.modules``, which pollutes any later test that reads
+    the singleton. This autouse fixture reloads config + main back to the
+    baseline ``"00"*32`` KEK after each test.
+    """
+    yield
+    import importlib
+    import sys
+
+    os.environ["ENCRYPTION_KEK"] = "00" * 32
+    cfg = sys.modules.get("app.core.config")
+    if cfg is not None:
+        importlib.reload(cfg)
+    main_mod = sys.modules.get("app.main")
+    if main_mod is not None:
+        importlib.reload(main_mod)
+
+
 @pytest.fixture(scope="session")
 def postgres_container():
     """One Postgres 16 container for the whole test session."""
