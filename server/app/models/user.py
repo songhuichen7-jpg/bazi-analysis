@@ -25,7 +25,9 @@ class User(Base):
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,
                                       server_default=text("gen_random_uuid()"))
-    phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    # nullable post crypto-shredding — spec §5.3. Registration sets it; account
+    # deletion wipes it (along with phone_last4 / dek_ciphertext) to NULL.
+    phone: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True)
     phone_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True, unique=True)
     phone_last4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
     nickname: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)

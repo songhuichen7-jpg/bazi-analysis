@@ -22,8 +22,16 @@ def upgrade() -> None:
         sa.Column("agreed_to_terms_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.alter_column("users", "dek_ciphertext", nullable=True)
+    # Crypto-shredding (spec §5.3) wipes phone / phone_last4 → they must be NULL-able.
+    op.alter_column("users", "phone", nullable=True)
+    op.alter_column("users", "phone_last4", nullable=True)
 
 
 def downgrade() -> None:
-    op.alter_column("users", "dek_ciphertext", nullable=False)
+    # Do NOT restore NOT NULL on phone / dek_ciphertext here: rows written
+    # under 0002 may be legitimately NULL (crypto-shredded accounts), and
+    # re-asserting NOT NULL would fail on any such row. The column widening
+    # in 0002 is effectively irreversible for existing data; an operator
+    # re-running 0001 intentionally should first purge / backfill shredded
+    # rows out of band.
     op.drop_column("users", "agreed_to_terms_at")
