@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
 from app.api.sessions import router as sessions_router
+from app.api.public import router as public_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -38,6 +39,7 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(sessions_router)
+app.include_router(public_router)
 
 
 @app.get("/api/health")
