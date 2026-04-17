@@ -105,3 +105,36 @@ class QuotaExceededError(ServiceError):
             message=f"今日 {kind} 配额已用完",
             details={"kind": kind, "limit": limit},
         )
+
+
+# ---- Plan 4: charts ---------------------------------------------------
+
+
+class InvalidBirthInput(ServiceError):
+    code = "INVALID_BIRTH_INPUT"
+    message = "出生信息无效"
+    status = 400
+
+
+class ChartNotFound(ServiceError):
+    code = "CHART_NOT_FOUND"
+    message = "命盘不存在"
+    status = 404
+
+
+class ChartLimitExceeded(ServiceError):
+    code = "CHART_LIMIT_EXCEEDED"
+    message = "命盘数量已达上限"
+    status = 409
+
+    def __init__(self, limit: int):
+        super().__init__(
+            message=f"已达 {limit} 盘上限",
+            details={"limit": limit},
+        )
+
+
+class ChartAlreadyDeleted(ServiceError):
+    code = "CHART_ALREADY_DELETED"
+    message = "命盘已在软删状态"
+    status = 409

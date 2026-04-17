@@ -51,3 +51,7 @@ def seconds_until_midnight() -> int:
     """Seconds from now until the next Beijing midnight."""
     now = datetime.now(tz=_BEIJING)
     return int((next_midnight_beijing() - now).total_seconds())
+
+
+# NOTE: spec §2.2 — 每用户活动盘上限；软删不算。
+MAX_CHARTS_PER_USER = 15
