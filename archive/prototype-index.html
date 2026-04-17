@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>命盘</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #111; --ink-2: #2a2a2a; --mute: #6b6b6b;
+    --line: #e5e5e5; --bg: #fafafa; --bg-2: #fff;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-feature-settings: "tnum";
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.6;
+  }
+  .serif { font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif; }
+  .muted { color: var(--mute); }
+
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  input, select, textarea {
+    font-family: inherit; font-size: 14px;
+    background: transparent; outline: none;
+    border: none; border-bottom: 1px solid var(--line);
+    padding: 8px 2px; width: 100%;
+    transition: border-color .2s;
+  }
+  textarea { border: 1px solid var(--line); padding: 12px; line-height: 1.7; resize: vertical; }
+  input:focus, select:focus, textarea:focus { border-color: var(--ink); }
+
+  .btn-primary { background: var(--ink); color: #fff; padding: 10px 18px; font-size: 14px; letter-spacing: .05em; transition: opacity .15s; }
+  .btn-primary:hover { opacity: .85; }
+  .btn-ghost { border: 1px solid var(--line); padding: 8px 14px; font-size: 13px; color: var(--ink-2); background: var(--bg-2); transition: all .15s; }
+  .btn-ghost:hover { border-color: var(--ink); }
+  .btn-inline { border: 1px solid var(--ink); padding: 6px 12px; font-size: 12px; color: var(--ink); background: #fff; transition: all .15s; letter-spacing: .05em; }
+  .btn-inline:hover { background: var(--ink); color: #fff; }
+
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: block; }
+
+  .fade-in { animation: fade .5s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .section-num { font-size: 11px; color: var(--mute); letter-spacing: .25em; text-transform: uppercase; }
+  .divider { height: 1px; background: var(--line); margin: 40px 0; }
+
+  .center-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .landing { max-width: 580px; text-align: center; }
+  .landing h1 { font-size: 56px; line-height: 1.2; margin: 24px 0; font-weight: normal; }
+  .landing p { font-size: 13px; color: var(--mute); line-height: 1.7; margin: 0 auto 48px; max-width: 420px; }
+
+  .form-wrap { max-width: 520px; margin: 0 auto; padding: 64px 24px; }
+  .form-wrap h2 { font-size: 28px; font-weight: normal; margin-bottom: 48px; }
+  .form-label { font-size: 11px; color: var(--mute); letter-spacing: .2em; display: block; margin-bottom: 8px; }
+  .form-row { margin-bottom: 32px; }
+  .back-link { color: var(--mute); font-size: 12px; margin-bottom: 48px; display: inline-block; cursor: pointer; }
+  .back-link:hover { color: var(--ink); }
+
+  .loading-stages { display: flex; gap: 8px; justify-content: center; }
+  .loading-stages span { width: 24px; height: 2px; background: var(--line); transition: background .3s; }
+  .loading-stages span.on { background: var(--ink); }
+
+  /* ============ SHELL: split layout ============ */
+  .shell-layout {
+    display: grid;
+    grid-template-columns: 1fr 440px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .left-pane { overflow-y: auto; border-right: 1px solid var(--line); }
+  .right-pane { overflow-y: auto; background: #fff; display: flex; flex-direction: column; }
+
+  @media (max-width: 960px) {
+    .shell-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }
+    .left-pane { border-right: none; border-bottom: 1px solid var(--line); overflow: visible; }
+    .right-pane { overflow: visible; min-height: 80vh; }
+  }
+
+  /* Left pane topbar */
+  .left-topbar { position: sticky; top: 0; z-index: 5; background: rgba(250,250,250,.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .left-topbar-inner { padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+  .view-switch { display: flex; gap: 24px; }
+  .view-item { font-size: 13px; color: var(--mute); letter-spacing: .2em; padding: 4px 0; border-bottom: 1px solid transparent; cursor: pointer; transition: all .15s; }
+  .view-item:hover { color: var(--ink); }
+  .view-item.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .left-content { padding: 40px 24px; max-width: 720px; }
+
+  /* Right pane (chat) */
+  .chat-topbar { padding: 0 24px; height: 52px; display: flex; align-items: center; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 5; }
+  .chat-topbar .section-num { margin-right: auto; }
+  .chat-body { flex: 1; overflow-y: auto; padding: 32px 24px; }
+  .chat-input-wrap { border-top: 1px solid var(--line); padding: 12px 16px; background: #fff; }
+  .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .tag { display: inline-block; padding: 4px 10px; font-size: 11px; border: 1px solid var(--line); color: var(--ink-2); background: #fff; cursor: pointer; transition: all .15s; }
+  .tag:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .chat-input { display: flex; gap: 8px; border: 1px solid var(--line); background: #fff; padding: 6px; }
+  .chat-input input { border: none !important; padding: 6px 8px; }
+
+  .msg { margin-bottom: 22px; }
+  .msg-user { text-align: right; }
+  .msg-user .bubble { display: inline-block; max-width: 85%; background: var(--ink); color: #fff; padding: 10px 14px; font-size: 14px; text-align: left; }
+  .msg-ai { font-size: 14px; line-height: 1.85; color: #222; white-space: pre-wrap; }
+  .msg-ai .inline-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .stream-cursor::after { content: "▎"; margin-left: 2px; opacity: .6; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Clickable & linkable refs */
+  [data-ref] { cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+  .ref { border-bottom: 1px dashed var(--mute); padding: 0 1px; }
+  .ref:hover { color: #fff; background: var(--ink); border-bottom-color: var(--ink); }
+  .flash { animation: flash 1.2s ease; }
+  @keyframes flash {
+    0%, 100% { background-color: transparent; }
+    15%, 60% { background-color: #fff3a8; }
+  }
+  .pillar-char, .pillar-ss, .force-name, .meta-big, .guard-list li, .ycell { cursor: pointer; }
+  .pillar-char:hover { color: var(--mute); }
+  .force-row:hover { background: #f3f3f3; }
+  .guard-list li:hover { background: var(--bg); }
+
+  /* Card (rich content in chat) */
+  .card { border: 1px solid var(--line); background: var(--bg); padding: 16px; margin: 8px 0; }
+  .card.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .card .lab { font-size: 10px; letter-spacing: .25em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+  .card.dark .lab { color: rgba(255,255,255,.6); }
+  .card .big { font-family: "Songti SC", serif; font-size: 17px; line-height: 1.5; margin-bottom: 8px; }
+  .card .small { font-size: 12px; line-height: 1.7; color: var(--mute); }
+  .card.dark .small { color: rgba(255,255,255,.7); }
+
+  .hex-mini { display: flex; gap: 16px; align-items: center; }
+  .hex-col { width: 70px; flex: none; }
+  .hex-line { height: 5px; margin: 4px 0; position: relative; background: var(--ink); }
+  .hex-line.yin::after { content: ""; position: absolute; top: 0; left: 45%; width: 10%; height: 100%; background: var(--bg); }
+  .card.dark .hex-line { background: #fff; }
+  .card.dark .hex-line.yin::after { background: var(--ink); }
+  .hex-line.changing { background: #888; }
+
+  .action-row { display: flex; gap: 12px; margin: 6px 0; }
+  .action-num { font-family: "Songti SC", serif; font-size: 20px; color: var(--mute); width: 24px; flex: none; }
+  .action-text { font-size: 13px; line-height: 1.8; }
+
+  /* Left pane: chart contents */
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 48px; }
+  .pillar { display: flex; flex-direction: column; align-items: center; }
+  .pillar-cell { width: 100%; border: 1px solid var(--line); background: #fff; }
+  .pillar-gan { text-align: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .pillar-zhi { text-align: center; padding: 12px 0; }
+  .pillar-char { font-size: 36px; font-family: "Songti SC", "STSong", "SimSun", serif; }
+  .pillar-ss { font-size: 10px; color: var(--mute); letter-spacing: .2em; margin-top: 4px; }
+  .pillar-cg { font-size: 10px; color: var(--mute); letter-spacing: .15em; margin-top: 6px; line-height: 1.5; }
+
+  .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .meta-item .meta-big { font-size: 20px; font-family: "Songti SC", serif; }
+  .meta-item .meta-small { font-size: 11px; color: var(--mute); margin-top: 4px; }
+
+  .force-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .force-row { display: grid; grid-template-columns: 44px 1fr 32px; align-items: center; gap: 10px; padding: 5px 0; }
+  .force-name { font-size: 12px; }
+  .force-name.strong { font-weight: 600; }
+  .force-track { height: 2px; background: var(--line); }
+  .force-bar { height: 2px; background: var(--ink); }
+  .force-val { font-size: 11px; color: var(--mute); text-align: right; }
+
+  @media (max-width: 640px) {
+    .force-grid { grid-template-columns: 1fr; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .pillar-char { font-size: 30px; }
+    .landing h1 { font-size: 36px; }
+  }
+
+  .guard-box { padding: 18px; border: 1px solid var(--line); background: #fff; margin-top: 24px; }
+  .guard-list { list-style: none; }
+  .guard-list li { display: flex; gap: 10px; padding: 5px 0; font-size: 12px; line-height: 1.7; }
+  .dot { width: 4px; height: 4px; background: var(--ink); border-radius: 50%; display: inline-block; margin-top: 8px; flex: none; }
+  .guard-type { font-size: 10px; color: var(--mute); letter-spacing: .15em; margin-right: 6px; }
+
+  .reading-headline { font-size: 32px; line-height: 1.25; margin: 20px 0; font-family: "Songti SC", serif; font-weight: normal; }
+  .reading-summary { font-size: 14px; line-height: 1.9; color: #444; margin-bottom: 48px; }
+  .reading-sec { margin-bottom: 36px; }
+  .reading-sec .title { font-family: "Songti SC", serif; font-size: 16px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 12px; }
+  .reading-sec .title .num { font-size: 10px; color: var(--mute); letter-spacing: .2em; }
+  .reading-sec p { font-size: 14px; line-height: 1.9; color: #222; }
+  .ask-link { font-size: 11px; color: var(--mute); margin-top: 10px; display: inline-block; cursor: pointer; letter-spacing: .1em; }
+  .ask-link:hover { color: var(--ink); }
+
+  .quote-mark { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: .3em; margin: 36px 0 16px; }
+
+  /* Timing view */
+  .year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .year-grid.liunian { grid-template-columns: repeat(5, 1fr); }
+  .ycell { border: 1px solid var(--line); padding: 8px 4px; text-align: center; background: #fff; cursor: pointer; transition: all .15s; }
+  .ycell:hover { border-color: var(--ink); }
+  .ycell.current { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .ycell.good { border-width: 2px; border-color: var(--ink); }
+  .ycell .age { font-size: 10px; color: var(--mute); }
+  .ycell.current .age { color: rgba(255,255,255,.7); }
+  .ycell .gz { font-family: "Songti SC", serif; font-size: 16px; margin: 3px 0; }
+  .ycell .ss { font-size: 9px; color: var(--mute); }
+  .ycell.current .ss { color: rgba(255,255,255,.7); }
+
+  .panel { padding: 20px; border: 1px solid var(--line); background: #fff; margin-bottom: 24px; }
+  .panel.emphasis { border-width: 2px; border-color: var(--ink); }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+  .panel-head .big { font-family: "Songti SC", serif; font-size: 22px; margin-top: 4px; }
+
+  /* Month expansion */
+  .month-panel { border: 1px solid var(--ink); background: #fff; padding: 16px; margin-top: 12px; margin-bottom: 24px; animation: fade .35s; }
+  .month-panel .head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .month-panel .head .title { font-family: "Songti SC", serif; font-size: 18px; }
+  .month-panel .head .close { color: var(--mute); font-size: 11px; cursor: pointer; }
+  .month-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  @media (max-width: 640px) { .month-grid { grid-template-columns: repeat(4, 1fr); } }
+  .mcell { border: 1px solid var(--line); padding: 6px 4px; text-align: center; background: #fff; cursor: pointer; position: relative; transition: all .15s; }
+  .mcell:hover { border-color: var(--ink); }
+  .mcell.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .mcell.key { border-width: 2px; border-color: var(--ink); }
+  .mcell .m { font-size: 10px; color: var(--mute); }
+  .mcell.selected .m { color: rgba(255,255,255,.7); }
+  .mcell .gz { font-family: "Songti SC", serif; font-size: 14px; margin: 2px 0; }
+  .mcell .tag-s { position: absolute; top: -1px; right: -1px; background: var(--ink); color: #fff; font-size: 9px; padding: 1px 4px; letter-spacing: .1em; }
+  .mcell.selected .tag-s { background: #fff; color: var(--ink); }
+  .month-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.8; }
+
+  /* Notes drawer */
+  .notes-btn { position: relative; font-size: 11px; color: var(--mute); padding: 4px 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; letter-spacing: .1em; transition: all .15s; margin-right: 8px; }
+  .notes-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .notes-btn .count { display: inline-block; margin-left: 4px; color: var(--ink); font-weight: 600; }
+  .notes-drawer {
+    position: fixed; top: 0; right: 0; width: 400px; max-width: 100%; height: 100vh;
+    background: #fff; border-left: 1px solid var(--line);
+    box-shadow: -8px 0 30px rgba(0,0,0,.08);
+    transform: translateX(100%); transition: transform .3s ease;
+    z-index: 50; display: flex; flex-direction: column;
+  }
+  .notes-drawer.open { transform: translateX(0); }
+  .notes-head { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .notes-head .title { font-family: "Songti SC", serif; font-size: 18px; }
+  .notes-head .x { cursor: pointer; color: var(--mute); font-size: 20px; line-height: 1; }
+  .notes-body { flex: 1; overflow-y: auto; padding: 20px; }
+  .note-item { padding: 14px; border: 1px solid var(--line); margin-bottom: 10px; background: var(--bg); position: relative; }
+  .note-item.decision { border-color: var(--ink); border-width: 2px; background: #fff; }
+  .note-item .meta { font-size: 10px; color: var(--mute); letter-spacing: .15em; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .note-item .txt { font-size: 13px; line-height: 1.8; color: #222; }
+  .note-item .rm { position: absolute; top: 8px; right: 10px; color: var(--mute); font-size: 11px; cursor: pointer; }
+  .note-item .rm:hover { color: var(--ink); }
+  .save-btn { font-size: 10px; color: var(--mute); margin-top: 8px; display: inline-block; cursor: pointer; letter-spacing: .1em; padding: 2px 6px; border: 1px solid transparent; }
+  .save-btn:hover { color: var(--ink); border-color: var(--line); }
+  .save-btn.saved { color: var(--ink); border-color: var(--ink); }
+  .empty-notes { color: var(--mute); font-size: 13px; text-align: center; padding: 40px 20px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="screen active" id="screen-landing">
+  <div class="center-wrap">
+    <div class="landing fade-in">
+      <div class="section-num" style="margin-bottom:24px">命 · 盘 · 读</div>
+      <h1 class="serif">一个<span class="muted">理性的</span>命理工具</h1>
+      <p>不讲玄学。用子平真诠 + 现代结构化方法，把你的八字翻译成一份可以读、可以聊、可以对照的自我说明书。</p>
+      <button class="btn-primary" onclick="go('input')">开始排盘 →</button>
+      <div class="muted" style="font-size:11px; margin-top:80px; letter-spacing:.2em; line-height:1.8">v0.1 · 原型 · 模型输出为示例</div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-input">
+  <div class="form-wrap fade-in">
+    <div class="back-link" onclick="go('landing')">← 返回</div>
+    <div class="section-num" style="margin-bottom:16px">Step 01</div>
+    <h2 class="serif">生辰</h2>
+
+    <div class="form-row">
+      <label class="form-label">公历生日</label>
+      <input type="date" id="f-date" value="1993-07-15" />
+    </div>
+
+    <div class="form-row" style="display:grid; grid-template-columns:1fr auto; gap:16px; align-items:end">
+      <div>
+        <label class="form-label">出生时间</label>
+        <input type="time" id="f-time" value="14:30" />
+      </div>
+      <label class="muted" style="font-size:12px; display:flex; align-items:center; gap:6px; padding-bottom:8px; cursor:pointer">
+        <input type="checkbox" id="f-hour-unknown" style="width:auto" /> 时辰未知
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">出生地</label>
+      <input type="text" id="f-city" value="长沙" placeholder="北京 / 上海 / 长沙 …（用于真太阳时校正）" list="city-list" />
+      <datalist id="city-list"></datalist>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">性别</label>
+      <div style="display:flex; gap:24px; padding-top:8px">
+        <label style="font-size:14px; display:flex; align-items:center; gap:6px; cursor:pointer">
+          <input type="radio" name="g" value="male" checked style="width:auto" /> 男
+        </label>
+        <label style="font-size:14px; display:flex; align-items:center; gap:6px; cursor:pointer">
+          <input type="radio" name="g" value="female" style="width:auto" /> 女
+        </label>
+      </div>
+    </div>
+
+    <details style="margin-top:12px; font-size:12px; color:#666">
+      <summary style="cursor:pointer; padding:4px 0">高级选项</summary>
+      <div class="form-row" style="margin-top:12px">
+        <label class="form-label">子时派</label>
+        <div style="display:flex; gap:24px; padding-top:8px">
+          <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer">
+            <input type="radio" name="zi" value="early" checked style="width:auto" /> 早子时（23:00 归次日）
+          </label>
+          <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer">
+            <input type="radio" name="zi" value="late" style="width:auto" /> 晚子时（23:00 归本日）
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer">
+          <input type="checkbox" id="f-true-solar" checked style="width:auto" /> 修正真太阳时（推荐）
+        </label>
+      </div>
+    </details>
+
+    <div id="f-error" style="display:none; margin-top:16px; padding:10px 12px; border-left:3px solid #000; background:#f7f5f2; font-size:13px; color:#333"></div>
+
+    <div style="margin-top:48px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
+      <div class="muted" style="font-size:11px; max-width:260px; line-height:1.7">我们只做排盘计算，不保存你的生辰数据。</div>
+      <button class="btn-primary" id="f-submit" onclick="submitForm()">生成命盘 →</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-loading">
+  <div class="center-wrap">
+    <div style="text-align:center" class="fade-in">
+      <div class="section-num" style="margin-bottom:24px">计算中</div>
+      <div class="serif" id="loading-stage" style="font-size:22px; margin-bottom:48px; height:28px">真太阳时校正</div>
+      <div class="loading-stages" id="loading-dots">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-shell">
+  <div class="shell-layout">
+    <!-- LEFT PANE -->
+    <div class="left-pane">
+      <div class="left-topbar">
+        <div class="left-topbar-inner">
+          <div class="serif" style="font-size:16px">丁 · 命</div>
+          <div class="view-switch">
+            <div class="view-item active" data-view="chart" onclick="switchView('chart')">命 盘</div>
+            <div class="view-item" data-view="timing" onclick="switchView('timing')">流 年</div>
+          </div>
+          <button class="muted" style="font-size:12px" onclick="resetSession()">换一个盘</button>
+        </div>
+      </div>
+
+      <!-- CHART VIEW -->
+      <div class="view" id="view-chart">
+        <div class="left-content fade-in">
+          <div style="margin-bottom:32px">
+            <div class="muted" id="birth-header" style="font-size:11px; line-height:1.8">
+              1993-07-15 14:30（真太阳时）<br/>
+              一九九三年五月廿六 · 乾造
+            </div>
+          </div>
+
+          <div class="pillars" id="pillars"></div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <div class="section-num" style="margin-bottom:6px">日 主</div>
+              <div class="meta-big">丁 · 中和偏弱</div>
+              <div class="meta-small">同类占比 42%</div>
+            </div>
+            <div class="meta-item">
+              <div class="section-num" style="margin-bottom:6px">格 局</div>
+              <div class="meta-big">七杀格</div>
+              <div class="meta-small">月令本气透干</div>
+            </div>
+            <div class="meta-item">
+              <div class="section-num" style="margin-bottom:6px">用 神</div>
+              <div class="meta-big" style="font-size:15px; line-height:1.4">正印（化杀生身）</div>
+              <div class="meta-small">忌：财</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div>
+            <div class="section-num" style="margin-bottom:18px">十神力量</div>
+            <div class="force-grid" id="force-grid"></div>
+          </div>
+
+          <div class="guard-box">
+            <div class="section-num" style="margin-bottom:12px">结构提示</div>
+            <ul class="guard-list" id="guard-list"></ul>
+          </div>
+
+          <div class="divider"></div>
+
+          <div>
+            <div class="section-num" style="margin-bottom:10px">解 读</div>
+            <h2 class="reading-headline" id="reading-headline">—</h2>
+            <p class="reading-summary" id="reading-summary">正在整理命盘要点……</p>
+          </div>
+
+          <div id="sections"></div>
+
+          <div class="quote-mark">命 不 是 判 决 书 · 是 一 张 地 形 图</div>
+        </div>
+      </div>
+
+      <!-- TIMING VIEW -->
+      <div class="view" id="view-timing" style="display:none">
+        <div class="left-content fade-in">
+          <div style="margin-bottom:32px">
+            <div class="section-num" style="margin-bottom:12px">大 运（十年一步）</div>
+            <div class="year-grid" id="dayun-grid"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="section-num">当 前 大 运</div>
+                <div class="big">戊辰（伤官/伤官）</div>
+              </div>
+              <div class="muted" style="font-size:11px">33岁 · 1926 年起</div>
+            </div>
+            <p style="font-size:13px; line-height:1.9">
+              <strong>戊辰</strong>大运对日主丁火——戊为伤官透干、辰为伤官本气，是纯粹的伤官运。这十年的主题是"突破、表达、证明自己"。
+            </p>
+            <p style="font-size:13px; line-height:1.9; margin-top:10px">
+              <span class="muted" style="font-size:10px; letter-spacing:.15em; margin-right:8px">提 示</span>伤官运对七杀格不是坏事，是测试——测试你的正印够不够厚。
+            </p>
+            <div style="margin-top:14px">
+              <button class="btn-inline" onclick="askAboutTiming('这步大运具体怎么应对')">就这步大运深聊 →</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:24px">
+            <div class="section-num" style="margin-bottom:12px">流 年</div>
+            <div class="year-grid liunian" id="liunian-grid"></div>
+            <div class="muted" style="font-size:10px; margin-top:10px">
+              <span class="dot" style="margin-right:6px; margin-top:0; vertical-align:middle"></span>当前年 &nbsp;
+              <span style="display:inline-block; width:8px; height:8px; border:1px solid var(--ink); vertical-align:middle; margin-right:6px"></span>结构性机会年 &nbsp;
+              <span class="muted" style="font-size:10px">· 点击任意年展开 12 月</span>
+            </div>
+            <div id="month-expansion"></div>
+          </div>
+
+          <div class="panel emphasis">
+            <div class="panel-head">
+              <div>
+                <div class="section-num">当 年 聚 焦</div>
+                <div class="big">2026 · 丙午</div>
+                <div class="muted" style="font-size:11px; margin-top:4px">劫财/比肩</div>
+              </div>
+            </div>
+            <div style="font-size:13px; line-height:1.9">
+              <p style="margin-bottom:8px"><strong>丙午</strong>流年：丙火为劫财透出，午为比肩本气——"同类来助"的年份。</p>
+              <p style="margin-bottom:8px"><span class="muted" style="font-size:10px; letter-spacing:.15em; margin-right:6px">注意</span>午与月支子形成子午冲——和长期支持系统可能要换挡。</p>
+              <p><span class="muted" style="font-size:10px; letter-spacing:.15em; margin-right:6px">建议</span>主动寻找同路人、明确"谁是你的人"。</p>
+            </div>
+            <div style="margin-top:14px">
+              <button class="btn-inline" onclick="askAboutTiming('今年丙午具体会发生什么')">就今年深聊 →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANE: CHAT -->
+    <div class="right-pane">
+      <div class="chat-topbar">
+        <div class="section-num">对 话</div>
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
+          <button class="notes-btn" onclick="openNotes()">笔 记 <span class="count" id="notes-count">0</span></button>
+          <button class="muted" style="font-size:11px" onclick="resetChat()">清空</button>
+        </div>
+      </div>
+
+      <div class="chat-body" id="chat-body">
+        <div class="msg msg-ai">
+          我已经看过你的命盘了。你可以：<br/>
+          <span class="muted" style="font-size:12px">· 直接点左侧命盘里的<b>任意字</b>（天干/地支/十神/结构提示）——我会立即解释</span><br/>
+          <span class="muted" style="font-size:12px">· 对话里带下划线的字可以点，会高亮左侧对应位置</span><br/>
+          <span class="muted" style="font-size:12px">· 告诉我一个你当下的选择困境，我会进入结构化分析</span>
+        </div>
+      </div>
+
+      <div class="chat-input-wrap">
+        <div class="chat-chips" id="chips"></div>
+        <div class="chat-input">
+          <input id="chat-text" placeholder="你想知道什么？" onkeydown="if(event.key==='Enter')sendChat()" />
+          <button class="btn-primary" onclick="sendChat()">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes drawer -->
+  <div class="notes-drawer" id="notes-drawer">
+    <div class="notes-head">
+      <div class="title">笔 记 <span class="muted" style="font-size:12px; margin-left:8px" id="notes-head-count"></span></div>
+      <div class="x" onclick="closeNotes()">×</div>
+    </div>
+    <div class="notes-body" id="notes-body"></div>
+  </div>
+</div>
+
+<script>
+// ===== DATA (let, mutable — overwritten by submitForm when server responds) =====
+let PAIPAN = {
+  sizhu: { year:"癸巳", month:"甲子", day:"丁酉", hour:"甲辰" },
+  shishen: { year:"七杀", month:"正印", hour:"正印" },
+  cangGan: { year:["丙","戊","庚"], month:["癸"], day:["辛"], hour:["戊","乙","癸"] },
+};
+let FORCE = [
+  {name:"比肩",val:0}, {name:"劫财",val:2.8},
+  {name:"食神",val:0}, {name:"伤官",val:3.5},
+  {name:"正财",val:0.2}, {name:"偏财",val:2.8},
+  {name:"正官",val:0}, {name:"七杀",val:10},
+  {name:"正印",val:8.4}, {name:"偏印",val:0.7},
+];
+let GUARDS = [
+  {type:"pair_mismatch", note:'食伤不均衡：食神 0 / 伤官 3.5'},
+  {type:"pair_mismatch", note:"官杀不均衡：纯七杀格，正官为 0"},
+  {type:"liuhe",         note:"日支酉 合 时支辰（化金）"},
+];
+let META = {
+  rizhu: '丁酉', rizhuGan: '丁',
+  dayStrength: '中和',
+  geju: '七杀格', gejuNote: '',
+  yongshen: '正印（化杀）',
+  lunar: '', solarCorrected: '', warnings: [], corrections: [],
+  input: null,
+};
+let SECTIONS = [
+  {title:"底层结构", body:'七杀格成立，月令专气单透。你一生的主题与"外部规则/责任/压力源"绑定。正印 8.4 说明你天然懂得用学习、内省把外压转化成内功。'},
+  {title:"性格两面", body:'表层：沉静、慎言、承压力强。深层：伤官 3.5 在月支伏藏——你并不驯顺，只是选择了安静地抵抗。'},
+  {title:"关系模式", body:'偏财 2.8，正财仅 0.2——你更容易被"有故事、有棱角、不按常理"的对象吸引。日支酉金与时支辰土六合——这段合化带着"被吸引—被消耗"的双向张力。'},
+  {title:"发力方向", body:"最小阻力路径不是对抗七杀，而是厚化正印：持续的学习、写作、某种需要沉入其中的长期技艺。"},
+  {title:"此刻的提醒", body:'食伤组中食神=0 / 伤官=3.5——"表达"这条通道，你几乎只有反叛的那一半。'},
+];
+const CHIPS = ["七杀格意味着什么", "我在纠结要不要离职创业", "酉辰六合会怎样", "我适合什么伴侣"];
+const REPLIES = {
+  "七杀": '[[ss:七杀]] 是"不讲情面的压力源"——可以是权威、责任、不能不完成的任务。你的盘里 [[gz:month-zhi|月令子水]]专气癸水单透到 [[gz:hour-gan|时上]]，压力来得很单一、很浓缩。\n\n好消息：你有 [[ss:正印]] 8.4 强力化杀，这是典型的"杀印相生"——压力会变成你的燃料，前提是你走"学习/内化"这条通道。坏消息：如果硬扛，会进入"杀攻身"状态，表现为持续焦虑、在权威前失语。',
+  "正印": '[[ss:正印]] 的具象化是：母亲、书、导师、学院、需要长期沉入的技艺。对你来说，"用印"不是建议，是必须。\n\n每周至少 5 小时"沉入式输入"；找一个你愿意长期追随的真实人物或传统；让 [[ss:伤官]] 服务于学习，而非反过来。',
+  "六合": '[[gz:day-zhi|日支酉金]] 与 [[gz:hour-zhi|时支辰土]] 六合，化金——你会和某个"能把你往某个方向拉"的人深度绑定。辰是湿土、是库，合过来会把酉金磨圆——在亲密关系里你会为对方变得不那么自己。\n\n问自己：这次合，是你选的，还是它自己合上的？',
+  "食神": '[[ss:食神]] 为 0——你几乎只能用 [[ss:伤官]]（反叛/棱角）去表达。你说的每句话容易带刺，但这不是你不想温柔，是你的盘没给你温柔的语法。承认这个结构，挑选不需要温柔的场域。',
+  "伴侣": '[[gz:day-zhi|日支酉金]]（[[ss:偏财]]）+ [[gz:hour-zhi|时支辰土]]（六合）——你的配偶宫结构说明：你吸引的类型是"有主见、有棱角、有自己方向"的人，而不是温润同步型的。\n\n三条实用判断：\n1) 对方有没有独立的精神世界（你忍受不了空心人）\n2) 冲突时对方是否讲理（不是吵不吵，是能不能就事论事）\n3) 你在 ta 面前会不会自动变安静——如果会，说明合化在起作用，需要警觉。',
+};
+const DECISION_CARDS = {
+  hex: {
+    name: "风水涣 · 之 · 巽为风",
+    subtitle: "涣 · 散而聚新",
+    lines: ["yang", "yin-changing", "yang", "yang", "yin", "yang"], // from top (6) to bottom (1) actually we'll render bottom up
+    text: "涣，风行水上——旧的形态正在解散。这个卦不是说'该不该离开'，而是提醒你：事实上的离开已经在心里发生了，你只是还没承认。三爻变，变为巽为风——接下来是长期的柔性渗透，不是爆发式替代。"
+  },
+  vision: { lab: "愿景", big: '"我在做一件我相信且能养活自己的事"', small: '不是"离开公司"——那是手段。真正的愿景是"自主 + 意义 + 可持续"同时成立。' },
+  now:    { lab: "现状", big: '"我稳定，但在慢慢失去自己"', small: '不是"公司不好"——是你与这份工作的连接在变薄。诚实承认这一点，张力才成立。' },
+  choice: { lab: "主要选择", big: '我选择"自主且可持续地做我相信的事"。', small: '这是"主要选择"（primary choice），不是"要不要离职"（次要选择）。一旦主要选择确定，次要选择的答案自然浮现。' },
+  context: "你是七杀格+正印用神，最稳路径是\"在强秩序中深化→再用能量去改革\"，不是从零定义一切。当前戊辰大运是伤官运，伤官会推着你\"打破、重做\"——这是冲动的来源，但伤官不是答案，它只是能量。结合卦象\"散而聚新\"——寻找或创造一个你愿意深度扎根的结构，而不是孤军奋战。",
+  actions: [
+    '把"自主 + 意义 + 可持续"三个词各写 200 字——不达到都算不成立。',
+    '在不辞职的前提下，用 3 个月做一个极小版本验证——让现实告诉你答案，不是头脑。',
+    '找 1 位已经走过这条路的人真实对话 30 分钟——不是找建议，是找"现状描述"。',
+  ]
+};
+let DAYUN = [
+  {age:3, gz:"乙丑", ss:"偏印/食神"}, {age:13, gz:"丙寅", ss:"劫财/正印"},
+  {age:23, gz:"丁卯", ss:"比肩/偏印"}, {age:33, gz:"戊辰", ss:"伤官/伤官", current:true},
+  {age:43, gz:"己巳", ss:"食神/劫财"}, {age:53, gz:"庚午", ss:"正财/比肩"},
+  {age:63, gz:"辛未", ss:"偏财/食神"}, {age:73, gz:"壬申", ss:"正官/正财"},
+];
+
+// Month data: for a 丙午 year (2026), 12 个节气月干支
+// Mock data — real engine would compute from节气
+const MONTH_DATA = {
+  // key: year ganzhi, value: array of 12 months with details
+  "丙午": [
+    {m:"立春-惊蛰",  mn:"2月", gz:"庚寅", ss:"正财/正印", key:false, theme:"起心动念：想要重新学习一件事"},
+    {m:"惊蛰-清明",  mn:"3月", gz:"辛卯", ss:"偏财/偏印", key:true,  theme:"遇见关键的人或事，注意酉被卯冲——日支动",  tag:"冲"},
+    {m:"清明-立夏",  mn:"4月", gz:"壬辰", ss:"正官/伤官", key:false, theme:"外部秩序短暂介入"},
+    {m:"立夏-芒种",  mn:"5月", gz:"癸巳", ss:"七杀/劫财", key:false, theme:"与年柱伏吟，旧事重提"},
+    {m:"芒种-小暑",  mn:"6月", gz:"甲午", ss:"正印/比肩", key:true,  theme:"印比同透的高能月，适合定方向", tag:"吉"},
+    {m:"小暑-立秋",  mn:"7月", gz:"乙未", ss:"偏印/食神", key:false, theme:"小憩与再出发的分水岭"},
+    {m:"立秋-白露",  mn:"8月", gz:"丙申", ss:"劫财/正财", key:false, theme:"同盟回归，但有隐藏分歧"},
+    {m:"白露-寒露",  mn:"9月", gz:"丁酉", ss:"比肩/偏财", key:true,  theme:"日柱伏吟，自我感最强烈的月", tag:"重"},
+    {m:"寒露-立冬",  mn:"10月", gz:"戊戌", ss:"伤官/伤官", key:false, theme:"想打破、想重做的冲动会高起"},
+    {m:"立冬-大雪",  mn:"11月", gz:"己亥", ss:"食神/正官", key:false, theme:"外来机会与结构性邀约"},
+    {m:"大雪-小寒",  mn:"12月", gz:"庚子", ss:"正财/七杀", key:true,  theme:"压力高压月，守印为要", tag:"戒"},
+    {m:"小寒-立春",  mn:"1月", gz:"辛丑", ss:"偏财/食神", key:false, theme:"归档、沉淀、为下一年蓄力"},
+  ],
+};
+
+// ============ NOTES ============
+var NOTES = []; // {id, kind:'insight'|'decision', text, timestamp}
+var NOTE_ID = 0;
+
+// ============ DEEP EXPLANATIONS ============
+// keyed by data-ref; question shown in user bubble, then AI streams detailed reply
+const EXPLAIN = {
+  "gz:year-gan":  { q:"年干癸是什么意思",
+    a:'年干 [[gz:year-gan|癸水]] 在你盘里是 [[ss:七杀]]——注意这不是时上那个高透的七杀主力，是"祖辈带来的压力残余"。年柱代表童年与家族背景，年干七杀意味着你很早就接触到"外部权威/不能抗拒的秩序"，这塑造了你承压的底色。' },
+  "gz:year-zhi":  { q:"年支巳藏了什么",
+    a:'年支 [[gz:year-zhi|巳]] 藏三干：丙（本气）、戊（中气）、庚（余气），分别对应 [[ss:劫财]]、[[ss:伤官]]、[[ss:正财]]。这是你盘里唯一的"火根"，让日主丁火不至于完全无依。正财庚金藏于巳中而不透——你不是没有务实的一面，只是它压在最底下。' },
+  "gz:month-gan": { q:"月干甲木的作用",
+    a:'月干 [[gz:month-gan|甲木]] 是 [[ss:正印]]，这是你盘里用神的核心透出。它坐在子水（癸水藏干地支）之上，水生木、木生火——就是经典的 [[ss:七杀]] → 印 → 日主 的 "杀印相生" 通道。甲木不倒，你的结构就不会垮。' },
+  "gz:month-zhi": { q:"月令子水什么意思",
+    a:'月支 [[gz:month-zhi|子]] 是月令，藏干只有癸水（专气），直接通到时上 [[gz:hour-gan|癸水七杀]]——这就是为什么你的 [[ss:七杀]] 力量满值 10。子月是纯粹的水令，对丁火来说是最不利的出生季节，但也决定了你的主题：在寒夜里守一盏火。' },
+  "gz:day-gan":   { q:"日主丁火是什么样的",
+    a:'[[gz:day-gan|丁火]] 是阴火、灯烛之火、星火——不像丙火那样照耀天下，丁火是"在暗处持续燃烧的光"。适合在深处、在细节里、在长期中发挥，不适合高光强曝光。你的天命气质就写在这里。' },
+  "gz:day-zhi":   { q:"日支酉是什么",
+    a:'日支 [[gz:day-zhi|酉]] 是你的配偶宫，藏干辛金（专气）= [[ss:偏财]]。这意味着：(1) 你的亲密关系主题是 [[ss:偏财]] 型——有棱角、有故事、不温润；(2) 酉与 [[gz:hour-zhi|时支辰]] 六合化金，这段合化会把配偶宫的锋利磨圆。' },
+  "gz:hour-gan":  { q:"时上癸水七杀重吗",
+    a:'[[gz:hour-gan|癸水]] 时干透出就是 [[ss:七杀]] 满值的来源——月令子水做它的根，形成"通根透干"的完整结构。这是你盘里最强的一股力。它压人，但也给你方向。' },
+  "gz:hour-zhi":  { q:"时支辰藏什么",
+    a:'时支 [[gz:hour-zhi|辰]] 是水库，藏戊（本气）、乙（中气）、癸（余气），对应 [[ss:伤官]]、[[ss:偏印]]、[[ss:七杀]]——非常复杂的一支。它与 [[gz:day-zhi|日支酉]] 六合化金，所以这两支要一起看。' },
+
+  "ss:比肩":  { q:"比肩为什么是 0",
+    a:'[[ss:比肩]] = 0，因为盘里没有丁火（与日主同性同五行）出现。含义：你从天性上不习惯"同伴并肩作战"的模式。做事容易一个人扛，不太擅长"找人陪我一起"。' },
+  "ss:劫财":  { q:"劫财 2.8 来自哪里",
+    a:'[[ss:劫财]] = 2.8 来自 [[gz:year-zhi|年支巳]] 中藏丙火（中气）、半合力。意味着"同盟"这股力量是远在背景里的——童年或家族血脉里有支持你的同类，但近身没有。' },
+  "ss:食神":  { q:"食神为 0 怎么办",
+    a:'[[ss:食神]] = 0，盘里没有己土。含义：你天然缺少"温和、从容、不带攻击性的表达"这条通道。你不会"闲聊"，你一开口就是观点或反诘。\n\n对策不是硬学温柔，而是挑选对的场合——在需要深度的对话里你是天才，在需要寒暄的场合你是灾难。' },
+  "ss:伤官":  { q:"伤官 3.5 的来源",
+    a:'[[ss:伤官]] = 3.5 主要来自 [[gz:hour-zhi|时支辰]] 中的戊土（本气），和 [[gz:year-zhi|年支巳]] 的戊土（中气）。伤官是你唯一能用的"表达通道"——它是棱角型、反叛型的，擅长挑战权威、指出问题。在戊辰大运会被进一步放大。' },
+  "ss:正财":  { q:"正财 0.2 这么低",
+    a:'[[ss:正财]] = 0.2，只有 [[gz:year-zhi|年支巳]] 中的庚金（余气）贡献。含义：你对"稳定经营、按部就班赚钱"这件事没什么兴趣也没什么天赋。钱对你不是累积出来的，是"随势而来"的。' },
+  "ss:偏财":  { q:"偏财 2.8 意味着什么",
+    a:'[[ss:偏财]] = 2.8 主要来自 [[gz:day-zhi|日支酉]] 辛金（本气）。偏财透根在配偶宫——你的财富模式和亲密关系是绑定的：不是"先稳定再恋爱"，而是"关系的流动性 = 财富的流动性"。' },
+  "ss:正官":  { q:"正官为 0 的含义",
+    a:'[[ss:正官]] = 0，盘里没有壬水。你的"官"是纯粹的 [[ss:七杀]]，没有"正"的那一半。含义：你很难接受"按部就班的权威"——比如常规的公司晋升阶梯、传统意义上的"被重用"，对你不起作用。你只会为"真正重要的压力"工作。' },
+  "ss:七杀":  { q:"七杀 10 是满值，重不重",
+    a:'[[ss:七杀]] = 10（满值）。来自 [[gz:hour-gan|时干癸水]]透出 + [[gz:month-zhi|月令子水]]做根，双重加持。这是你一生的主线：外部有一股不讲情面的压力，它可能是权威、责任、一个宏大任务。\n\n好消息：你有 [[ss:正印]] 8.4 来化它，形成"杀印相生"。坏消息：如果印出问题（比如走财运破印），七杀就会反过来攻身。' },
+  "ss:正印":  { q:"正印 8.4 够用吗",
+    a:'[[ss:正印]] = 8.4，是你的主用神。来自 [[gz:month-gan|月干甲木]]透出 + [[gz:month-zhi|月令子水]]生甲。这个强度足够化 [[ss:七杀]]，但不能松——一旦大运走到财运破印或木气被冲，结构就会出问题。\n\n实用建议：把"持续学习 + 师承 + 长期技艺"当作刚需，不是爱好。' },
+  "ss:偏印":  { q:"偏印 0.7 几乎没有",
+    a:'[[ss:偏印]] = 0.7，极弱。偏印和正印的区别：正印是"正统的母爱/学院派"，偏印是"非主流的、师承偏门的"。你几乎纯正印，说明你走的是"正道深挖"路线，不太适合野路子、偏门学术。' },
+
+  "meta:rizhu":    { q:"日主中和偏弱什么意思",
+    a:'日主丁火身强弱占比 42%——属于中和偏弱。同类（火+木）分 8.5，异类（水+金+土）分 11.8。这个数值决定了你"取用神"的方向：需要 [[ss:正印]] 来化 [[ss:七杀]]、需要 [[ss:劫财]] 来助身。' },
+  "meta:geju":     { q:"七杀格具体怎么看",
+    a:'[[ss:七杀]] 格判定依据：[[gz:month-zhi|月令子水]]本气癸水 + 直接透到 [[gz:hour-gan|时干]]。这是"月令本气透干"的最强成格条件，格局非常清晰。格局决定你一生的主题是"处理压力/承担责任"，而非"追求享乐"或"经营财富"。' },
+  "meta:yongshen": { q:"正印是用神，为什么忌财",
+    a:'用神链：[[ss:七杀]] → [[ss:正印]] → 日主。印是这条链的关键环节。财（金）克印（木），一旦财太旺，甲木被克，印就失效，七杀就会反过来攻身。\n\n实战：走财运（比如庚辛大运）要格外警觉；做"轻装上阵的纯商业"容易出问题；配偶是 [[ss:偏财]] 型，关系处理不好会直接伤到你的"学习/内化"能力。' },
+
+  "guard:0": { q:"为什么说食伤不均衡",
+    a:'因为 [[ss:食神]] = 0，而 [[ss:伤官]] = 3.5。笼统说"你食伤旺/弱"都是错的——你是只有反叛的半边，没有从容的半边。任何分析时要把两者分开说。' },
+  "guard:1": { q:"为什么说是纯七杀格",
+    a:'[[ss:正官]] = 0，[[ss:七杀]] = 10。不要用"官杀混杂/官杀印相生"这类笼统词——你盘里只有七杀，没有正官。这是一个单一而纯粹的结构。' },
+  "guard:2": { q:"酉辰六合具体怎么看",
+    a:'[[gz:day-zhi|日支酉]] + [[gz:hour-zhi|时支辰]] → 六合化金。日支是配偶宫，时支是子女宫/晚年，二者合化：你与配偶的深度关系会影响你的晚年形态，他/她能把你往某个方向拉。化金加强了 [[ss:偏财]] 的力量，但也意味着 [[ss:正印]] 的木气被间接削弱——要警觉。' },
+};
+
+// Map of chart-ref → {selector, label}
+const REF_SELECTOR = {}; // populated at render time via data-ref attrs
+
+// ===== SESSION PERSISTENCE =====
+const STORAGE_KEY = 'bazi_session_v1';
+const SESSION_VERSION = 1;
+let BIRTH_INFO = null;
+
+function collectBirthInfo() {
+  try {
+    return {
+      date:   document.getElementById('f-date')?.value || '',
+      time:   document.getElementById('f-time')?.value || '',
+      hourUnknown: !!document.getElementById('f-hour-unknown')?.checked,
+      city:   document.getElementById('f-city')?.value?.trim() || '',
+      trueSolar: !!document.getElementById('f-true-solar')?.checked,
+      gender: document.querySelector('input[name="g"]:checked')?.value || 'male',
+    };
+  } catch (_) { return null; }
+}
+
+function prefillForm(birth) {
+  if (!birth) return;
+  try {
+    if (birth.date) document.getElementById('f-date').value = birth.date;
+    if (birth.time) document.getElementById('f-time').value = birth.time;
+    const cb = document.getElementById('f-hour-unknown');
+    if (cb) { cb.checked = !!birth.hourUnknown; const tm = document.getElementById('f-time'); if (tm) tm.disabled = cb.checked; }
+    if (birth.city) document.getElementById('f-city').value = birth.city;
+    const ts = document.getElementById('f-true-solar');
+    if (ts) ts.checked = birth.trueSolar !== false;
+    if (birth.gender) {
+      const rb = document.querySelector('input[name="g"][value="' + birth.gender + '"]');
+      if (rb) rb.checked = true;
+    }
+  } catch (e) { console.warn('[session] prefill failed:', e); }
+}
+
+function saveSession(partial) {
+  try {
+    const cur = loadRawSession() || {};
+    const next = Object.assign({}, cur, partial, {
+      version: SESSION_VERSION,
+      savedAt: Date.now(),
+    });
+    // cap chat history at 50 rounds (100 messages)
+    if (next.chatHistory && next.chatHistory.length > 100) {
+      next.chatHistory = next.chatHistory.slice(-100);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch (e) { console.warn('[session] save failed:', e.message || e); }
+}
+
+function loadRawSession() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (!s) return null;
+    return JSON.parse(s);
+  } catch (e) {
+    console.warn('[session] parse failed, clearing:', e.message || e);
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    return null;
+  }
+}
+
+function loadSession() {
+  const s = loadRawSession();
+  if (!s) return null;
+  if (s.version !== SESSION_VERSION) {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    return null;
+  }
+  return s;
+}
+
+function renderChatHistory() {
+  const body = document.getElementById('chat-body');
+  if (!body) return;
+  body.innerHTML = '';
+  for (const m of CHAT_HISTORY) {
+    const d = document.createElement('div');
+    if (m.role === 'user') {
+      d.className = 'msg msg-user';
+      d.innerHTML = '<span class="bubble"></span>';
+      d.querySelector('.bubble').textContent = m.content;
+    } else {
+      d.className = 'msg msg-ai';
+      d.innerHTML = wrapRefs(m.content || '');
+    }
+    body.appendChild(d);
+  }
+  scrollChatBottom();
+}
+
+function restoreFromSession(saved) {
+  BIRTH_INFO = saved.birthInfo || null;
+  if (saved.birthInfo) prefillForm(saved.birthInfo);
+  applyServerData(saved.serverData);
+  renderChart();
+  renderTiming();
+  // restore sections
+  if (Array.isArray(saved.sections) && saved.sections.length) {
+    SECTIONS = saved.sections;
+    renderSections();
+  }
+  // restore chat history
+  CHAT_HISTORY.splice(0, CHAT_HISTORY.length, ...(saved.chatHistory || []));
+  renderChatHistory();
+  // restore dayun cache
+  if (saved.dayunCache) Object.assign(DAYUN_STEP_CACHE, saved.dayunCache);
+  // restore liunian cache (added in v1.1; backward-compatible)
+  if (saved.liunianCache) Object.assign(LIUNIAN_CACHE, saved.liunianCache);
+  // go to shell
+  go('shell');
+  // if sections were missing, trigger a fresh load
+  if (!saved.sections || !saved.sections.length) {
+    (async () => {
+      // wait for LLM health before firing
+      for (let i = 0; i < 15 && !LLM_ENABLED; i++) await new Promise(r => setTimeout(r, 100));
+      loadSectionsFromLLM();
+    })();
+  }
+}
+
+function resetSession() {
+  if (!confirm('清空当前命盘和聊天记录？')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  // reset globals
+  PAIPAN = { sizhu:{year:'',month:'',day:'',hour:''}, shishen:{year:'',month:'',hour:''}, cangGan:{year:[],month:[],day:[],hour:[]} };
+  FORCE = []; GUARDS = []; DAYUN = [];
+  META = { rizhu:'', rizhuGan:'', dayStrength:'', geju:'', yongshen:'', lunar:'', solarCorrected:'', warnings:[], corrections:[] };
+  SECTIONS = [];
+  CHAT_HISTORY.splice(0, CHAT_HISTORY.length);
+  for (const k in DAYUN_STEP_CACHE) delete DAYUN_STEP_CACHE[k];
+  for (const k in LIUNIAN_CACHE) delete LIUNIAN_CACHE[k];
+  DAYUN_OPEN_IDX = null;
+  LIUNIAN_OPEN_KEY = null;
+  BIRTH_INFO = null;
+  // rebuild empty UI & go input
+  try { renderChart(); renderTiming(); } catch (_) {}
+  const secEl = document.getElementById('sections'); if (secEl) secEl.innerHTML = '';
+  const cb = document.getElementById('chat-body'); if (cb) cb.innerHTML = '';
+  go('input');
+}
+
+// ===== NAV =====
+function go(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function switchView(name) {
+  document.querySelectorAll('.view-item').forEach(n => n.classList.toggle('active', n.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  document.getElementById('view-' + name).style.display = 'block';
+}
+// ===== API wire-up =====
+function collectFormData() {
+  const date = document.getElementById('f-date').value; // YYYY-MM-DD
+  const time = document.getElementById('f-time').value; // HH:MM
+  const hourUnknown = document.getElementById('f-hour-unknown').checked;
+  const city = document.getElementById('f-city').value.trim();
+  const gender = document.querySelector('input[name="g"]:checked').value;
+  const zi = document.querySelector('input[name="zi"]:checked').value;
+  const trueSolar = document.getElementById('f-true-solar').checked;
+
+  if (!date) throw new Error('请输入出生日期');
+  if (!city) throw new Error('请输入出生地');
+  const [y, mo, d] = date.split('-').map(Number);
+  let h = -1, mi = 0;
+  if (!hourUnknown) {
+    if (!time) throw new Error('请输入出生时间或勾选"时辰未知"');
+    [h, mi] = time.split(':').map(Number);
+  }
+  return {
+    year: y, month: mo, day: d, hour: h, minute: mi,
+    city, gender, ziConvention: zi, useTrueSolarTime: trueSolar,
+  };
+}
+
+async function callPaipanApi(payload) {
+  const resp = await fetch('/api/paipan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: resp.statusText }));
+    throw new Error(err.error || '排盘失败');
+  }
+  return resp.json();
+}
+
+function applyServerData(ui) {
+  PAIPAN = ui.PAIPAN;
+  FORCE  = ui.FORCE;
+  GUARDS = ui.GUARDS;
+  DAYUN  = ui.DAYUN;
+  META   = ui.META;
+
+  // update meta-item content (日主 / 格局 / 用神)
+  const metaItems = document.querySelectorAll('#view-chart .meta-item');
+  const setMeta = (el, big, small) => {
+    if (!el) return;
+    const b = el.querySelector('.meta-big');
+    const s = el.querySelector('.meta-small');
+    if (b) b.textContent = big;
+    if (s) s.textContent = small || '';
+  };
+  setMeta(metaItems[0], META.rizhu + ' · ' + (META.dayStrength || ''),
+          '同类 ' + (META.sameSideScore?.toFixed?.(1) ?? '?') + ' / 异类 ' + (META.otherSideScore?.toFixed?.(1) ?? '?'));
+  setMeta(metaItems[1], META.geju || '—', META.gejuNote || '');
+  setMeta(metaItems[2], META.yongshen || '—', '');
+
+  var hl = document.getElementById('reading-headline');
+  if (hl) hl.textContent = (META.rizhu || '') + ' · ' + (META.geju || '—');
+  var sm = document.getElementById('reading-summary');
+  if (sm) {
+    var parts = [];
+    if (META.rizhu) parts.push('日主 ' + META.rizhu);
+    if (META.dayStrength) parts.push(META.dayStrength);
+    if (META.yongshen) parts.push('用神 ' + META.yongshen);
+    if (META.gejuNote) parts.push(META.gejuNote);
+    sm.textContent = parts.join(' · ');
+  }
+
+  var hdr = document.getElementById('birth-header');
+  if (hdr) {
+    var solar = META.solarCorrected || '';
+    var lunar = META.lunar || '';
+    var zao = (META.input && META.input.gender === 'female') ? '坤造' : '乾造';
+    hdr.innerHTML = (solar ? solar + '（真太阳时）' : '') + '<br/>' + (lunar ? lunar + ' · ' + zao : zao);
+  }
+}
+
+function showFormError(msg) {
+  const el = document.getElementById('f-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function submitForm() {
+  const errEl = document.getElementById('f-error');
+  errEl.style.display = 'none';
+
+  let payload;
+  try { payload = collectFormData(); }
+  catch (e) { showFormError(e.message); return; }
+
+  // persist birth info early so a failed request still remembers what user typed
+  BIRTH_INFO = collectBirthInfo();
+  saveSession({ birthInfo: BIRTH_INFO, serverData: null, sections: [], chatHistory: [], dayunCache: {} });
+
+  // Go to loading screen and start stage animation
+  go('loading');
+  const stages = ["真太阳时校正","四柱排定","藏干展开","力量擂台","格局识别","生成解读"];
+  const dots = document.querySelectorAll('#loading-dots span');
+  const stageEl = document.getElementById('loading-stage');
+  let i = 0;
+  stageEl.textContent = stages[0]; dots[0].classList.add('on');
+  const stageTimer = setInterval(() => {
+    i++;
+    if (i < stages.length) { stageEl.textContent = stages[i]; dots[i].classList.add('on'); }
+    else { clearInterval(stageTimer); }
+  }, 280);
+
+  // Fire the API in parallel with the animation, then proceed when both done
+  const minDelay = new Promise(r => setTimeout(r, 1200));
+  try {
+    const [data] = await Promise.all([callPaipanApi(payload), minDelay]);
+    applyServerData(data.ui);
+    renderChart();
+    renderTiming();
+    saveSession({ serverData: data.ui });
+    // wait a hair so last stage shows
+    await new Promise(r => setTimeout(r, 250));
+    go('shell');
+    // Kick off initial 5-section reading (async, fills in behind the greeting)
+    loadSectionsFromLLM();
+    // announce into chat
+    var greet = '已经排好盘——' + META.rizhu + ' 日主 / ' + META.geju + ' / 用神 ' + META.yongshen + '。\n\n左边就是你的命盘和流年，想从哪一块开始聊都行。';
+    setTimeout(function() { addAiMsg(greet, true); }, 400);
+  } catch (e) {
+    console.error(e);
+    clearInterval(stageTimer);
+    go('input');
+    showFormError('排盘失败：' + e.message + '。请检查城市拼写或时间。');
+  }
+}
+
+// Load city suggestions
+async function loadCities() {
+  try {
+    const resp = await fetch('/api/cities');
+    const data = await resp.json();
+    const dl = document.getElementById('city-list');
+    if (dl && data.cities) {
+      dl.innerHTML = data.cities.map(c => '<option value="' + c + '">').join('');
+    }
+  } catch (e) { /* server not running — ignore */ }
+}
+
+// Toggle time input disabled when "时辰未知" checked
+document.addEventListener('DOMContentLoaded', function() {
+  loadCities();
+  checkLLMStatus();
+  var cb = document.getElementById('f-hour-unknown');
+  var tm = document.getElementById('f-time');
+  if (cb && tm) {
+    cb.addEventListener('change', function() { tm.disabled = cb.checked; });
+  }
+
+  // Restore persisted session if any
+  var saved = loadSession();
+  if (saved && saved.serverData && saved.serverData.PAIPAN) {
+    try { restoreFromSession(saved); console.log('[session] restored'); }
+    catch (e) { console.warn('[session] restore failed:', e); }
+  } else if (saved && saved.birthInfo) {
+    prefillForm(saved.birthInfo);
+  }
+});
+
+// ===== LEFT RENDER =====
+function renderChart() {
+  const labels = [["年","year"],["月","month"],["日","day"],["时","hour"]];
+  document.getElementById('pillars').innerHTML = labels.map(function(x) {
+    var lab = x[0], key = x[1];
+    var gz = PAIPAN.sizhu[key];
+    var ss = key === 'day' ? '日主' : PAIPAN.shishen[key];
+    var cg = PAIPAN.cangGan[key].join(' · ');
+    var ganRef = 'gz:' + key + '-gan';
+    var zhiRef = 'gz:' + key + '-zhi';
+    return '<div class="pillar"><div class="section-num" style="margin-bottom:8px">' + lab + '</div>'
+      + '<div class="pillar-cell">'
+      + '<div class="pillar-gan">'
+      + '<div class="pillar-char" data-ref="' + ganRef + '">' + gz[0] + '</div>'
+      + '<div class="pillar-ss" data-ref="ss:' + ss.replace('日主','') + '">' + ss + '</div>'
+      + '</div>'
+      + '<div class="pillar-zhi">'
+      + '<div class="pillar-char" data-ref="' + zhiRef + '">' + gz[1] + '</div>'
+      + '<div class="pillar-cg">' + cg + '</div>'
+      + '</div></div></div>';
+  }).join('');
+
+  document.getElementById('force-grid').innerHTML = FORCE.map(function(f) {
+    var pct = Math.min(f.val * 10, 100);
+    var strong = f.val >= 7 ? 'strong' : '';
+    return '<div class="force-row" data-ref="ss:' + f.name + '">'
+      + '<div class="force-name ' + strong + '">' + f.name + '</div>'
+      + '<div class="force-track"><div class="force-bar" style="width:' + pct + '%"></div></div>'
+      + '<div class="force-val">' + f.val.toFixed(1) + '</div></div>';
+  }).join('');
+
+  document.getElementById('guard-list').innerHTML = GUARDS.map(function(g, i) {
+    return '<li data-ref="guard:' + i + '"><span class="dot"></span><span><span class="guard-type">' + g.type + '</span>' + g.note + '</span></li>';
+  }).join('');
+
+  // meta items
+  var metaItems = document.querySelectorAll('.meta-item');
+  if (metaItems[0]) metaItems[0].setAttribute('data-ref', 'meta:rizhu');
+  if (metaItems[1]) metaItems[1].setAttribute('data-ref', 'meta:geju');
+  if (metaItems[2]) metaItems[2].setAttribute('data-ref', 'meta:yongshen');
+
+  renderSections();
+}
+
+function renderSections() {
+  document.getElementById('sections').innerHTML = SECTIONS.map(function(s, i) {
+    var num = String(i+1); if (num.length < 2) num = '0' + num;
+    var safeTitle = String(s.title || '').replace(/'/g,"\\'");
+    return '<div class="reading-sec"><div class="title"><span class="num">§ ' + num + '</span>' + s.title + '</div>'
+      + '<p>' + (s.body || '') + '</p>'
+      + '<span class="ask-link" onclick="askFromSection(\'' + safeTitle + '\')">就这段追问 →</span></div>';
+  }).join('');
+}
+
+function renderSectionsLoading() {
+  var placeholders = ['底层结构', '性格两面', '关系模式', '发力方向', '此刻的提醒'];
+  document.getElementById('sections').innerHTML = placeholders.map(function(t, i) {
+    var num = String(i+1); if (num.length < 2) num = '0' + num;
+    return '<div class="reading-sec" style="opacity:.5"><div class="title"><span class="num">§ ' + num + '</span>' + t + '</div>'
+      + '<p style="font-style:italic; color:#888">正在根据你的命盘生成解读……</p></div>';
+  }).join('');
+}
+
+async function loadSectionsFromLLM() {
+  // If health hasn't responded yet, wait briefly (up to 1.5s)
+  if (!LLM_ENABLED) {
+    console.log('[sections] LLM not yet enabled, waiting for /api/health…');
+    for (var i = 0; i < 15 && !LLM_ENABLED; i++) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  if (!LLM_ENABLED) {
+    console.warn('[sections] LLM disabled — keeping mock sections');
+    return;
+  }
+  console.log('[sections] calling /api/sections…');
+  renderSectionsLoading();
+  try {
+    var resp = await fetch('/api/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart: { PAIPAN: PAIPAN, FORCE: FORCE, GUARDS: GUARDS, DAYUN: DAYUN, META: META } }),
+    });
+    var data = await resp.json();
+    console.log('[sections] response:', resp.status, data);
+    if (resp.ok && Array.isArray(data.sections) && data.sections.length) {
+      SECTIONS = data.sections;
+      renderSections();
+      saveSession({ sections: SECTIONS });
+      console.log('[sections] ✓ rendered', data.sections.length, 'sections');
+    } else {
+      console.error('[sections] LLM returned bad data:', data);
+      // show error inline instead of silently keeping毛 mock
+      document.getElementById('sections').innerHTML =
+        '<div style="padding:16px; border-left:3px solid #c66; background:#fdf5f5; font-size:13px; color:#933">'
+        + '生成解读失败（' + (data.error || 'unknown') + '）。控制台有详细日志。</div>';
+    }
+  } catch (e) {
+    console.error('[sections] fetch failed:', e);
+    document.getElementById('sections').innerHTML =
+      '<div style="padding:16px; border-left:3px solid #c66; background:#fdf5f5; font-size:13px; color:#933">'
+      + '网络错误：' + e.message + '</div>';
+  }
+}
+
+function renderTiming() {
+  if (typeof DAYUN_STEP_CACHE !== 'undefined') {
+    for (const k in DAYUN_STEP_CACHE) delete DAYUN_STEP_CACHE[k];
+    DAYUN_OPEN_IDX = null;
+  }
+  document.getElementById('dayun-grid').innerHTML = DAYUN.map(function(d, i) {
+    return '<div class="ycell dayun-cell ' + (d.current?'current':'') + '" data-idx="' + i + '" onclick="toggleDayunStep(' + i + ')" style="cursor:pointer; position:relative">'
+      + '<div class="age">' + d.age + '岁起</div>'
+      + '<div class="gz">' + d.gz + '</div>'
+      + '<div class="ss">' + d.ss + '</div>'
+      + '<div class="dayun-caret" style="position:absolute; top:4px; right:6px; font-size:10px; opacity:.5">▸</div></div>';
+  }).join('') + '<div id="dayun-step-body" style="display:none; grid-column:1/-1; padding:16px 14px; margin-top:8px; border-left:2px solid var(--ink, #333); background:#fafaf7; font-size:13px; line-height:1.9">'
+    + '<div id="dayun-body-text" style="white-space:pre-wrap"></div>'
+    + '<div id="dayun-years" style="margin-top:14px"></div>'
+  + '</div>';
+
+  var cycle = ["甲子","乙丑","丙寅","丁卯","戊辰","己巳","庚午","辛未","壬申","癸酉","甲戌","乙亥","丙子","丁丑","戊寅","己卯","庚辰","辛巳","壬午","癸未","甲申","乙酉","丙戌","丁亥","戊子","己丑","庚寅","辛卯","壬辰","癸巳","甲午","乙未","丙申","丁酉","戊戌","己亥","庚子","辛丑","壬寅","癸卯","甲辰","乙巳","丙午","丁未","戊申","己酉","庚戌","辛亥","壬子","癸丑","甲寅","乙卯","丙辰","丁巳","戊午","己未","庚申","辛酉","壬戌","癸亥"];
+  var startYear = 2023;
+  var startIdx = ((startYear - 4) % 60 + 60) % 60;
+  var html = '';
+  for (var i = 0; i < 10; i++) {
+    var y = startYear + i;
+    var gz = cycle[(startIdx + i) % 60];
+    var cur = y === 2026;
+    var good = i === 3 || i === 7;
+    html += '<div class="ycell liunian ' + (cur?'current':'') + ' ' + (good?'good':'') + '"'
+      + ' onclick="expandYear(' + y + ',\'' + gz + '\')">'
+      + '<div class="age">' + y + '</div><div class="gz">' + gz + '</div></div>';
+  }
+  document.getElementById('liunian-grid').innerHTML = html;
+}
+
+// ===== Shared SSE streaming helper =====
+// handlers: { onDelta, onDone, onError, onModel }  (all optional)
+async function streamSSE(url, body, handlers) {
+  const h = handlers || {};
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let carry = '';
+  let full = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    carry += dec.decode(value, { stream: true });
+    const parts = carry.split('\n\n');
+    carry = parts.pop() || '';
+    for (const block of parts) {
+      const line = block.trim();
+      if (!line.startsWith('data:')) continue;
+      let ev;
+      try { ev = JSON.parse(line.slice(5).trim()); } catch (_) { continue; }
+      if (ev.type === 'delta' && ev.text) { full += ev.text; h.onDelta?.(ev.text, full); }
+      else if (ev.type === 'done') { if (ev.full) full = ev.full; h.onDone?.(full); }
+      else if (ev.type === 'model') { h.onModel?.(ev.modelUsed); }
+      else if (ev.type === 'error') { throw new Error(ev.message || 'LLM error'); }
+    }
+  }
+  return full;
+}
+
+// ===== DAYUN STEP EXPANSION =====
+const DAYUN_STEP_CACHE = {};
+const LIUNIAN_CACHE = {};   // key: "<dayunIdx>-<yearIdx>" → full text
+let DAYUN_OPEN_IDX = null;
+let LIUNIAN_OPEN_KEY = null;
+let DAYUN_STREAMING = false;
+let LIUNIAN_STREAMING = false;
+
+function toggleDayunStep(idx) {
+  if (DAYUN_STREAMING) return;
+  const body = document.getElementById('dayun-step-body');
+  const textEl = document.getElementById('dayun-body-text');
+  if (!body || !textEl) return;
+
+  if (DAYUN_OPEN_IDX === idx) {
+    body.style.display = 'none';
+    DAYUN_OPEN_IDX = null;
+    document.querySelectorAll('.dayun-cell').forEach(c => {
+      const car = c.querySelector('.dayun-caret'); if (car) car.textContent = '▸';
+    });
+    return;
+  }
+
+  DAYUN_OPEN_IDX = idx;
+  document.querySelectorAll('.dayun-cell').forEach(c => {
+    const isOpen = Number(c.dataset.idx) === idx;
+    const car = c.querySelector('.dayun-caret');
+    if (car) car.textContent = isOpen ? '▾' : '▸';
+  });
+  body.style.display = 'block';
+
+  if (DAYUN_STEP_CACHE[idx]) {
+    textEl.textContent = DAYUN_STEP_CACHE[idx];
+    renderLiunianChips(idx);
+    body.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+
+  textEl.textContent = '生成中…';
+  document.getElementById('dayun-years').innerHTML = '';
+  body.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  streamDayunStep(idx, textEl);
+}
+
+async function streamDayunStep(idx, textEl) {
+  DAYUN_STREAMING = true;
+  const chart = { PAIPAN, FORCE, GUARDS, DAYUN, META };
+  let gotFirst = false;
+  try {
+    const full = await streamSSE('/api/dayun-step', { chart, stepIdx: idx }, {
+      onDelta: (t, running) => {
+        if (!gotFirst) { textEl.textContent = ''; gotFirst = true; }
+        textEl.textContent = running;
+      },
+      onModel: (m) => console.log('[dayun-step] modelUsed=' + m),
+    });
+    if (!full.trim()) throw new Error('empty response');
+    DAYUN_STEP_CACHE[idx] = full;
+    textEl.textContent = full;
+    renderLiunianChips(idx);
+    try { saveSession({ dayunCache: Object.assign({}, DAYUN_STEP_CACHE) }); } catch (_) {}
+  } catch (e) {
+    console.error('[dayun-step] failed:', e);
+    delete DAYUN_STEP_CACHE[idx];
+    textEl.innerHTML = '<span style="color:#933">生成失败：' + (e.message || e)
+      + '</span> <a href="#" onclick="event.preventDefault();retryDayunStep(' + idx + ')" style="color:#06c">点此重试</a>';
+  } finally {
+    DAYUN_STREAMING = false;
+  }
+}
+
+function renderLiunianChips(dayunIdx) {
+  const container = document.getElementById('dayun-years');
+  if (!container) return;
+  const step = DAYUN[dayunIdx];
+  const years = step?.years || [];
+  if (!years.length) { container.innerHTML = ''; return; }
+
+  const chipsHTML = years.map((y, yi) => {
+    const key = dayunIdx + '-' + yi;
+    const cur = y.current ? 'ln-cur' : '';
+    const cached = LIUNIAN_CACHE[key] ? 'ln-cached' : '';
+    return '<span class="ln-chip ' + cur + ' ' + cached + '" data-dayun="' + dayunIdx + '" data-year="' + yi + '"'
+      + ' onclick="toggleLiunian(' + dayunIdx + ',' + yi + ')"'
+      + ' style="display:inline-block; padding:4px 10px; margin:3px; cursor:pointer; font-size:12px; border:1px solid #ccc; border-radius:12px;'
+      + (y.current ? ' background:#fff3c4; border-color:#b99;' : '')
+      + '">' + y.year + ' ' + y.gz + '</span>';
+  }).join('');
+
+  container.innerHTML =
+    '<div class="muted" style="font-size:11px; letter-spacing:.1em; margin-bottom:6px">流 年</div>'
+    + '<div style="line-height:2">' + chipsHTML + '</div>'
+    + '<div class="muted" style="font-size:10px; margin-top:4px">按公历年粗算（未切立春）</div>'
+    + '<div id="liunian-body" style="display:none; margin-top:12px; padding:12px 14px; border-left:2px solid #888; background:#fff; font-size:13px; line-height:1.9; white-space:pre-wrap"></div>';
+}
+
+function toggleLiunian(dayunIdx, yearIdx) {
+  if (DAYUN_STREAMING || LIUNIAN_STREAMING) return;
+  const body = document.getElementById('liunian-body');
+  if (!body) return;
+  const key = dayunIdx + '-' + yearIdx;
+
+  if (LIUNIAN_OPEN_KEY === key) {
+    body.style.display = 'none';
+    LIUNIAN_OPEN_KEY = null;
+    return;
+  }
+  LIUNIAN_OPEN_KEY = key;
+  body.style.display = 'block';
+
+  if (LIUNIAN_CACHE[key]) {
+    body.textContent = LIUNIAN_CACHE[key];
+    body.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+  body.textContent = '生成中…';
+  body.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  streamLiunian(dayunIdx, yearIdx, body);
+}
+
+async function streamLiunian(dayunIdx, yearIdx, bodyEl) {
+  LIUNIAN_STREAMING = true;
+  const key = dayunIdx + '-' + yearIdx;
+  const chart = { PAIPAN, FORCE, GUARDS, DAYUN, META };
+  let gotFirst = false;
+  try {
+    const full = await streamSSE('/api/liunian', { chart, dayunIdx, yearIdx }, {
+      onDelta: (t, running) => {
+        if (!gotFirst) { bodyEl.textContent = ''; gotFirst = true; }
+        bodyEl.textContent = running;
+      },
+      onModel: (m) => console.log('[liunian] modelUsed=' + m),
+    });
+    if (!full.trim()) throw new Error('empty response');
+    LIUNIAN_CACHE[key] = full;
+    bodyEl.textContent = full;
+    // mark chip as cached
+    const chip = document.querySelector('.ln-chip[data-dayun="' + dayunIdx + '"][data-year="' + yearIdx + '"]');
+    if (chip) chip.classList.add('ln-cached');
+    try { saveSession({ liunianCache: Object.assign({}, LIUNIAN_CACHE) }); } catch (_) {}
+  } catch (e) {
+    console.error('[liunian] failed:', e);
+    delete LIUNIAN_CACHE[key];
+    bodyEl.innerHTML = '<span style="color:#933">生成失败：' + (e.message || e)
+      + '</span> <a href="#" onclick="event.preventDefault();retryLiunian(' + dayunIdx + ',' + yearIdx + ')" style="color:#06c">点此重试</a>';
+  } finally {
+    LIUNIAN_STREAMING = false;
+  }
+}
+
+function retryLiunian(dayunIdx, yearIdx) {
+  const body = document.getElementById('liunian-body');
+  if (!body) return;
+  const key = dayunIdx + '-' + yearIdx;
+  delete LIUNIAN_CACHE[key];
+  body.textContent = '生成中…';
+  streamLiunian(dayunIdx, yearIdx, body);
+}
+
+function retryDayunStep(idx) {
+  const textEl = document.getElementById('dayun-body-text');
+  if (!textEl) return;
+  delete DAYUN_STEP_CACHE[idx];
+  textEl.textContent = '生成中…';
+  document.getElementById('dayun-years').innerHTML = '';
+  streamDayunStep(idx, textEl);
+}
+
+// ===== C: MONTH EXPANSION =====
+var currentExpandedYear = null;
+var currentSelectedMonth = null;
+
+function expandYear(year, gz) {
+  // toggle off if same
+  if (currentExpandedYear === year) {
+    closeMonthExpansion();
+    return;
+  }
+  currentExpandedYear = year;
+  currentSelectedMonth = null;
+
+  // use 丙午 data as default mock (since it's the only one filled)
+  var months = MONTH_DATA[gz] || MONTH_DATA["丙午"];
+  var cells = months.map(function(mo, i) {
+    return '<div class="mcell ' + (mo.key?'key':'') + '" data-idx="' + i + '" onclick="selectMonth(' + i + ')">'
+      + '<div class="m">' + mo.mn + '</div>'
+      + '<div class="gz">' + mo.gz + '</div>'
+      + (mo.tag ? '<span class="tag-s">' + mo.tag + '</span>' : '')
+      + '</div>';
+  }).join('');
+
+  var html = '<div class="month-panel">'
+    + '<div class="head">'
+    + '<div class="title">' + year + ' · ' + gz + ' · 月令</div>'
+    + '<span class="close" onclick="closeMonthExpansion()">收起 ×</span>'
+    + '</div>'
+    + '<div class="month-grid" id="month-grid">' + cells + '</div>'
+    + '<div class="month-detail muted" id="month-detail">点击某个月查看详情 · 有"冲/合/吉/戒"标记的是关键转折月</div>'
+    + '</div>';
+  document.getElementById('month-expansion').innerHTML = html;
+  setTimeout(function() {
+    document.getElementById('month-expansion').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 100);
+}
+
+function selectMonth(idx) {
+  currentSelectedMonth = idx;
+  var gz = currentExpandedYear ? (MONTH_DATA["丙午"][idx] ? "丙午" : null) : null;
+  var months = MONTH_DATA["丙午"];
+  var mo = months[idx];
+  if (!mo) return;
+
+  document.querySelectorAll('#month-grid .mcell').forEach(function(el, i) {
+    el.classList.toggle('selected', i === idx);
+  });
+
+  var tag = mo.tag || '';
+  var tagMap = { '冲':'冲', '吉':'吉', '戒':'戒', '重':'重' };
+  var detail = '<div style="color:#111">'
+    + '<div style="margin-bottom:6px">'
+    + '<strong>' + mo.m + '（' + mo.mn + '）· ' + mo.gz + '</strong> '
+    + '<span class="muted" style="margin-left:8px; font-size:11px">' + mo.ss + '</span>'
+    + '</div>'
+    + '<div style="font-size:13px">' + mo.theme + '</div>'
+    + '</div>'
+    + '<div style="margin-top:10px">'
+    + '<button class="btn-inline" onclick="askAboutMonth(' + idx + ')">就这个月详聊 →</button>'
+    + '</div>';
+  document.getElementById('month-detail').innerHTML = detail;
+  document.getElementById('month-detail').classList.remove('muted');
+}
+
+function closeMonthExpansion() {
+  document.getElementById('month-expansion').innerHTML = '';
+  currentExpandedYear = null;
+  currentSelectedMonth = null;
+}
+
+function askAboutMonth(idx) {
+  var mo = MONTH_DATA["丙午"][idx];
+  if (!mo) return;
+  addUserMsg(currentExpandedYear + '年' + mo.mn + '（' + mo.gz + '）具体会怎样？');
+  var reply;
+  if (mo.tag === '冲') {
+    reply = mo.mn + '是' + mo.gz + '月，[[gz:month-zhi|月支卯]] 直接冲你的 [[gz:day-zhi|日支酉]]——配偶宫被冲动。具体表现可能是：一段亲密关系出现新的话题点，或者你与一个长期接近的人产生方向分歧。\n\n不是坏月，但不是"岁月静好"的月。适合主动做一些"重新对齐"的对话，不适合回避。';
+  } else if (mo.tag === '吉') {
+    reply = mo.mn + '是' + mo.gz + '月——[[ss:正印]] 与 [[ss:比肩]] 同时透出，是这一年里最适合"定方向"的月份。此前的混乱会在这个月沉淀出一条清晰的主线。\n\n建议：3-5 天的独处、写一份"接下来 6 个月做什么"的清单。';
+  } else if (mo.tag === '戒') {
+    reply = mo.mn + '是' + mo.gz + '月——天干 [[ss:正财]] 透出，容易走"破印"路线（被一个看起来划算的机会拉走、在配偶关系中过度妥协）。地支 [[ss:七杀]] 也加持，这是高压月。\n\n建议：不做大决定、不签长期承诺、守住你的学习节奏。';
+  } else if (mo.tag === '重') {
+    reply = mo.mn + '是' + mo.gz + '月——日柱 [[gz:day-gan|丁]][[gz:day-zhi|酉]] 在流月伏吟，自我感最强烈。容易在这个月做出"这才是我真实想法"的决定。\n\n但也小心：自我感强不等于判断准——过三天再看还觉得对的，才是真的对。';
+  } else {
+    reply = mo.mn + '的主题是：' + mo.theme + '。这是一个过渡性的月份，没有强烈的冲合，适合巩固上一步的成果。';
+  }
+  addAiMsg(reply, true);
+}
+
+// ===== D: NOTES =====
+function updateNoteCount() {
+  document.getElementById('notes-count').textContent = NOTES.length;
+  var head = document.getElementById('notes-head-count');
+  if (head) head.textContent = NOTES.length ? '（共 ' + NOTES.length + ' 条）' : '';
+}
+
+function saveNote(text, kind) {
+  var n = { id: ++NOTE_ID, kind: kind || 'insight', text: text, ts: new Date() };
+  NOTES.unshift(n);
+  updateNoteCount();
+  renderNotesList();
+  return n;
+}
+
+function removeNote(id) {
+  NOTES = NOTES.filter(function(n) { return n.id !== id; });
+  updateNoteCount();
+  renderNotesList();
+}
+
+function fmtTime(d) {
+  var pad = function(n) { return n < 10 ? '0' + n : n; };
+  return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function renderNotesList() {
+  var body = document.getElementById('notes-body');
+  if (!body) return;
+  if (NOTES.length === 0) {
+    body.innerHTML = '<div class="empty-notes">还没有笔记。<br/>在对话里点 AI 回复下面的"记下这条"可以收藏。<br/>决策流程结束后会自动存档。</div>';
+    return;
+  }
+  body.innerHTML = NOTES.map(function(n) {
+    var kindLabel = n.kind === 'decision' ? '决 策 存 档' : '洞 察';
+    return '<div class="note-item ' + (n.kind === 'decision' ? 'decision' : '') + '">'
+      + '<div class="meta"><span>' + kindLabel + '</span><span>' + fmtTime(n.ts) + '</span></div>'
+      + '<div class="txt">' + wrapRefs(n.text) + '</div>'
+      + '<span class="rm" onclick="removeNote(' + n.id + ')">删除</span>'
+      + '</div>';
+  }).join('');
+}
+
+function openNotes() {
+  renderNotesList();
+  document.getElementById('notes-drawer').classList.add('open');
+}
+function closeNotes() {
+  document.getElementById('notes-drawer').classList.remove('open');
+}
+
+// ===== CHAT =====
+function renderChips() {
+  document.getElementById('chips').innerHTML = CHIPS.map(function(c) {
+    return '<span class="tag" onclick="sendChat(\'' + c + '\')">' + c + '</span>';
+  }).join('');
+}
+function resetChat() {
+  document.getElementById('chat-body').innerHTML = '<div class="msg msg-ai">清空了。有什么想聊的？</div>';
+}
+function scrollChatBottom() {
+  var body = document.getElementById('chat-body');
+  body.scrollTop = body.scrollHeight;
+}
+
+function addUserMsg(text) {
+  var msgs = document.getElementById('chat-body');
+  var d = document.createElement('div');
+  d.className = 'msg msg-user';
+  d.innerHTML = '<span class="bubble"></span>';
+  d.querySelector('.bubble').textContent = text;
+  msgs.appendChild(d);
+  scrollChatBottom();
+}
+
+// Transform [[ref|label]] or [[ref]] → <span class="ref" data-ref="ref">label</span>
+// plain text stays as textContent (escaped). ref syntax becomes inline markup.
+function wrapRefs(text) {
+  // escape HTML first
+  var esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // then replace our markup; for [[ss:xxx]] with no label use the part after colon as label
+  return esc.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, function(_, ref, label) {
+    var text = label;
+    if (!text) {
+      var parts = ref.split(':');
+      text = parts[parts.length - 1];
+    }
+    return '<span class="ref" data-ref="' + ref + '">' + text + '</span>';
+  }).replace(/\n/g, '<br/>');
+}
+
+// ===== LLM wiring =====
+let LLM_ENABLED = false;      // set true if /api/health reports hasKey
+let LLM_MODEL = '';
+const CHAT_HISTORY = [];       // [{role:'user'|'assistant', content}]
+const HISTORY_CAP = 12;
+
+async function checkLLMStatus() {
+  try {
+    const r = await fetch('/api/health');
+    const j = await r.json();
+    LLM_ENABLED = !!(j.llm && j.llm.hasKey);
+    LLM_MODEL = j.llm?.model || '';
+    if (LLM_ENABLED) console.log('[LLM] enabled:', LLM_MODEL);
+    else console.log('[LLM] disabled — using mock replies');
+  } catch (e) { LLM_ENABLED = false; }
+}
+
+function pushHistory(role, content) {
+  CHAT_HISTORY.push({ role, content });
+  while (CHAT_HISTORY.length > HISTORY_CAP) CHAT_HISTORY.shift();
+  // persist (debounce not needed — localStorage is synchronous but tiny for chat)
+  try { saveSession({ chatHistory: CHAT_HISTORY.slice() }); } catch (_) {}
+}
+
+/**
+ * Stream a reply from the LLM into a fresh AI bubble.
+ * Returns a promise resolving to the final text.
+ * If LLM is disabled or errors, falls back to the provided mock text.
+ */
+async function streamLLMReply(userMessage, fallbackText, task) {
+  // Always create the bubble up front so order is consistent
+  const msgs = document.getElementById('chat-body');
+  const d = document.createElement('div');
+  d.className = 'msg msg-ai';
+  msgs.appendChild(d);
+  d.classList.add('stream-cursor');
+  scrollChatBottom();
+
+  if (!LLM_ENABLED) {
+    // animate the fallback text char-by-char
+    const text = fallbackText || '（未配置 LLM，当前回到预设回复）';
+    await fakeStreamInto(d, text);
+    d.classList.remove('stream-cursor');
+    d.innerHTML = wrapRefs(text);
+    attachSaveBtn(d, text);
+    pushHistory('user', userMessage);
+    pushHistory('assistant', text);
+    return text;
+  }
+
+  const chart = { PAIPAN, FORCE, GUARDS, DAYUN, META };
+  let full = '';
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userMessage,
+        chart,
+        history: CHAT_HISTORY.slice(),
+        task: task || 'chat',
+      }),
+    });
+    if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let carry = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      carry += dec.decode(value, { stream: true });
+      const parts = carry.split('\n\n');
+      carry = parts.pop() || '';
+      for (const block of parts) {
+        const line = block.trim();
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        try {
+          const ev = JSON.parse(payload);
+          if (ev.type === 'delta' && ev.text) {
+            full += ev.text;
+            d.textContent = full;
+            scrollChatBottom();
+          } else if (ev.type === 'intent') {
+            console.log('[chat] intent=' + ev.intent + ' reason=' + ev.reason);
+          } else if (ev.type === 'model') {
+            console.log('[chat] modelUsed=' + ev.modelUsed);
+          } else if (ev.type === 'error') {
+            throw new Error(ev.message || 'LLM error');
+          }
+          // 'done' is implicit when the stream ends
+        } catch (e) {
+          if (e.message && e.message.indexOf('LLM error') === 0) throw e;
+          // ignore malformed chunks
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[LLM] stream failed:', e);
+    const text = fallbackText || '（出错了：' + e.message + '）';
+    d.classList.remove('stream-cursor');
+    d.innerHTML = wrapRefs(text);
+    attachSaveBtn(d, text);
+    pushHistory('user', userMessage);
+    pushHistory('assistant', text);
+    return text;
+  }
+
+  d.classList.remove('stream-cursor');
+  const finalText = full || fallbackText || '';
+  d.innerHTML = wrapRefs(finalText);
+  attachSaveBtn(d, finalText);
+  pushHistory('user', userMessage);
+  pushHistory('assistant', finalText);
+  return finalText;
+}
+
+function fakeStreamInto(el, text) {
+  return new Promise(resolve => {
+    let i = 0;
+    const step = Math.max(1, Math.floor(text.length / 60));
+    const t = setInterval(() => {
+      i += step;
+      if (i >= text.length) {
+        clearInterval(t);
+        el.textContent = text;
+        resolve();
+      } else {
+        el.textContent = text.slice(0, i);
+        scrollChatBottom();
+      }
+    }, 25);
+  });
+}
+
+function attachSaveBtn(msgEl, text) {
+  if (!text || text.length < 12) return;
+  if (msgEl.querySelector('.save-btn')) return;
+  var btn = document.createElement('button');
+  btn.className = 'save-btn';
+  btn.textContent = '＋ 记下这条';
+  btn.onclick = function() {
+    saveNote(text, 'insight');
+    btn.classList.add('saved');
+    btn.textContent = '✓ 已记下';
+    btn.disabled = true;
+  };
+  msgEl.appendChild(btn);
+}
+
+function addAiMsg(text, withStreaming, onDone) {
+  var msgs = document.getElementById('chat-body');
+  var d = document.createElement('div');
+  d.className = 'msg msg-ai';
+  msgs.appendChild(d);
+  if (!withStreaming) {
+    d.innerHTML = wrapRefs(text);
+    attachSaveBtn(d, text);
+    scrollChatBottom();
+    if (onDone) onDone(d);
+    return d;
+  }
+  d.classList.add('stream-cursor');
+  var i = 0;
+  var step = Math.max(1, Math.floor(text.length / 60));
+  var timer = setInterval(function() {
+    i += step;
+    if (i >= text.length) {
+      d.classList.remove('stream-cursor');
+      d.innerHTML = wrapRefs(text); // final pass with refs parsed
+      attachSaveBtn(d, text);
+      clearInterval(timer);
+      if (onDone) onDone(d);
+    } else {
+      // during streaming show plain text (refs stripped visually)
+      var partial = text.slice(0, i).replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, function(_, r, l) {
+        return l || r.split(':').pop();
+      });
+      d.textContent = partial;
+    }
+    scrollChatBottom();
+  }, 25);
+  return d;
+}
+
+function addCard(html) {
+  var msgs = document.getElementById('chat-body');
+  var d = document.createElement('div');
+  d.className = 'msg fade-in';
+  d.innerHTML = html;
+  msgs.appendChild(d);
+  scrollChatBottom();
+  return d;
+}
+
+// ===== Intent detection =====
+const DECISION_TRIGGERS = ["纠结", "选择", "要不要", "该不该", "离职", "创业", "分手", "结婚", "换工作", "困境", "两难"];
+function isDecisionIntent(text) {
+  return DECISION_TRIGGERS.some(t => text.indexOf(t) !== -1);
+}
+
+function findReply(q) {
+  for (var k in REPLIES) if (q.indexOf(k) !== -1) return REPLIES[k];
+  return '这是个很好的切入角度。结合你的七杀格 + 正印用神来看——核心张力来自外部压力与内在秩序的转化。先区分"是外部在推我"还是"我真的想要"，再决定是顺势还是抵抗。';
+}
+
+// Lightweight B: clarify-before-decide state
+var PENDING_CLARIFY = null; // {origQ: string}
+
+function sendChat(text) {
+  var input = document.getElementById('chat-text');
+  var q = (text || input.value).trim();
+  if (!q) return;
+  input.value = '';
+  addUserMsg(q);
+
+  // If we're waiting for the user's "which side are you leaning" answer,
+  // consume this message as the clarify answer and enter the decision flow.
+  if (PENDING_CLARIFY) {
+    var orig = PENDING_CLARIFY.origQ;
+    PENDING_CLARIFY = null;
+    runDecisionFlow({ origQ: orig, leaning: q });
+    return;
+  }
+
+  if (isDecisionIntent(q)) {
+    // AI acknowledges + offers decision flow
+    var offerText = '听起来你在一个选择的路口。这类问题如果只是聊，容易陷入"A 和 B 反复权衡"。\n\n我可以帮你做一次结构化分析：起一个卦看底层动向，结合你的命盘画一下"愿景 vs 现状"的结构张力，最后给几个具体可做的事。要试试吗？';
+    addAiMsg(offerText, true, function(msgEl) {
+      var actions = document.createElement('div');
+      actions.className = 'inline-actions';
+      actions.innerHTML = '<button class="btn-inline" onclick="startClarify(\'' + q.replace(/'/g,"\\'") + '\')">好，开始分析</button>'
+        + '<button class="btn-inline" onclick="continueAsChat(\'' + q.replace(/'/g,"\\'") + '\')">先聊聊就好</button>';
+      msgEl.appendChild(actions);
+      scrollChatBottom();
+    });
+    return;
+  }
+
+  // normal chat reply — LLM first, fallback to mock
+  streamLLMReply(q, findReply(q), 'chat');
+}
+
+// Lightweight B: ask one clarifying question before running decision flow
+function startClarify(origQ) {
+  PENDING_CLARIFY = { origQ: origQ };
+  addAiMsg('在我抽卦之前，先问你一句——\n\n你心里其实已经偏向哪一边了？用一句话说出来就行，我会对着你的命盘看看这个"偏向"合不合你的结构。', true);
+  // highlight the input hint
+  setTimeout(function() {
+    var input = document.getElementById('chat-text');
+    if (input) { input.placeholder = '比如："其实我想走，但怕养不活自己……"'; input.focus(); }
+  }, 800);
+}
+
+function continueAsChat(q) {
+  streamLLMReply(q, findReply(q), 'chat');
+}
+
+function askFromSection(title) {
+  var q = '就"' + title + '"这段帮我展开说说';
+  addUserMsg(q);
+  streamLLMReply(q, findReply(title), 'chat');
+}
+
+function askAboutTiming(q) {
+  addUserMsg(q);
+  var fallback;
+  if (q.indexOf('大运') !== -1) {
+    fallback = '戊辰大运最大的陷阱，是你把"伤官的冲动"当成"真实的方向"。伤官让你想打破、想证明，但它不负责告诉你"打破之后做什么"。\n\n这十年三件事：(1) 保持正印不断——固定的学习/师承；(2) 主动把伤官的能量导向具体的"作品"，而不是空泛的反抗；(3) 在关键决定前，让 72 小时过去再行动。';
+  } else {
+    fallback = '丙午流年对你最重要的是"结盟"。劫财透出会把"一起做事的人"推到你面前，但也容易遇到"表面同盟、实则争抢"的情况——劫财两面性。';
+  }
+  streamLLMReply(q, fallback, 'chat');
+}
+
+// ===== Decision flow (in-chat cards) =====
+function renderHexLines(lines, dark) {
+  // lines is bottom-up: [line1, line2, ..., line6]. display top-down
+  return lines.slice().reverse().map(function(l) {
+    var cls = 'hex-line';
+    if (l === 'yin' || l === 'yin-changing') cls += ' yin';
+    if (l.indexOf('changing') !== -1) cls += ' changing';
+    return '<div class="' + cls + '"></div>';
+  }).join('');
+}
+
+async function runDecisionFlow(ctx) {
+  ctx = ctx || {};
+  // restore input placeholder
+  var _input = document.getElementById('chat-text');
+  if (_input) _input.placeholder = '说点什么……';
+
+  // If we have the user's leaning, acknowledge it before casting
+  if (ctx.leaning) {
+    addAiMsg('收到。把"' + ctx.leaning + '"记下——它会被放进下面"现状"那张卡里，和卦象、命盘一起看。', true);
+    await waitForStream();
+    await sleep(400);
+  }
+
+  // Step 1: casting
+  var castingMsg = addAiMsg("静心三次成卦中……", false);
+  await sleep(1400);
+  castingMsg.remove();
+
+  // Step 2: hexagram card
+  var hex = DECISION_CARDS.hex;
+  addCard(
+    '<div class="card dark">'
+    + '<div class="lab">卦 象</div>'
+    + '<div class="hex-mini">'
+    + '<div class="hex-col">' + renderHexLines(hex.lines, true) + '</div>'
+    + '<div><div class="big" style="color:#fff">' + hex.name + '</div>'
+    + '<div class="small" style="color:rgba(255,255,255,.7)">' + hex.subtitle + '</div></div>'
+    + '</div></div>'
+  );
+  await sleep(600);
+  addAiMsg(hex.text, true);
+  await waitForStream();
+
+  // Step 3: structural tension
+  await sleep(400);
+  addAiMsg('接下来是 Robert Fritz 的结构张力——愿景和现状都说清楚，张力本身会指向路径。', true);
+  await waitForStream();
+
+  var v = DECISION_CARDS.vision, n = DECISION_CARDS.now, c = DECISION_CARDS.choice;
+  addCard(
+    '<div class="card"><div class="lab">' + v.lab + '</div>'
+    + '<div class="big">' + v.big + '</div>'
+    + '<div class="small">' + v.small + '</div></div>'
+  );
+  await sleep(400);
+  var nowBig = ctx.leaning ? ctx.leaning : n.big;
+  var nowSmall = ctx.leaning
+    ? '你原话。没替你翻译——下面的分析都建立在这句之上。' + (n.small ? ' · ' + n.small : '')
+    : n.small;
+  addCard(
+    '<div class="card"><div class="lab">' + n.lab + (ctx.leaning ? ' · 你说的' : '') + '</div>'
+    + '<div class="big">' + nowBig + '</div>'
+    + '<div class="small">' + nowSmall + '</div></div>'
+  );
+  await sleep(400);
+  addCard(
+    '<div class="card dark"><div class="lab">' + c.lab + '</div>'
+    + '<div class="big">' + c.big + '</div>'
+    + '<div class="small">' + c.small + '</div></div>'
+  );
+
+  // Step 4: bazi context
+  await sleep(600);
+  addAiMsg(DECISION_CARDS.context, true);
+  await waitForStream();
+
+  // Step 5: actions
+  await sleep(400);
+  var actionsHtml = '<div class="card"><div class="lab">可以做的三件事</div>';
+  DECISION_CARDS.actions.forEach(function(a, i) {
+    actionsHtml += '<div class="action-row"><div class="action-num">' + (i+1) + '</div><div class="action-text">' + a + '</div></div>';
+  });
+  actionsHtml += '</div>';
+  addCard(actionsHtml);
+
+  await sleep(400);
+  addAiMsg('卦象、命盘、结构张力是三面镜子。决定仍然是你做的。\n\n想就其中哪一块继续聊？', true);
+
+  // Auto-save decision session summary
+  await waitForStream();
+  var hex = DECISION_CARDS.hex;
+  var summary = '【决策存档 · ' + hex.name + '】'
+    + (ctx.origQ ? '\n原问题：' + ctx.origQ : '')
+    + (ctx.leaning ? '\n你的偏向：' + ctx.leaning : '')
+    + '\n主要选择：' + DECISION_CARDS.choice.big
+    + '\n愿景：' + DECISION_CARDS.vision.big
+    + '\n现状：' + (ctx.leaning || DECISION_CARDS.now.big)
+    + '\n三件事：' + DECISION_CARDS.actions.join(' / ');
+  saveNote(summary, 'decision');
+  var tip = addAiMsg('（已把这次决策自动存档到笔记，可以在右上角"笔记"里找到）', false);
+  tip.style.opacity = '0.55';
+  tip.style.fontSize = '12px';
+  var sb = tip.querySelector('.save-btn'); if (sb) sb.remove();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function waitForStream() {
+  return new Promise(r => {
+    var check = () => {
+      var s = document.querySelector('.stream-cursor');
+      if (s) setTimeout(check, 100); else r();
+    };
+    check();
+  });
+}
+
+// ===== REF INTERACTIONS (click + hover sync) =====
+function explainRef(ref) {
+  var data = EXPLAIN[ref];
+  var q, fallback;
+  if (data) {
+    q = data.q; fallback = data.a;
+  } else {
+    // synthesize a reasonable question from the ref itself
+    if (ref.indexOf('ss:') === 0) { q = '帮我说说我盘里的 ' + ref.slice(3); fallback = ''; }
+    else if (ref.indexOf('gz:') === 0) { q = '这一柱（' + ref + '）对我意味着什么？'; fallback = ''; }
+    else if (ref.indexOf('meta:') === 0) { q = '展开讲讲我的 ' + ref.slice(5); fallback = ''; }
+    else if (ref.indexOf('guard:') === 0) { q = '这条结构提示对我意味着什么？'; fallback = ''; }
+    else return;
+  }
+  addUserMsg(q);
+  streamLLMReply(q, fallback, 'chat');
+}
+
+function flashRef(ref, exceptEl) {
+  if (!ref) return;
+  document.querySelectorAll('[data-ref="' + ref + '"]').forEach(function(el) {
+    if (el === exceptEl) return;
+    el.classList.remove('flash');
+    // force reflow to restart animation
+    void el.offsetWidth;
+    el.classList.add('flash');
+    setTimeout(function() { el.classList.remove('flash'); }, 1300);
+  });
+}
+
+// Global click delegation for all [data-ref] elements
+document.addEventListener('click', function(e) {
+  var target = e.target.closest('[data-ref]');
+  if (!target) return;
+  var ref = target.getAttribute('data-ref');
+  if (!ref) return;
+
+  // if the ref is inside the chat already (a .ref span), just flash the chart side
+  if (target.classList.contains('ref')) {
+    flashRef(ref, target);
+    return;
+  }
+
+  // otherwise it's a chart element → push question into chat and flash chat refs
+  flashRef(ref, target);
+  if (EXPLAIN[ref]) {
+    explainRef(ref);
+  }
+});
+
+// Hover sync: hovering a chart element flashes mentions in chat, and vice versa
+var hoverTimer;
+document.addEventListener('mouseover', function(e) {
+  var t = e.target.closest('[data-ref]');
+  if (!t) return;
+  var ref = t.getAttribute('data-ref');
+  if (!ref) return;
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(function() {
+    flashRef(ref, t);
+  }, 120);
+});
+
+// ===== INIT =====
+renderChart();
+renderTiming();
+renderChips();
+updateNoteCount();
+</script>
+</body>
+</html>

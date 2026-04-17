@@ -1,0 +1,11 @@
+{
+  "name": "bazi-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "lunar-javascript": "^1.7.7"
+  }
+}
