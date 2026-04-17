@@ -17,6 +17,12 @@ uv run pytest paipan/tests/
 ```
 
 Regression tests are oracle-driven: outputs must match the Node.js reference
-implementation in `../paipan-engine/` byte-for-byte (floats within 1e-9).
+implementation byte-for-byte (floats within 1e-9).
+
+## Oracle
+
+Oracle implementation frozen at tag `paipan-engine-oracle-v1`, archived at
+`../archive/paipan-engine/`. Any change requires regenerating fixtures via
+`archive/paipan-engine/scripts/dump-oracle.js` and bumping the tag.
 
 See `tests/regression/generate_oracle.md` for how to regenerate oracle fixtures.
