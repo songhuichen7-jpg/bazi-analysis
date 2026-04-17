@@ -1,40 +1,41 @@
 # server Backend — Acceptance Checklist
 
-Plan 2 (Foundation) + Plan 3 (Auth Business) combined state.
+Plan 2 (Foundation) + Plan 3 (Auth Business) + Plan 4 (Charts CRUD + paipan) 合并状态。
 
 ## Hard Gates
 
 - [x] **全部测试并行全绿**
   - `uv run --package server pytest server/tests/ -n auto`
-  - Result: **102 passed in 23.8s** → ✅
+  - Result: **199 passed in 16.95s** → ✅
 - [x] **源码覆盖率 ≥ 85%**
   - `uv run --package server pytest --cov=app --cov-config=/dev/null server/tests/`
-  - Result: **86%** (840 stmts / 119 missed) → ✅
+  - Result: **87%** → ✅
 - [x] **并行 CI runtime < 60s**
-  - `time uv run --package server pytest server/tests/ -n auto`
-  - Result: **23.8s** wall time → ✅
+  - Wall time: **16.95s** → ✅
 - [x] **wheel 可装可跑**
-  - Isolated venv import of `app.main:app` prints 9 auth routes + `/api/health` → ✅
+  - Isolated venv import of `app.main:app` prints 17 business routes (health + 7 auth + 2 sessions + 2 public + 6 charts) → ✅
 - [x] **Alembic 双向干净**
-  - `test_migrations.py` passes for baseline 0001 and 0002 → ✅
-- [x] **`auth/deps.py` 无 NotImplementedError**
-  - `grep -c "raise NotImplementedError" server/app/auth/deps.py` → **0** → ✅
-- [x] **SMS aliyun provider 仅 skeleton**
-  - `grep -c "raise NotImplementedError" server/app/sms/aliyun.py` → **1** (Plan 7 fills real impl) → ✅
-- [x] **Phone 完整值不在响应中**
-  - All `/api/auth/*` responses use `phone_last4`, never raw `phone` → ✅
-- [x] **Dev mode `__devCode` 回显；prod 不回显**
-  - `test_register_dev_code_not_leaked_in_prod` passes → ✅
-- [x] **Crypto-shredding 端到端**
-  - `test_crypto_shredding_via_api.py` proves: register → chart → shred → random DEK fails `InvalidTag` → ✅
-- [x] **SMS rate limit 三场景覆盖**
-  - `test_cooldown_blocks_second_send_within_60s` + `test_hourly_limit_blocks_sixth_send` + normal-path tests → ✅
+  - Plan 2/3 migrations 0001 + 0002 unchanged → ✅
+- [x] **跨用户 / 不存在 / 软删超窗 统一 404**
+  - `test_charts_*` 里每个 resource 路径都验证 → ✅
+- [x] **GET 路由幂等**
+  - `test_get_detail_cache_stale_flag` 证明 GET 返回 `cache_stale=true` 后 `engine_version` 未变 → ✅
+- [x] **15 盘上限 post-check 正确**
+  - `test_create_16th_returns_409` + `test_restore_at_cap_409` → ✅
+- [x] **软删盘不占 slot**
+  - `test_create_chart_soft_deleted_not_counted` → ✅
+- [x] **paipan warnings 不落 DB**
+  - `test_create_unknown_city_yields_warning` 确认 response 有，`charts.birth_input` 没有 → ✅
+- [x] **Crypto-shredding 对 charts.birth_input 同样生效**
+  - `test_chart_birth_input_unreadable_after_shredding` → ✅
 
 ## Route Inventory
 
-| Method | Path | Auth | Status |
+| Method | Path | Auth | Plan |
 |---|---|---|---|
 | GET | `/api/health` | public | Plan 2 |
+| GET | `/api/config` | public | Plan 4 |
+| GET | `/api/cities` | public | Plan 4 |
 | POST | `/api/auth/sms/send` | public | Plan 3 |
 | POST | `/api/auth/register` | public | Plan 3 |
 | POST | `/api/auth/login` | public | Plan 3 |
@@ -42,90 +43,35 @@ Plan 2 (Foundation) + Plan 3 (Auth Business) combined state.
 | GET | `/api/auth/me` | user | Plan 3 |
 | DELETE | `/api/auth/account` | user | Plan 3 |
 | GET | `/api/auth/sessions` | user | Plan 3 |
-| DELETE | `/api/auth/sessions/{session_id}` | user | Plan 3 |
+| DELETE | `/api/auth/sessions/{id}` | user | Plan 3 |
+| GET | `/api/charts` | user | Plan 4 |
+| POST | `/api/charts` | user | Plan 4 |
+| GET | `/api/charts/{id}` | user | Plan 4 |
+| PATCH | `/api/charts/{id}` | user | Plan 4 |
+| DELETE | `/api/charts/{id}` | user | Plan 4 |
+| POST | `/api/charts/{id}/restore` | user | Plan 4 |
 
-## Per-module 覆盖率（source only）
+## Handoff to Plan 5
 
-| Module | Stmts | Missed | Coverage |
-|---|---|---|---|
-| `app/__init__.py` | 0 | 0 | 100% |
-| `app/api/__init__.py` | 0 | 0 | 100% |
-| `app/api/auth.py` | 68 | 19 | 72% |
-| `app/api/sessions.py` | 27 | 7 | 74% |
-| `app/auth/__init__.py` | 0 | 0 | 100% |
-| `app/auth/deps.py` | 56 | 33 | 41% |
-| `app/core/__init__.py` | 0 | 0 | 100% |
-| `app/core/config.py` | 16 | 0 | 100% |
-| `app/core/crypto.py` | 37 | 3 | 92% |
-| `app/core/db.py` | 30 | 0 | 100% |
-| `app/core/logging.py` | 10 | 0 | 100% |
-| `app/core/quotas.py` | 14 | 5 | 64% |
-| `app/db_types/__init__.py` | 16 | 0 | 100% |
-| `app/db_types/encrypted_json.py` | 27 | 1 | 96% |
-| `app/db_types/encrypted_text.py` | 25 | 1 | 96% |
-| `app/main.py` | 21 | 0 | 100% |
-| `app/models/chart.py` | 32 | 0 | 100% |
-| `app/models/conversation.py` | 27 | 0 | 100% |
-| `app/models/quota.py` | 30 | 0 | 100% |
-| `app/models/user.py` | 62 | 0 | 100% |
-| `app/schemas/auth.py` | 50 | 0 | 100% |
-| `app/services/auth.py` | 64 | 40 | 38% |
-| `app/services/exceptions.py` | 60 | 0 | 100% |
-| `app/services/quota.py` | 30 | 0 | 100% |
-| `app/services/session.py` | 39 | 9 | 77% |
-| `app/services/sms.py` | 61 | 1 | 98% |
-| `app/sms/__init__.py` | 13 | 0 | 100% |
-| `app/sms/aliyun.py` | 8 | 0 | 100% |
-| `app/sms/dev.py` | 6 | 0 | 100% |
-| **Source TOTAL** | **840** | **119** | **86%** |
+以下 Plan 4 完成的契约保持稳定，Plan 5（LLM 长文 SSE + conversations + /api/quota）不改：
 
-`auth/deps.py` 41% + `services/auth.py` 38% undercount happens because integration tests exercise happy paths and the most common errors (401/404/403/409/422), but not every rare branch (e.g. `ACCOUNT_SHREDDED` via active session — unreachable in practice because shred_account always revokes sessions first). Core + schemas + models + crypto all at 96-100%.
-
-## Test Breakdown
-
-| Category | Count |
-|---|---|
-| Unit — crypto primitives | 15 |
-| Unit — config / logging / encrypted_text / encrypted_json | 18 |
-| Unit — SMS provider factory | 4 |
-| Unit — SMS service | 9 |
-| Unit — QuotaTicket | 6 |
-| Unit — 0001 migrations smoke | 3 |
-| Integration — health / lifespan | 2 |
-| Integration — migrations (0001 + 0002) | 4 |
-| Integration — models | 4 |
-| Integration — crypto-shredding (pure) + DEK isolation | 3 |
-| Integration — auth deps real | 4 |
-| Integration — register | 10 |
-| Integration — login | 6 |
-| Integration — logout | 2 |
-| Integration — me | 3 |
-| Integration — account delete | 5 |
-| Integration — sessions | 5 |
-| Integration — crypto-shredding via API | 2 |
-| **Total** | **102** |
-
-## Handoff to Plan 4
-
-These contracts are STABLE:
-
-- `app.auth.deps.current_user` / `optional_user` / `require_admin` / `check_quota` — fully implemented; Plan 4 routes `Depends(...)` them
-- `app.services.quota.QuotaTicket` — `commit()` post-business, `rollback()` on exception
-- `app.services.sms.send_sms_code` / `verify_sms_code` — reusable for any phone-verify path
-- `app.services.session.create_session` / `resolve_session` / `revoke_all_sessions`
-- Cookie `"session"` with raw 32-byte urlsafe token; DB stores sha256 hash
-- DEK contextvar `_current_dek` auto-mounted by `current_user`; routes can read encrypted fields without explicit `user_dek_context`
-- Migration 0002 `users.phone` + `users.dek_ciphertext` both NULLABLE (required for crypto-shredding)
+- `ChartResponse.chart` / `cache_slots` / `cache_stale` / `warnings` 字段形态
+- `ChartListItem` 字段形态
+- `app.services.chart.get_chart(db, user, chart_id, include_soft_deleted=False)` — owner + 软删窗口校验
+- `app.services.chart.get_cache_slots(db, chart_id)` — Plan 5 LLM 路由写 cache 后天然非空
+- `app.services.paipan_adapter.is_cache_stale` / `run_paipan` / `resolve_city`
+- `InvalidBirthInput` / `ChartNotFound` / `ChartLimitExceeded` / `ChartAlreadyDeleted` 异常
+- `app.core.quotas.MAX_CHARTS_PER_USER = 15`
 
 ## Known non-blocking items
 
-1. `sms/aliyun.py` skeleton raises `NotImplementedError`. Plan 7 deployment phase fills it.
-2. Rate limit stored in DB, not Redis — fine for single-machine B phase; scale-out deferred.
-3. Invite-code UI / admin creation endpoint not in scope. Plan 3 tests seed invites directly via DB.
-4. `/api/config` (`{require_invite, features}`) and `/api/cities` land in Plan 4.
-5. `auth/deps.py` and `services/auth.py` coverage < 85% — rare error branches (e.g. `ACCOUNT_SHREDDED` via active session) unreachable in practice.
-6. Migration 0002 downgrade intentionally does NOT restore `NOT NULL` on `users.phone` and `users.dek_ciphertext` — crypto-shredded rows would block; noted inline.
+1. `POST /api/charts/import`（localStorage 迁移）未实现 —— 单独短 plan 做。
+2. 软删 30 天硬删 cron/worker 未实现 —— Plan 7 部署期加。
+3. `paipan.compute` 同步跑 event loop，未丢 `run_in_executor` —— C 阶段压测证明瓶颈再改。
+4. `chart_cache` 表 Plan 4 不写入；`get_cache_slots` 返回 `[]` 是契约而非 bug。
+5. POST `/api/charts` 无 IP rate limit —— 15 盘上限是天然 ceiling。
+6. `POST /api/charts/:id/recompute`（engine_version 升级后主动重算）—— Plan 5 和 LLM 路由一起加。
 
 ## Sign-off
 
-Plan 3 executed via `superpowers:subagent-driven-development` on top of Plan 2. All hard gates green. Plan 4 can proceed with `/api/charts` CRUD + paipan integration.
+Plan 4 在 Plan 2+3 之上执行。所有硬闸绿；Plan 5 可在此基础上加 LLM 长文 SSE 路由。
