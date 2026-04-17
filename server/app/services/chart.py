@@ -21,7 +21,7 @@ from app.models.chart import Chart, ChartCache
 from app.models.user import User
 from app.schemas.chart import CacheSlot, ChartCreateRequest
 from app.services import paipan_adapter
-from app.services.exceptions import ChartLimitExceeded, ChartNotFound
+from app.services.exceptions import ChartAlreadyDeleted, ChartLimitExceeded, ChartNotFound
 
 
 SOFT_DELETE_WINDOW = timedelta(days=30)
@@ -146,3 +146,54 @@ async def get_cache_slots(db: AsyncSession, chart_id: UUID) -> list[CacheSlot]:
         )
         for r in rows
     ]
+
+
+async def update_label(
+    db: AsyncSession,
+    user: User,
+    chart_id: UUID,
+    label: str | None,
+) -> Chart:
+    """Update chart.label for an active (non-soft-deleted) chart."""
+    chart = await get_chart(db, user, chart_id)  # raises ChartNotFound
+    chart.label = label
+    chart.updated_at = datetime.now(tz=timezone.utc)
+    await db.flush()
+    return chart
+
+
+async def soft_delete(db: AsyncSession, user: User, chart_id: UUID) -> None:
+    """Set chart.deleted_at = now(). Raises ChartAlreadyDeleted if already soft-deleted."""
+    chart = await get_chart(db, user, chart_id, include_soft_deleted=True)
+    if chart.deleted_at is not None:
+        raise ChartAlreadyDeleted()
+    chart.deleted_at = datetime.now(tz=timezone.utc)
+    await db.flush()
+
+
+async def restore(db: AsyncSession, user: User, chart_id: UUID) -> Chart:
+    """Clear chart.deleted_at for a soft-deleted chart still within 30d window.
+
+    Raises:
+      ChartNotFound — not exist / wrong owner / not soft-deleted / past 30d window
+      ChartLimitExceeded — restoring would push active count over MAX_CHARTS_PER_USER
+    """
+    chart = await get_chart(db, user, chart_id, include_soft_deleted=True)
+    if chart.deleted_at is None:
+        # Not in soft-deleted state; same 404 response as "not exist" (防枚举).
+        raise ChartNotFound()
+
+    # Post-check active count WITHOUT counting this row (still soft-deleted).
+    active_count = (await db.execute(
+        select(func.count(Chart.id)).where(
+            Chart.user_id == user.id,
+            Chart.deleted_at.is_(None),
+        )
+    )).scalar_one()
+    if active_count >= MAX_CHARTS_PER_USER:
+        raise ChartLimitExceeded(limit=MAX_CHARTS_PER_USER)
+
+    chart.deleted_at = None
+    chart.updated_at = datetime.now(tz=timezone.utc)
+    await db.flush()
+    return chart
