@@ -18,8 +18,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Inject URL from settings at runtime.
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+# Inject URL from settings at runtime if the caller hasn't already provided one
+# (e.g. tests set it via cfg.set_main_option before invoking command.upgrade).
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", str(settings.database_url))
 
 target_metadata = Base.metadata
 

@@ -35,8 +35,12 @@ def postgres_container():
 def database_url(postgres_container) -> str:
     """asyncpg-flavored URL for tests that need to connect."""
     raw = postgres_container.get_connection_url()
-    # testcontainers returns postgresql://; we want postgresql+asyncpg://
-    return raw.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # testcontainers may return postgresql:// or postgresql+psycopg2://; normalise.
+    if raw.startswith("postgresql+psycopg2://"):
+        return "postgresql+asyncpg://" + raw[len("postgresql+psycopg2://"):]
+    if raw.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + raw[len("postgresql://"):]
+    return raw
 
 
 @pytest_asyncio.fixture
