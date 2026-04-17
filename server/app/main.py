@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
         from app.core.crypto import load_kek
         app.state.kek = load_kek()
     except ImportError:
-        # Task 8 not yet complete; health check still needs to work.
+        # REMOVE IN Task 8: load_kek lands and this fallback must go.
         app.state.kek = None
     yield
 
