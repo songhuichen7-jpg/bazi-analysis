@@ -9,6 +9,11 @@
   2. 均时差（Equation of Time, EoT）：地球轨道离心率+黄赤交角
      造成的太阳相对于平太阳的快慢。使用 Meeus 简化公式，
      精度约 ±1 分钟，足够命理使用。
+
+INVARIANT: Node 版 toTrueSolarTime 最后的 shift 用 local-TZ Date 字段加减。
+本 Python port 用 naive datetime 做同样的字段加减，这要求 oracle dump
+跑在 TZ=UTC 下（无 DST 干扰）。若 oracle 以其他 TZ 重新生成，本模块需
+同步调整。
 """
 from __future__ import annotations
 
@@ -22,7 +27,8 @@ def equation_of_time(utc_dt: datetime) -> float:
     Port of solarTime.js:19-34 equationOfTime.
 
     Args:
-        utc_dt: UTC datetime (tzinfo must be UTC or naive-interpreted-as-UTC)
+        utc_dt: datetime. Aware datetimes are converted to UTC;
+                naive datetimes are interpreted as UTC.
 
     Returns:
         均时差分钟数（正：真太阳快于平太阳）
