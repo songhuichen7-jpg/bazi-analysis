@@ -6,11 +6,12 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, ForeignKey, Integer, LargeBinary, String, text,
+    CheckConstraint, DateTime, ForeignKey, Integer, String, text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.db_types import EncryptedJSONB, EncryptedText
 from app.models import Base
 
 
@@ -22,8 +23,7 @@ class Conversation(Base):
     chart_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("charts.id", ondelete="RESTRICT"), nullable=False,
     )
-    # Task 11 → EncryptedText
-    label: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    label: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                   server_default=text("now()"))
@@ -44,8 +44,7 @@ class Message(Base):
         PgUUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False,
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
-    # Task 11 → EncryptedText / EncryptedJSONB
-    content: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
-    meta: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
+    meta: Mapped[Optional[dict]] = mapped_column(EncryptedJSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                   server_default=text("now()"))
