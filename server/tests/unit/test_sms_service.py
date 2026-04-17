@@ -54,7 +54,9 @@ async def test_send_stores_hashed_code_not_plaintext(db_session):
         db_session, "+8613800001234", "register", ip="127.0.0.1",
         provider_send=_noop_provider,
     )
-    row = (await db_session.execute(select(SmsCode))).scalar_one()
+    row = (await db_session.execute(
+        select(SmsCode).where(SmsCode.phone == "+8613800001234")
+    )).scalar_one()
     assert row.code_hash != result.code
     assert row.code_hash == _hash_code(result.code)
     assert row.phone == "+8613800001234"
@@ -74,7 +76,9 @@ async def test_verify_success_marks_used(db_session):
     )
     await verify_sms_code(db_session, "+8613800001235", result.code, "register")
 
-    row = (await db_session.execute(select(SmsCode))).scalar_one()
+    row = (await db_session.execute(
+        select(SmsCode).where(SmsCode.phone == "+8613800001235")
+    )).scalar_one()
     assert row.used_at is not None
 
 
@@ -91,7 +95,9 @@ async def test_verify_wrong_code_increments_attempts(db_session):
         await verify_sms_code(db_session, "+8613800001236", "000000", "register")
 
     assert exc.value.details["attempts_left"] == 4
-    row = (await db_session.execute(select(SmsCode))).scalar_one()
+    row = (await db_session.execute(
+        select(SmsCode).where(SmsCode.phone == "+8613800001236")
+    )).scalar_one()
     assert row.attempts == 1
     assert row.used_at is None
 
@@ -114,7 +120,9 @@ async def test_verify_five_wrong_attempts_burn_row(db_session):
         await verify_sms_code(db_session, "+8613800001237", "000000", "register")
     assert exc.value.details.get("burned") is True
 
-    row = (await db_session.execute(select(SmsCode))).scalar_one()
+    row = (await db_session.execute(
+        select(SmsCode).where(SmsCode.phone == "+8613800001237")
+    )).scalar_one()
     assert row.attempts == 5
     assert row.used_at is not None   # burned
 
