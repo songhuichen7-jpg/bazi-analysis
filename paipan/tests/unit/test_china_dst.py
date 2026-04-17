@@ -28,7 +28,7 @@ def test_after_dst_era_1992():
 
 
 def test_entry_day_1986_05_04():
-    # 查 Node 源码确认 1986-05-04 是否在 DST 内
+    # DST 起点 1986-05-04 02:00；当日 12:00 已在 DST 期内（与 Node 交叉验证）
     r = correct_china_dst(1986, 5, 4, 12, 0)
-    # 断言值照 Node 版实际行为；先占位，oracle 对拍时校正
-    assert "wasDst" in r
+    assert r["wasDst"] is True
+    assert r["hour"] == 11
