@@ -28,6 +28,8 @@ async def lifespan(app: FastAPI):
         # REMOVE IN Task 8: load_kek lands and this fallback must go.
         app.state.kek = None
     yield
+    from app.core.db import dispose_engine
+    await dispose_engine()
 
 
 app = FastAPI(

@@ -1,0 +1,73 @@
+"""SQLAlchemy async engine + session factory.
+
+Engine is created lazily via ``create_engine_from_settings()`` so tests can
+build a separate engine pointed at their testcontainers Postgres URL without
+fighting a module-level singleton.
+"""
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from typing import Any
+
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.core.config import settings
+
+
+def create_engine_from_settings(url: str | None = None, **kwargs: Any) -> AsyncEngine:
+    """Create an AsyncEngine.
+
+    Args:
+        url: overrides ``settings.database_url`` (used by tests).
+        **kwargs: merged into engine kwargs.
+
+    Default pool config: 5 + 10, pre-ping on.
+    """
+    defaults = {
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 10,
+    }
+    defaults.update(kwargs)
+    return create_async_engine(url or str(settings.database_url), **defaults)
+
+
+# Module-level singleton for production use (Plan 3+ routes). Tests build
+# their own engine and don't touch this.
+_engine: AsyncEngine | None = None
+_session_maker: async_sessionmaker[AsyncSession] | None = None
+
+
+def _ensure_engine() -> async_sessionmaker[AsyncSession]:
+    global _engine, _session_maker
+    if _session_maker is None:
+        _engine = create_engine_from_settings()
+        _session_maker = async_sessionmaker(_engine, expire_on_commit=False)
+    return _session_maker
+
+
+async def get_db() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: yields an AsyncSession that commits on success
+    and rolls back on exception."""
+    maker = _ensure_engine()
+    async with maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def dispose_engine() -> None:
+    """Called from FastAPI lifespan shutdown."""
+    global _engine, _session_maker
+    if _engine is not None:
+        await _engine.dispose()
+    _engine = None
+    _session_maker = None
