@@ -76,3 +76,29 @@ def test_expected_indexes_present(alembic_config):
     assert "ix_charts_user_created" in indexes_by_table["charts"]
     assert "ix_messages_conv_created" in indexes_by_table["messages"]
     assert "ix_sms_phone_created" in indexes_by_table["sms_codes"]
+
+
+def _inspect_columns(async_url: str, table: str):
+    """Return {column_name: column_info_dict} for the given table."""
+    async def _do():
+        engine = create_async_engine(async_url)
+        try:
+            async with engine.connect() as conn:
+                def _collect(sync_conn):
+                    insp = inspect(sync_conn)
+                    return {c["name"]: c for c in insp.get_columns(table)}
+                return await conn.run_sync(_collect)
+        finally:
+            await engine.dispose()
+    return asyncio.run(_do())
+
+
+def test_0002_adds_agreed_to_terms_at_and_nullable_dek(alembic_config):
+    """Ensures 0002 migration lands fields correctly: adds agreed_to_terms_at
+    and makes dek_ciphertext nullable for crypto-shredding."""
+    cfg, url = alembic_config
+    command.upgrade(cfg, "head")
+    cols = _inspect_columns(url, "users")
+    assert "agreed_to_terms_at" in cols
+    assert cols["agreed_to_terms_at"]["nullable"] is True
+    assert cols["dek_ciphertext"]["nullable"] is True

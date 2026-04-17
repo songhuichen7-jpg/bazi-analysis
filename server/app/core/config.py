@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # 32 字节 KEK，以 64 hex 字符传入；load_kek() 校验并转 bytes
     encryption_kek: str
 
+    # B 阶段邀请制开关；C 阶段设 false 开放注册
+    require_invite: bool = True
+
     # Plan 3+ 预留；Plan 2 不使用
     aliyun_sms_access_key: str | None = None
     aliyun_sms_secret: str | None = None

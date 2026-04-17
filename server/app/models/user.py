@@ -42,8 +42,12 @@ class User(Base):
     wechat_openid: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True)
     wechat_unionid: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True)
     # KEK-encrypted per-user DEK (not itself DEK-encrypted; users has no DEK context yet).
-    dek_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # NOTE: nullable post crypto-shredding — spec §2.6. Registration sets it;
+    # DELETE /api/auth/account sets it to NULL, making ciphertext unrecoverable.
+    dek_ciphertext: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     dek_key_version: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("1"))
+    # NOTE: set at registration (Plan 3). Used for ToS compliance audit.
+    agreed_to_terms_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                   server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
