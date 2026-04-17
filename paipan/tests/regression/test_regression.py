@@ -1,23 +1,27 @@
 """
 Oracle-driven regression test.
 
-For each fixture file, load the birth_input, run paipan.compute(),
-and deep-diff against the Node engine's expected output.
-
-Before compute() is implemented, all cases xfail. As modules are ported,
-cases progressively pass.
+For each fixture file, load the birth_input, run paipan.compute() with the
+fixed ORACLE_NOW injected, and deep-diff against the Node engine's expected
+output. ORACLE_NOW matches dump-oracle.js's mock so `todayYearGz` and friends
+match byte-for-byte.
 """
 from __future__ import annotations
 import json
 import pathlib
 import sys
+from datetime import datetime
+
 import pytest
 
 # Add regression directory to path so we can import deep_diff
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from deep_diff import deep_diff, format_diff
 
+from paipan import compute
+
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
+ORACLE_NOW = datetime(2026, 4, 17, 12, 0, 0)
 
 
 def _load_fixtures() -> list[pathlib.Path]:
@@ -28,17 +32,11 @@ def _load_fixtures() -> list[pathlib.Path]:
 def test_regression(fixture_path: pathlib.Path) -> None:
     data = json.loads(fixture_path.read_text(encoding="utf-8"))
     case_id = data["case_id"]
-    birth_input = data["birth_input"]
+    birth_input = dict(data["birth_input"])
     expected = data["expected"]
 
-    try:
-        from paipan import compute
-    except ImportError:
-        pytest.xfail("compute() not yet implemented")
+    actual = compute(**birth_input, _now=ORACLE_NOW)
 
-    actual = compute(**birth_input)
-    actual_dict = actual.model_dump() if hasattr(actual, "model_dump") else actual
-
-    diffs = deep_diff(actual_dict, expected, float_tolerance=1e-9)
+    diffs = deep_diff(actual, expected, float_tolerance=1e-9)
     if diffs:
         pytest.fail(f"Regression diff for {case_id}:\n{format_diff(diffs)}")
