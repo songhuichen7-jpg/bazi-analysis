@@ -23,7 +23,7 @@ class QuotaUsage(Base):
             "'dayun_regen','liunian_regen','gua','sms_send')",
             name="kind_enum",
         ),
-        UniqueConstraint("user_id", "period", "kind", name="uq_quota_slot"),
+        UniqueConstraint("user_id", "period", "kind", name="uq_quota_usage_slot"),
     )
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,

@@ -748,14 +748,14 @@ class Base(DeclarativeBase):
 
 
 # Import all models so Base.metadata is populated when Alembic imports us.
-from app.models.user import InviteCode, Session, SmsCode, User  # noqa: E402
+from app.models.user import InviteCode, SmsCode, User, UserSession  # noqa: E402
 from app.models.chart import Chart, ChartCache  # noqa: E402
 from app.models.conversation import Conversation, Message  # noqa: E402
 from app.models.quota import LlmUsageLog, QuotaUsage  # noqa: E402
 
 __all__ = [
     "Base",
-    "User", "InviteCode", "Session", "SmsCode",
+    "User", "InviteCode", "UserSession", "SmsCode",
     "Chart", "ChartCache",
     "Conversation", "Message",
     "QuotaUsage", "LlmUsageLog",
@@ -835,7 +835,9 @@ class InviteCode(Base):
                                                   server_default=text("now()"))
 
 
-class Session(Base):
+class UserSession(Base):
+    # NOTE: class renamed from Session to avoid shadowing sqlalchemy.orm.Session
+    # in downstream imports. Table name stays "sessions".
     __tablename__ = "sessions"
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,
@@ -1019,7 +1021,7 @@ class QuotaUsage(Base):
             "'dayun_regen','liunian_regen','gua','sms_send')",
             name="kind_enum",
         ),
-        UniqueConstraint("user_id", "period", "kind", name="uq_quota_slot"),
+        UniqueConstraint("user_id", "period", "kind", name="uq_quota_usage_slot"),
     )
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,
@@ -1663,7 +1665,7 @@ def upgrade() -> None:
             "'dayun_regen','liunian_regen','gua','sms_send')",
             name="ck_quota_usage_kind_enum",
         ),
-        sa.UniqueConstraint("user_id", "period", "kind", name="uq_quota_slot"),
+        sa.UniqueConstraint("user_id", "period", "kind", name="uq_quota_usage_slot"),
     )
 
     # ---- llm_usage_logs -------------------------------------------------

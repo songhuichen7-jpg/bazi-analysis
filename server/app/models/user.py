@@ -68,7 +68,9 @@ class InviteCode(Base):
                                                   server_default=text("now()"))
 
 
-class Session(Base):
+class UserSession(Base):
+    # NOTE: class renamed from Session to avoid shadowing sqlalchemy.orm.Session
+    # in downstream imports. Table name stays "sessions".
     __tablename__ = "sessions"
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,
