@@ -18,15 +18,9 @@ async def lifespan(app: FastAPI):
     setup_logging(settings.log_level)
 
     # KEK is loaded inside lifespan so tests that don't need it (e.g. health
-    # smoke) can override via monkeypatch before import. The actual load_kek
-    # function lands in Task 8; for now we stash the raw hex to prove the
-    # lifespan path wires up.
-    try:
-        from app.core.crypto import load_kek
-        app.state.kek = load_kek()
-    except ImportError:
-        # REMOVE IN Task 8: load_kek lands and this fallback must go.
-        app.state.kek = None
+    # smoke) can override via monkeypatch before import.
+    from app.core.crypto import load_kek
+    app.state.kek = load_kek()
     yield
     from app.core.db import dispose_engine
     await dispose_engine()
