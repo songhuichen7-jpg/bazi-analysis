@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.auth import router as auth_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -33,6 +34,8 @@ app = FastAPI(
     docs_url="/api/docs" if settings.env == "dev" else None,
     redoc_url=None,
 )
+
+app.include_router(auth_router)
 
 
 @app.get("/api/health")
