@@ -137,7 +137,7 @@ async function _postJSON(url, body) {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: body == null ? null : JSON.stringify(body),
+    body: body == null ? undefined : JSON.stringify(body),
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));

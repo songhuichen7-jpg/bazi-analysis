@@ -72,7 +72,7 @@ const BLANK_CHART = {
   chatHistory: [],
   conversations: [],
   currentConversationId: null,
-  guaCurrent: null,    // ephemeral last-cast gua (display only)
+  gua: { current: null, history: [] },   // ephemeral, not persisted
   dayunCache: {}, liunianCache: {},
   verdicts: blankVerdicts(),
 };
@@ -258,7 +258,6 @@ export const useAppStore = create((set, get) => ({
     return { chatHistory: arr };
   }),
 
-  clearChatLocal: () => set({ chatHistory: [] }),
   clearChat: () => set({ chatHistory: [] }),
 
   consumeCta: () => set(s => {
@@ -327,6 +326,7 @@ export const useAppStore = create((set, get) => ({
     if (nextId === convId) {
       nextId = list[0]?.id || null;
       if (!nextId) {
+        set({ conversations: [] });   // clear the deleted item before recursive call
         await get().newConversationOnServer(chartId, '对话 1');
         return;
       }
@@ -341,7 +341,7 @@ export const useAppStore = create((set, get) => ({
   setDayunOpenIdx: (idx) => set({ dayunOpenIdx: idx }),
   setDayunStreaming: (b)  => set({ dayunStreaming: b }),
 
-  setGuaCurrent: (current) => set({ guaCurrent: current }),
+  setGuaCurrent: (current) => set(s => ({ gua: { ...(s.gua || {}), current } })),
   pushGuaHistory: (entry) => set(s => ({
     gua: { ...(s.gua || {}), history: [...(s.gua?.history || []), entry].slice(-20) },
   })),
@@ -402,7 +402,7 @@ export const useAppStore = create((set, get) => ({
       sections: target.sections || [],
       // chat data: cleared; App.jsx will call loadConversations + loadMessages
       chatHistory: [], conversations: [], currentConversationId: null,
-      guaCurrent: null,
+      gua: { current: null, history: [] },
       dayunCache: target.dayunCache || {},
       liunianCache: target.liunianCache || {},
       verdicts: hydrateVerdicts(target.verdicts),
@@ -431,7 +431,7 @@ export const useAppStore = create((set, get) => ({
         sections: t.sections||[],
         // chat data: cleared; App.jsx will call loadConversations + loadMessages
         chatHistory: [], conversations: [], currentConversationId: null,
-        guaCurrent: null,
+        gua: { current: null, history: [] },
         dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
         verdicts: hydrateVerdicts(t.verdicts),
         screen: 'shell',
@@ -468,7 +468,7 @@ export const useAppStore = create((set, get) => ({
         sections: t.sections||[],
         // chat data: cleared; App.jsx will call loadConversations + loadMessages
         chatHistory: [], conversations: [], currentConversationId: null,
-        guaCurrent: null,
+        gua: { current: null, history: [] },
         dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
         verdicts: hydrateVerdicts(t.verdicts),
         dayunOpenIdx: null, liunianOpenKey: null,
