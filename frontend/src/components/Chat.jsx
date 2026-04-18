@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { streamMessage, streamGua, fetchChips } from '../lib/api';
+import { finalizeChatTurn } from '../lib/chatFlow';
 import GuaCard from './GuaCard';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
@@ -167,8 +168,7 @@ export default function Chat() {
       replaceLastAssistant(uiError.title);
       setChatError({ error: e, question: q });
     } finally {
-      setChatStreaming(false);
-      refreshChips();
+      finalizeChatTurn({ setChatStreaming, refreshChips });
     }
   }
 
