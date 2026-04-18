@@ -5,10 +5,15 @@
 export async function streamSSE(url, body, handlers = {}) {
   const resp = await fetch(url, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: body == null ? undefined : JSON.stringify(body),
   });
-  if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+  if (!resp.ok || !resp.body) {
+    let msg = 'HTTP ' + resp.status;
+    try { const err = await resp.json(); msg = err?.detail?.message || msg; } catch { /* ignore parse error */ }
+    throw new Error(msg);
+  }
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
   let carry = '';
@@ -111,5 +116,103 @@ export async function streamVerdicts(chart, callbacks = {}) {
         throw err;
       }
     }
+  }
+}
+
+// ============================================================================
+// Plan 6 — conversation layer
+// ============================================================================
+
+async function _getJSON(url) {
+  const r = await fetch(url, { credentials: 'include' });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
+    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
+  }
+  return r.json();
+}
+
+async function _postJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: body == null ? null : JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
+    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
+  }
+  return r.json();
+}
+
+async function _patchJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
+    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
+  }
+  return r.json();
+}
+
+async function _delete(url) {
+  const r = await fetch(url, { method: 'DELETE', credentials: 'include' });
+  if (!r.ok && r.status !== 204) {
+    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
+    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
+  }
+}
+
+export async function listConversations(chartId) {
+  return _getJSON(`/api/charts/${chartId}/conversations`);
+}
+
+export async function createConversation(chartId, label) {
+  return _postJSON(`/api/charts/${chartId}/conversations`, { label });
+}
+
+export async function patchConversation(convId, label) {
+  return _patchJSON(`/api/conversations/${convId}`, { label });
+}
+
+export async function deleteConversation(convId) {
+  return _delete(`/api/conversations/${convId}`);
+}
+
+export async function restoreConversation(convId) {
+  return _postJSON(`/api/conversations/${convId}/restore`, null);
+}
+
+export async function listMessages(convId, { before, limit = 50 } = {}) {
+  const qs = new URLSearchParams();
+  qs.set('limit', String(limit));
+  if (before) qs.set('before', before);
+  return _getJSON(`/api/conversations/${convId}/messages?${qs.toString()}`);
+}
+
+export async function streamMessage(convId, body, handlers = {}) {
+  return streamSSE(`/api/conversations/${convId}/messages`, body, handlers);
+}
+
+export async function streamGua(convId, body, handlers = {}) {
+  return streamSSE(`/api/conversations/${convId}/gua`, body, handlers);
+}
+
+export async function fetchChips(chartId, conversationId) {
+  const qs = conversationId ? `?conversation_id=${conversationId}` : '';
+  let final = '';
+  await streamSSE(`/api/charts/${chartId}/chips${qs}`, null, {
+    onDone: (full) => { final = full; },
+  });
+  try {
+    const parsed = JSON.parse(final);
+    return Array.isArray(parsed) ? parsed.filter(s => typeof s === 'string') : [];
+  } catch {
+    return [];
   }
 }

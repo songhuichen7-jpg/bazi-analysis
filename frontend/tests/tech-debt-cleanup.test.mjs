@@ -142,24 +142,17 @@ test('core shard forbids wrapping REF markers with backticks, quotes, or book-ti
   assert.match(core, /不要写 `\[\[ref\|label\]\]`、"\[\[ref\|label\]\]"/);
 });
 
-test('restored oversized chat history stays intact until append, then truncates to CHAT_HISTORY_MAX while preserving a pinned first message', async () => {
+test('oversized chatHistory truncates to CHAT_HISTORY_MAX on pushChat while preserving a pinned first message', async () => {
+  // Plan 6: chatHistory is now ephemeral (never persisted). Truncation still
+  // applies to the in-store chatHistory array when pushChat is called.
   const { CHAT_HISTORY_MAX } = await import('../src/lib/constants.js');
   assert.equal(CHAT_HISTORY_MAX, 100);
 
   const greeting = { role: 'system', content: '系统提示' };
-  const oldHistory = [greeting, ...buildMessages(149)];
+  const bigHistory = [greeting, ...buildMessages(149)];
 
-  useAppStore.getState().restoreFromSession({
-    version: 3,
-    currentId: 'chart_a',
-    charts: {
-      chart_a: buildChartEntry({
-        id: 'chart_a',
-        chatHistory: oldHistory,
-      }),
-    },
-  });
-
+  // Seed the ephemeral chatHistory directly (simulating what loadMessages would do)
+  useAppStore.setState({ chatHistory: bigHistory, currentId: 'chart_a' });
   assert.equal(useAppStore.getState().chatHistory.length, 150);
 
   const logs = [];
@@ -178,26 +171,31 @@ test('restored oversized chat history stays intact until append, then truncates 
   assert.ok(logs.some((args) => args[0] === '[chat] history truncated to' && args[1] === CHAT_HISTORY_MAX));
 });
 
-test('truncating the active chart after append does not mutate sibling chart histories', async () => {
+test('truncating chatHistory in active chart via pushChat does not affect other charts in the index', async () => {
+  // Plan 6: chatHistory is ephemeral — it only lives in the flat state, not in
+  // charts[id].chatHistory. commitCurrentChart no longer persists chatHistory.
+  // This test verifies that the in-memory ephemeral chatHistory stays at
+  // CHAT_HISTORY_MAX after a pushChat truncation, independent of siblings.
   const { CHAT_HISTORY_MAX } = await import('../src/lib/constants.js');
   assert.equal(CHAT_HISTORY_MAX, 100);
 
-  const chartAHistory = buildMessages(150);
-  const chartBHistory = buildMessages(5, 'assistant', 900);
+  const bigHistory = buildMessages(150);
 
   useAppStore.setState({
     currentId: 'chart_a',
     charts: {
-      chart_a: buildChartEntry({ id: 'chart_a', chatHistory: chartAHistory }),
-      chart_b: buildChartEntry({ id: 'chart_b', chatHistory: chartBHistory }),
+      chart_a: buildChartEntry({ id: 'chart_a' }),
+      chart_b: buildChartEntry({ id: 'chart_b' }),
     },
-    chatHistory: chartAHistory,
+    chatHistory: bigHistory,
   });
 
   useAppStore.getState().pushChat({ role: 'user', content: 'new question' });
-  useAppStore.getState().commitCurrentChart();
 
   const state = useAppStore.getState();
-  assert.equal(state.charts.chart_a.chatHistory.length, CHAT_HISTORY_MAX);
-  assert.deepEqual(state.charts.chart_b.chatHistory, chartBHistory);
+  // Ephemeral chatHistory has been trimmed
+  assert.equal(state.chatHistory.length, CHAT_HISTORY_MAX);
+  // commitCurrentChart no longer writes chatHistory into charts — charts[id]
+  // still has its own chatHistory field as set in buildChartEntry (empty [])
+  assert.deepEqual(state.charts.chart_b.chatHistory, []);
 });

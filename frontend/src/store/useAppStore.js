@@ -1,85 +1,22 @@
 import { create } from 'zustand';
-import { MAX_CHARTS } from '../lib/constants.js';
+import { MAX_CHARTS, SESSION_VERSION } from '../lib/constants.js';
 import { streamVerdicts } from '../lib/api.js';
 import { appendChatMessage } from '../lib/chatHistory.js';
 
 // Fields that belong to a single chart session (persisted per chart).
 const CHART_FIELDS = ['paipan','force','guards','dayun','meta','birthInfo',
-  'sections','chatHistory','conversations','currentConversationId',
-  'dayunCache','liunianCache','gua','verdicts'];
+  'sections','dayunCache','liunianCache','verdicts'];
 
-function genConvId() { return 'conv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
-
-function blankConversation() {
-  return { id: genConvId(), label: '默认对话', createdAt: Date.now(), messages: [] };
-}
-
-function derivedLabelFromMessages(messages, fallback = '默认对话') {
-  const firstUser = (messages || []).find(m => m.role === 'user' && typeof m.content === 'string');
-  if (!firstUser) return fallback;
-  const txt = String(firstUser.content || '').replace(/\s+/g, ' ').trim();
-  if (!txt) return fallback;
-  return txt.length > 14 ? txt.slice(0, 14) + '…' : txt;
-}
-
-// Normalize + migrate conversations from persisted state. If a chart had a
-// legacy `chatHistory` but no `conversations`, fold it into a default one.
-function hydrateConversations(entry) {
-  const raw = Array.isArray(entry?.conversations) ? entry.conversations : null;
-  if (raw && raw.length) {
-    const list = raw
-      .filter(c => c && typeof c === 'object')
-      .map(c => ({
-        id: c.id || genConvId(),
-        label: c.label || derivedLabelFromMessages(c.messages),
-        createdAt: Number.isFinite(c.createdAt) ? c.createdAt : Date.now(),
-        messages: Array.isArray(c.messages) ? c.messages : [],
-      }));
-    const currentId = entry.currentConversationId && list.some(c => c.id === entry.currentConversationId)
-      ? entry.currentConversationId
-      : list[list.length - 1].id;
-    return { conversations: list, currentConversationId: currentId };
+function _serverMsgToUiMsg(m) {
+  if (m.role === 'gua') {
+    const { gua, body, question } = m.meta || {};
+    return { role: 'gua', content: { ...(gua || {}), body, question, streaming: false } };
   }
-  // Migrate from legacy chatHistory
-  const legacy = Array.isArray(entry?.chatHistory) ? entry.chatHistory : [];
-  const conv = {
-    id: genConvId(),
-    label: derivedLabelFromMessages(legacy),
-    createdAt: Date.now(),
-    messages: legacy,
-  };
-  return { conversations: [conv], currentConversationId: conv.id };
-}
-
-function activeMessagesOf(conversations, currentConversationId) {
-  const conv = (conversations || []).find(c => c.id === currentConversationId);
-  return conv ? conv.messages : [];
-}
-
-// Produce a new conversations array with the active one replaced by `nextMessages`.
-function syncActive(conversations, currentConversationId, nextMessages) {
-  const list = conversations || [];
-  let touched = false;
-  const out = list.map(c => {
-    if (c.id !== currentConversationId) return c;
-    touched = true;
-    // Auto-relabel from first user message if still default
-    const isDefaultLabel = !c.label || c.label === '默认对话' || c.label === '新对话';
-    const newLabel = isDefaultLabel
-      ? derivedLabelFromMessages(nextMessages, c.label || '默认对话')
-      : c.label;
-    return { ...c, label: newLabel, messages: nextMessages };
-  });
-  if (!touched) {
-    // Active id missing — create one on the fly.
-    out.push({
-      id: currentConversationId || genConvId(),
-      label: derivedLabelFromMessages(nextMessages),
-      createdAt: Date.now(),
-      messages: nextMessages,
-    });
+  if (m.role === 'cta') {
+    const { question } = m.meta || {};
+    return { role: 'cta', content: { question, manual: false } };
   }
-  return out;
+  return { role: m.role, content: m.content || '' };
 }
 
 function blankVerdicts() {
@@ -128,28 +65,19 @@ function updateChartVerdicts(state, chartId, updater) {
   return next;
 }
 
-const _initialConv = blankConversation();
 const BLANK_CHART = {
   paipan: null, force: [], guards: [], dayun: [], meta: null, birthInfo: null,
-  sections: [], chatHistory: [],
-  conversations: [_initialConv],
-  currentConversationId: _initialConv.id,
+  sections: [],
+  // Plan 6: chat data is server-of-truth; ephemeral here, never persisted
+  chatHistory: [],
+  conversations: [],
+  currentConversationId: null,
+  guaCurrent: null,    // ephemeral last-cast gua (display only)
   dayunCache: {}, liunianCache: {},
-  gua: { current: null, history: [] },
   verdicts: blankVerdicts(),
 };
-function makeBlankChart() {
-  const conv = blankConversation();
-  return {
-    paipan: null, force: [], guards: [], dayun: [], meta: null, birthInfo: null,
-    sections: [], chatHistory: [],
-    conversations: [conv],
-    currentConversationId: conv.id,
-    dayunCache: {}, liunianCache: {},
-    gua: { current: null, history: [] },
-    verdicts: blankVerdicts(),
-  };
-}
+
+function makeBlankChart() { return { ...BLANK_CHART }; }
 
 function genId() { return 'chart_' + Date.now(); }
 
@@ -163,17 +91,11 @@ export function generateChartLabel(formData) {
 
 // Snapshot current flat chart state for persistence.
 function snapshotChart(s, extra = {}) {
-  // Ensure conversations reflect the latest chatHistory for the active convo
-  const conversations = syncActive(s.conversations, s.currentConversationId, s.chatHistory || []);
   return {
     paipan: s.paipan, force: s.force, guards: s.guards,
     dayun: s.dayun, meta: s.meta, birthInfo: s.birthInfo,
     sections: s.sections,
-    chatHistory: s.chatHistory,
-    conversations,
-    currentConversationId: s.currentConversationId,
     dayunCache: s.dayunCache, liunianCache: s.liunianCache,
-    gua: s.gua,
     verdicts: s.verdicts,
     ...extra,
   };
@@ -276,18 +198,17 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
+  appendMessage: (msg) => set(s => ({ chatHistory: [...s.chatHistory, msg] })),
   pushChat: (msg) => set(s => {
     const chatHistory = appendChatMessage(s.chatHistory, msg);
-    const conversations = syncActive(s.conversations, s.currentConversationId, chatHistory);
-    return { chatHistory, conversations };
+    return { chatHistory };
   }),
   replaceLastAssistant: (content) => set(s => {
     const arr = s.chatHistory.slice();
     for (let i = arr.length - 1; i >= 0; i--) {
       if (arr[i].role === 'assistant') { arr[i] = { ...arr[i], content }; break; }
     }
-    const conversations = syncActive(s.conversations, s.currentConversationId, arr);
-    return { chatHistory: arr, conversations };
+    return { chatHistory: arr };
   }),
   replaceLastCtaWithAssistant: () => set(s => {
     const arr = s.chatHistory.slice();
@@ -297,8 +218,7 @@ export const useAppStore = create((set, get) => ({
         break;
       }
     }
-    const conversations = syncActive(s.conversations, s.currentConversationId, arr);
-    return { chatHistory: arr, conversations };
+    return { chatHistory: arr };
   }),
 
   replacePlaceholderWithCta: (question, manual = false) => set(s => {
@@ -309,8 +229,7 @@ export const useAppStore = create((set, get) => ({
         break;
       }
     }
-    const conversations = syncActive(s.conversations, s.currentConversationId, arr);
-    return { chatHistory: arr, conversations };
+    return { chatHistory: arr };
   }),
 
   pushGuaCard: (guaData) => set(s => {
@@ -318,8 +237,7 @@ export const useAppStore = create((set, get) => ({
       role: 'gua',
       content: { ...guaData, streaming: true },
     });
-    const conversations = syncActive(s.conversations, s.currentConversationId, chatHistory);
-    return { chatHistory, conversations };
+    return { chatHistory };
   }),
 
   updateLastGuaCard: (body, finalize = false) => set(s => {
@@ -337,79 +255,95 @@ export const useAppStore = create((set, get) => ({
         break;
       }
     }
-    const conversations = syncActive(s.conversations, s.currentConversationId, arr);
-    return { chatHistory: arr, conversations };
+    return { chatHistory: arr };
   }),
 
-  clearChat: () => set(s => {
-    const conversations = syncActive(s.conversations, s.currentConversationId, []);
-    return { chatHistory: [], conversations };
+  clearChatLocal: () => set({ chatHistory: [] }),
+  clearChat: () => set({ chatHistory: [] }),
+
+  consumeCta: () => set(s => {
+    const arr = s.chatHistory.slice();
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (arr[i].role === 'cta') { arr.splice(i, 1); break; }
+    }
+    return { chatHistory: arr };
   }),
+
   setChatStreaming: (b) => set({ chatStreaming: b }),
 
-  // ── Conversations (per-chart) ─────────────────────────────────────────────
-  newConversation: () => set(s => {
-    // snapshot current chatHistory into active convo, then create a fresh one
-    const saved = syncActive(s.conversations, s.currentConversationId, s.chatHistory || []);
-    const conv = blankConversation();
-    return {
-      conversations: [...saved, conv],
-      currentConversationId: conv.id,
-      chatHistory: [],
-    };
-  }),
-
-  switchConversation: (id) => set(s => {
-    if (!id || id === s.currentConversationId) return s;
-    const saved = syncActive(s.conversations, s.currentConversationId, s.chatHistory || []);
-    const target = saved.find(c => c.id === id);
-    if (!target) return s;
-    return {
-      conversations: saved,
-      currentConversationId: id,
-      chatHistory: target.messages || [],
-    };
-  }),
-
-  deleteConversation: (id) => set(s => {
-    let list = (s.conversations || []).filter(c => c.id !== id);
-    if (!list.length) {
-      const conv = blankConversation();
-      list = [conv];
-      return {
-        conversations: list,
-        currentConversationId: conv.id,
-        chatHistory: [],
-      };
+  // ── Conversations (server-backed) ────────────────────────────────────────
+  loadConversations: async (chartId) => {
+    const { listConversations } = await import('../lib/api.js');
+    const data = await listConversations(chartId);
+    const items = data.items || [];
+    let currentId = null;
+    try { currentId = sessionStorage.getItem('currentConversationId:' + chartId); } catch { /* SSR/private mode */ }
+    if (!currentId || !items.some(c => c.id === currentId)) {
+      currentId = items.length ? items[0].id : null;
     }
-    if (id === s.currentConversationId) {
-      const next = list[list.length - 1];
-      return {
-        conversations: list,
-        currentConversationId: next.id,
-        chatHistory: next.messages || [],
-      };
-    }
-    return { conversations: list };
-  }),
+    set({ conversations: items, currentConversationId: currentId });
+    return items;
+  },
 
-  renameConversation: (id, label) => set(s => {
-    const cleaned = String(label || '').trim().slice(0, 40);
-    if (!cleaned) return s;
-    const conversations = (s.conversations || []).map(c =>
-      c.id === id ? { ...c, label: cleaned } : c
-    );
-    return { conversations };
-  }),
+  selectConversation: async (convId) => {
+    const s = get();
+    if (s.currentId) {
+      try { sessionStorage.setItem('currentConversationId:' + s.currentId, convId); } catch { /* SSR/private mode */ }
+    }
+    set({ currentConversationId: convId });
+    await get().loadMessages(convId);
+  },
+
+  loadMessages: async (convId) => {
+    const { listMessages } = await import('../lib/api.js');
+    const data = await listMessages(convId, { limit: 50 });
+    const chrono = (data.items || []).slice().reverse();
+    set({ chatHistory: chrono.map(m => _serverMsgToUiMsg(m)) });
+  },
+
+  newConversationOnServer: async (chartId, label) => {
+    const { createConversation } = await import('../lib/api.js');
+    const conv = await createConversation(chartId, label);
+    const list = [...(get().conversations || []), conv];
+    try { sessionStorage.setItem('currentConversationId:' + chartId, conv.id); } catch { /* SSR/private mode */ }
+    set({ conversations: list, currentConversationId: conv.id, chatHistory: [] });
+    return conv;
+  },
+
+  renameConversationOnServer: async (convId, label) => {
+    const { patchConversation } = await import('../lib/api.js');
+    const updated = await patchConversation(convId, label);
+    set(s => ({
+      conversations: (s.conversations || []).map(c => c.id === convId ? updated : c),
+    }));
+    return updated;
+  },
+
+  deleteConversationOnServer: async (chartId, convId) => {
+    const { deleteConversation: apiDelete } = await import('../lib/api.js');
+    await apiDelete(convId);
+    const list = (get().conversations || []).filter(c => c.id !== convId);
+    let nextId = get().currentConversationId;
+    if (nextId === convId) {
+      nextId = list[0]?.id || null;
+      if (!nextId) {
+        await get().newConversationOnServer(chartId, '对话 1');
+        return;
+      }
+      try { sessionStorage.setItem('currentConversationId:' + chartId, nextId); } catch { /* SSR/private mode */ }
+    }
+    set({ conversations: list, currentConversationId: nextId });
+    if (nextId) await get().loadMessages(nextId);
+  },
 
   setDayunCache: (idx, text) => set(s => ({ dayunCache: { ...s.dayunCache, [idx]: text } })),
   deleteDayunCache: (idx) => set(s => { const { [idx]: _, ...rest } = s.dayunCache; return { dayunCache: rest }; }),
   setDayunOpenIdx: (idx) => set({ dayunOpenIdx: idx }),
   setDayunStreaming: (b)  => set({ dayunStreaming: b }),
 
-  setGuaCurrent: (current) => set(s => ({ gua: { ...s.gua, current } })),
+  setGuaCurrent: (current) => set({ guaCurrent: current }),
   pushGuaHistory: (entry) => set(s => ({
-    gua: { ...s.gua, history: [...(s.gua?.history || []), entry].slice(-20) },
+    gua: { ...(s.gua || {}), history: [...(s.gua?.history || []), entry].slice(-20) },
   })),
   setGuaStreaming: (b) => set({ guaStreaming: b }),
 
@@ -455,8 +389,6 @@ export const useAppStore = create((set, get) => ({
       : { ...s.charts };
     const target = updatedCharts[id];
     if (!target) return;
-    const convState = hydrateConversations(target);
-    const activeMsgs = activeMessagesOf(convState.conversations, convState.currentConversationId);
     set({
       charts: updatedCharts,
       currentId: id,
@@ -468,12 +400,11 @@ export const useAppStore = create((set, get) => ({
       meta: target.meta || null,
       birthInfo: target.birthInfo || null,
       sections: target.sections || [],
-      chatHistory: activeMsgs,
-      conversations: convState.conversations,
-      currentConversationId: convState.currentConversationId,
+      // chat data: cleared; App.jsx will call loadConversations + loadMessages
+      chatHistory: [], conversations: [], currentConversationId: null,
+      guaCurrent: null,
       dayunCache: target.dayunCache || {},
       liunianCache: target.liunianCache || {},
-      gua: target.gua || { current: null, history: [] },
       verdicts: hydrateVerdicts(target.verdicts),
       screen: 'shell',
       dayunOpenIdx: null, liunianOpenKey: null,
@@ -492,19 +423,16 @@ export const useAppStore = create((set, get) => ({
     if (id === s.currentId) {
       const next = ids[0];
       const t = charts[next];
-      const convState = hydrateConversations(t);
-      const activeMsgs = activeMessagesOf(convState.conversations, convState.currentConversationId);
       set({
         charts, currentId: next,
         ...makeBlankChart(),
         paipan: t.paipan||null, force: t.force||[], guards: t.guards||[],
         dayun: t.dayun||[], meta: t.meta||null, birthInfo: t.birthInfo||null,
         sections: t.sections||[],
-        chatHistory: activeMsgs,
-        conversations: convState.conversations,
-        currentConversationId: convState.currentConversationId,
+        // chat data: cleared; App.jsx will call loadConversations + loadMessages
+        chatHistory: [], conversations: [], currentConversationId: null,
+        guaCurrent: null,
         dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
-        gua: t.gua || { current: null, history: [] },
         verdicts: hydrateVerdicts(t.verdicts),
         screen: 'shell',
         dayunOpenIdx: null, liunianOpenKey: null,
@@ -527,12 +455,10 @@ export const useAppStore = create((set, get) => ({
     });
   },
 
-  // ── Session restore (v3) ──────────────────────────────────────────────────
+  // ── Session restore (v4) ──────────────────────────────────────────────────
   restoreFromSession: (saved) => {
-    if (saved.version === 3 && saved.currentId && saved.charts?.[saved.currentId]) {
+    if (saved.version === SESSION_VERSION && saved.currentId && saved.charts?.[saved.currentId]) {
       const t = saved.charts[saved.currentId];
-      const convState = hydrateConversations(t);
-      const activeMsgs = activeMessagesOf(convState.conversations, convState.currentConversationId);
       set({
         charts: saved.charts,
         currentId: saved.currentId,
@@ -540,11 +466,10 @@ export const useAppStore = create((set, get) => ({
         paipan: t.paipan||null, force: t.force||[], guards: t.guards||[],
         dayun: t.dayun||[], meta: t.meta||null, birthInfo: t.birthInfo||null,
         sections: t.sections||[],
-        chatHistory: activeMsgs,
-        conversations: convState.conversations,
-        currentConversationId: convState.currentConversationId,
+        // chat data: cleared; App.jsx will call loadConversations + loadMessages
+        chatHistory: [], conversations: [], currentConversationId: null,
+        guaCurrent: null,
         dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
-        gua: t.gua || { current: null, history: [] },
         verdicts: hydrateVerdicts(t.verdicts),
         dayunOpenIdx: null, liunianOpenKey: null,
       });

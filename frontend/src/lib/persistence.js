@@ -44,7 +44,17 @@ export function loadSession(options = {}) {
       return { version: SESSION_VERSION, currentId: id, charts: { [id]: chart } };
     }
 
-    // v3 native
+    // v3 → v4: drop per-chart chat fields (now server-backed)
+    if (parsed.version === 3) {
+      const charts = {};
+      for (const [id, c] of Object.entries(parsed.charts || {})) {
+        const { chatHistory: _ch, conversations: _convs, currentConversationId: _cid, gua: _gua, ...rest } = c;
+        charts[id] = rest;
+      }
+      return { version: SESSION_VERSION, currentId: parsed.currentId, charts };
+    }
+
+    // v4 native
     if (parsed.version === SESSION_VERSION) return parsed;
 
     // Unknown future version
@@ -85,9 +95,7 @@ export function subscribeSave(store, options = {}) {
       paipan: state.paipan, force: state.force, guards: state.guards,
       dayun: state.dayun, meta: state.meta, birthInfo: state.birthInfo,
       sections: state.sections,
-      chatHistory: state.chatHistory,
       dayunCache: state.dayunCache, liunianCache: state.liunianCache,
-      gua: state.gua,
       verdicts: state.verdicts,
     };
     const charts = { ...state.charts, [state.currentId]: merged };

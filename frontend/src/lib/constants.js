@@ -1,5 +1,5 @@
 export const STORAGE_KEY = 'bazi_session_v1';
-export const SESSION_VERSION = 3;
+export const SESSION_VERSION = 4;
 export const MAX_CHARTS = 10;
 export const HISTORY_CAP = 12;
 export const CHAT_HISTORY_MAX = 100;
