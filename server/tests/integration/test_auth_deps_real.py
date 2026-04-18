@@ -182,3 +182,65 @@ async def test_dek_contextvar_clean_after_request(client):
     # (Each request runs in its own task, so even without reset this would be None;
     # but with reset, the invariant is stronger.)
     assert _current_dek.get(None) is None
+
+
+@pytest.mark.asyncio
+async def test_authenticate_helper_resets_dek_on_post_set_failure(client, monkeypatch):
+    """Important #1 (cleanup review): if db.execute raises AFTER _current_dek.set,
+    the contextvar must still be reset before the exception propagates.
+
+    Simulates a DB failure on the rolling-expiry UPDATE by monkey-patching
+    AsyncSession.execute to raise after the set. Then asserts the
+    contextvar is not leaked (reset() was called).
+    """
+    import uuid
+    import app.auth.deps as deps_mod
+    from tests.integration.conftest import register_user
+
+    # Register a user so we have a valid session cookie
+    phone = f"+86138{uuid.uuid4().int % 10**8:08d}"
+    cookie, _ = await register_user(client, phone)
+
+    # Use the same _SpyContextVar pattern as test_current_user_yield_dep_calls_reset_on_teardown
+    reset_calls = []
+    original_dek = deps_mod._current_dek
+
+    class _SpyContextVar:
+        """Thin wrapper that records .reset() calls, forwarding to the real ContextVar."""
+
+        def get(self, default=None):
+            return original_dek.get(default)
+
+        def set(self, value):
+            return original_dek.set(value)
+
+        def reset(self, token):
+            reset_calls.append(token)
+            return original_dek.reset(token)
+
+    monkeypatch.setattr(deps_mod, "_current_dek", _SpyContextVar())
+
+    # Force the rolling-expiry UPDATE to fail by monkey-patching AsyncSession.execute.
+    # Only fail on the specific UPDATE; let other queries (SELECT user, SELECT session) pass.
+    from sqlalchemy.ext.asyncio import AsyncSession
+    real_execute = AsyncSession.execute
+
+    async def _fail_on_session_update(self, statement, params=None, *a, **kw):
+        sql = str(statement)
+        if "UPDATE sessions" in sql and "last_seen_at" in sql:
+            raise RuntimeError("simulated DB error on session touch")
+        return await real_execute(self, statement, params, *a, **kw)
+
+    monkeypatch.setattr(AsyncSession, "execute", _fail_on_session_update)
+
+    # Hit any route that uses current_user. ASGITransport may propagate unhandled
+    # server-side exceptions directly to the test; catch either outcome.
+    try:
+        r = await client.get("/api/auth/me", cookies={"session": cookie})
+        # If FastAPI caught it and returned a 500, that's fine too.
+        assert r.status_code in (500, 503)
+    except RuntimeError as exc:
+        assert "simulated DB error" in str(exc), f"unexpected error: {exc}"
+
+    # The reset MUST have been called even though the request failed
+    assert len(reset_calls) >= 1, "reset must be called even when post-set db.execute fails"

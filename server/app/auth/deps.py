@@ -68,19 +68,22 @@ async def _authenticate_and_mount_dek(
     kek = request.app.state.kek
     dek = decrypt_dek(user.dek_ciphertext, kek)
     dek_token = _current_dek.set(dek)
-    request.state.session = session_row
-
-    # Rolling 30-day expiry.
-    now = datetime.now(tz=timezone.utc)
-    await db.execute(
-        text("""
-            UPDATE sessions
-               SET last_seen_at = :now,
-                   expires_at = :exp
-             WHERE id = :sid
-        """),
-        {"now": now, "exp": now + timedelta(days=30), "sid": session_row.id},
-    )
+    try:
+        request.state.session = session_row
+        # Rolling 30-day expiry.
+        now = datetime.now(tz=timezone.utc)
+        await db.execute(
+            text("""
+                UPDATE sessions
+                   SET last_seen_at = :now,
+                       expires_at = :exp
+                 WHERE id = :sid
+            """),
+            {"now": now, "exp": now + timedelta(days=30), "sid": session_row.id},
+        )
+    except BaseException:  # noqa: BLE001 — must reset contextvar before propagating
+        _current_dek.reset(dek_token)
+        raise
 
     return user, dek_token
 
