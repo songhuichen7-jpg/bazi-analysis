@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.db_types import user_dek_context
 from app.services import conversation as conv_svc
 from app.services.exceptions import (
+    ConversationAlreadyDeletedError,
     ConversationGoneError,
     NotFoundError,
 )
@@ -192,3 +193,49 @@ async def test_get_returns_message_count_and_last_message_at(db_session, user_an
         d2 = await conv_svc.get_conversation(db_session, user, c.id)
         assert d2.message_count == 3
         assert d2.last_message_at is not None
+
+
+async def test_list_conversations_uses_single_aggregation_query(db_session, user_and_dek):
+    """N+1 regression guard: list_conversations must run ≤ 3 queries
+    (1 chart fetch + 1 list-with-aggregation join), regardless of conv count."""
+    from sqlalchemy import event
+    from app.db_types import user_dek_context
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        # Create 5 conversations + a few messages each
+        from app.services import message as msg_svc
+        for _ in range(5):
+            conv = await conv_svc.create_conversation(db_session, user, chart.id)
+            await msg_svc.insert(db_session, conversation_id=conv.id,
+                                  role="user", content="x")
+        await db_session.flush()
+
+        bind = db_session.bind
+        sync_engine = bind.sync_engine if hasattr(bind, "sync_engine") else bind
+        count = {"n": 0}
+
+        def _on_execute(*_a, **_kw):
+            count["n"] += 1
+
+        event.listen(sync_engine, "before_cursor_execute", _on_execute)
+        try:
+            rows = await conv_svc.list_conversations(db_session, user, chart.id)
+        finally:
+            event.remove(sync_engine, "before_cursor_execute", _on_execute)
+
+        assert len(rows) == 5
+        # Should be ≤ 3: owned-chart lookup + the aggregation query (+ tx mechanics)
+        assert count["n"] <= 3, f"N+1 regression: {count['n']} queries issued"
+
+
+async def test_soft_delete_twice_raises_already_deleted(db_session, user_and_dek):
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        c = await conv_svc.create_conversation(db_session, user, chart.id)
+        await db_session.flush()
+        await conv_svc.soft_delete(db_session, user, c.id)
+        await db_session.flush()
+        with pytest.raises(ConversationAlreadyDeletedError):
+            await conv_svc.soft_delete(db_session, user, c.id)

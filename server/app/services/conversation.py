@@ -1,7 +1,7 @@
 """Conversation CRUD + ownership + soft-delete/restore. NOTE: spec §4."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -12,10 +12,11 @@ from app.models.chart import Chart
 from app.models.conversation import Conversation, Message
 from app.models.user import User
 from app.schemas.conversation import ConversationDetail
-from app.services.exceptions import ConversationGoneError, NotFoundError
-
-
-_RESTORE_WINDOW = timedelta(days=30)
+from app.services.exceptions import (
+    ConversationAlreadyDeletedError,
+    ConversationGoneError,
+    NotFoundError,
+)
 
 
 async def _get_owned_chart(db: AsyncSession, user: User, chart_id: UUID) -> Chart:
@@ -68,12 +69,37 @@ async def list_conversations(
     db: AsyncSession, user: User, chart_id: UUID,
 ) -> list[ConversationDetail]:
     chart = await _get_owned_chart(db, user, chart_id)
-    rows = (await db.execute(
-        select(Conversation)
+
+    msg_agg = (
+        select(
+            Message.conversation_id.label("cid"),
+            func.count(Message.id).label("message_count"),
+            func.max(Message.created_at).label("last_message_at"),
+        )
+        .group_by(Message.conversation_id)
+        .subquery()
+    )
+    stmt = (
+        select(
+            Conversation,
+            func.coalesce(msg_agg.c.message_count, 0).label("message_count"),
+            msg_agg.c.last_message_at,
+        )
+        .outerjoin(msg_agg, Conversation.id == msg_agg.c.cid)
         .where(Conversation.chart_id == chart.id, Conversation.deleted_at.is_(None))
         .order_by(Conversation.position.asc(), Conversation.created_at.asc())
-    )).scalars().all()
-    return [await _to_detail(db, r) for r in rows]
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        ConversationDetail(
+            id=conv.id, label=conv.label, position=conv.position,
+            created_at=conv.created_at, updated_at=conv.updated_at,
+            last_message_at=last_at,
+            message_count=int(count or 0),
+            deleted_at=conv.deleted_at,
+        )
+        for conv, count, last_at in rows
+    ]
 
 
 async def create_conversation(
@@ -118,7 +144,9 @@ async def patch_label(
 
 
 async def soft_delete(db: AsyncSession, user: User, conv_id: UUID) -> None:
-    conv = await _get_owned_conversation_row(db, user, conv_id)
+    conv = await _get_owned_conversation_row(db, user, conv_id, allow_deleted=True)
+    if conv.deleted_at is not None:
+        raise ConversationAlreadyDeletedError()
     conv.deleted_at = datetime.now(tz=timezone.utc)
     await db.flush()
 
@@ -129,7 +157,11 @@ async def restore(
     conv = await _get_owned_conversation_row(db, user, conv_id, allow_deleted=True)
     if conv.deleted_at is None:
         return await _to_detail(db, conv)
-    if conv.deleted_at < datetime.now(tz=timezone.utc) - _RESTORE_WINDOW:
+    # Use DB clock (matches chart.py restore semantics) for window check.
+    cutoff_row = (await db.execute(
+        text("SELECT now() - INTERVAL '30 days'")
+    )).scalar_one()
+    if conv.deleted_at < cutoff_row:
         raise ConversationGoneError()
     conv.deleted_at = None
     await db.flush()

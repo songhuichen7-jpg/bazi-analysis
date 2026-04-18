@@ -116,8 +116,7 @@ async def test_paginate_cursor_keyset(db_session, user_and_dek):
                                       role="user", content=f"m{i}")
             await db_session.commit()
             ids.append(m.id)
-            import asyncio as _a
-            await _a.sleep(0.001)
+            await asyncio.sleep(0.001)
 
         page1 = await msg_svc.paginate(db_session, conversation_id=c.id, before=None, limit=3)
         assert [m.content for m in page1["items"]] == ["m6", "m5", "m4"]
@@ -174,8 +173,7 @@ async def test_delete_last_cta_removes_only_latest(db_session, user_and_dek):
         await db_session.commit()
         await msg_svc.insert(db_session, conversation_id=c.id, role="cta",
                               content=None, meta={"question": "old"})
-        import asyncio as _a
-        await _a.sleep(0.001)
+        await asyncio.sleep(0.001)
         cta2 = await msg_svc.insert(db_session, conversation_id=c.id, role="cta",
                                      content=None, meta={"question": "new"})
         await db_session.commit()
@@ -187,3 +185,32 @@ async def test_delete_last_cta_removes_only_latest(db_session, user_and_dek):
         # Second call returns None (only the older cta remains)
         rest = await msg_svc.paginate(db_session, conversation_id=c.id, before=None, limit=10)
         assert any(m.role == "cta" for m in rest["items"])
+
+
+async def test_delete_last_cta_returns_none_when_no_cta(db_session, user_and_dek):
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        c = await conv_svc.create_conversation(db_session, user, chart.id)
+        await db_session.flush()
+        # Insert only user/assistant messages, no cta
+        await msg_svc.insert(db_session, conversation_id=c.id, role="user", content="x")
+        await db_session.flush()
+        deleted = await msg_svc.delete_last_cta(db_session, conversation_id=c.id)
+        assert deleted is None
+
+
+async def test_recent_chat_history_respects_limit(db_session, user_and_dek):
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        c = await conv_svc.create_conversation(db_session, user, chart.id)
+        await db_session.flush()
+        for i in range(10):
+            await msg_svc.insert(db_session, conversation_id=c.id,
+                                  role="user", content=f"u{i}")
+            await db_session.flush()
+            await asyncio.sleep(0.001)
+        hist = await msg_svc.recent_chat_history(db_session, conversation_id=c.id, limit=4)
+        # Last 4 in chronological order: u6, u7, u8, u9
+        assert [h["content"] for h in hist] == ["u6", "u7", "u8", "u9"]

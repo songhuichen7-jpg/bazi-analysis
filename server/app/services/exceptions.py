@@ -166,6 +166,16 @@ class ConversationGoneError(ServiceError):
         super().__init__(message=message)
 
 
+class ConversationAlreadyDeletedError(ServiceError):
+    """Soft-delete called on a conversation that's already soft-deleted."""
+
+    status = 409
+    code = "CONVERSATION_ALREADY_DELETED"
+
+    def __init__(self, message: str = "对话已删除"):
+        super().__init__(message=message)
+
+
 # ---- Plan 5: LLM / SSE ------------------------------------------------
 
 

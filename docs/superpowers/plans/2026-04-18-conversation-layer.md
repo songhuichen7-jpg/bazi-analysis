@@ -1774,7 +1774,7 @@ async def test_paginate_cursor_keyset(db_session, seeded):
 
         page1 = await msg_svc.paginate(db_session, conversation_id=c.id, before=None, limit=3)
         assert [m.content for m in page1["items"]] == ["m6", "m5", "m4"]
-        assert page1["next_cursor"] == ids[3]   # next_cursor = id of (limit+1)th from latest
+        assert page1["next_cursor"] == ids[4]   # next_cursor = id of last item in page1 (m4 = ids[4])
 
         page2 = await msg_svc.paginate(db_session, conversation_id=c.id,
                                         before=page1["next_cursor"], limit=3)
