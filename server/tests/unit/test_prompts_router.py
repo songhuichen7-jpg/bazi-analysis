@@ -31,7 +31,7 @@ def test_intents_list_complete():
     ("今年运气怎么样", "timing"),
     ("我和老公感情", "relationship"),
     ("我长得帅吗", "appearance"),
-    ("我适合创业吗", "divination"),     # "适合吗" 命中 divination
+    ("创业能不能成", "divination"),      # "能不能" 命中 divination
     ("飞天禄马是什么", "special_geju"),
     ("七杀是啥意思", "meta"),
     ("我这个人是不是太敏感", "personality"),
