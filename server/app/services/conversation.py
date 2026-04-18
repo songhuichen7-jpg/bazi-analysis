@@ -58,7 +58,7 @@ async def _to_detail(db: AsyncSession, conv: Conversation) -> ConversationDetail
         .where(Message.conversation_id == conv.id)
     )).one()
     return ConversationDetail(
-        id=conv.id, label=conv.label, position=conv.position,
+        id=conv.id, chart_id=conv.chart_id, label=conv.label, position=conv.position,
         created_at=conv.created_at, updated_at=conv.updated_at,
         last_message_at=row[1], message_count=int(row[0] or 0),
         deleted_at=conv.deleted_at,
@@ -92,7 +92,7 @@ async def list_conversations(
     rows = (await db.execute(stmt)).all()
     return [
         ConversationDetail(
-            id=conv.id, label=conv.label, position=conv.position,
+            id=conv.id, chart_id=conv.chart_id, label=conv.label, position=conv.position,
             created_at=conv.created_at, updated_at=conv.updated_at,
             last_message_at=last_at,
             message_count=int(count or 0),

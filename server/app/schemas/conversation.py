@@ -34,6 +34,7 @@ class ConversationPatchRequest(BaseModel):
 
 class ConversationDetail(BaseModel):
     id: UUID
+    chart_id: UUID
     label: Optional[str]
     position: int
     created_at: datetime

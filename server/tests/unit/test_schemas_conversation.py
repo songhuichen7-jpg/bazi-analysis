@@ -41,14 +41,14 @@ def test_conversation_patch_label_required_nonempty():
 def test_conversation_detail_shape():
     now = datetime.now(tz=timezone.utc)
     d = ConversationDetail(
-        id=uuid4(), label="对话 1", position=0,
+        id=uuid4(), chart_id=uuid4(), label="对话 1", position=0,
         created_at=now, updated_at=now,
         last_message_at=None, message_count=0,
         deleted_at=None,
     )
     j = d.model_dump(mode="json")
     assert set(j.keys()) >= {
-        "id", "label", "position", "created_at", "updated_at",
+        "id", "chart_id", "label", "position", "created_at", "updated_at",
         "last_message_at", "message_count", "deleted_at",
     }
 

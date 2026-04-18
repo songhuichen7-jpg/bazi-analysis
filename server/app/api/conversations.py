@@ -25,6 +25,8 @@ from app.schemas.gua import GuaCastRequest
 from app.schemas.message import MessagesListResponse
 from app.services import chart as chart_service
 from app.services import conversation as conv_service
+from app.services import conversation_chat as chat_svc
+from app.services import conversation_gua as gua_svc
 from app.services import message as msg_service
 from app.services.exceptions import NotFoundError, ServiceError
 
@@ -158,7 +160,7 @@ async def restore_conversation_endpoint(
 async def list_messages_endpoint(
     conv_id: UUID,
     before: UUID | None = Query(default=None),
-    limit: int = Query(default=25, ge=1, le=100),
+    limit: int = Query(default=50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> MessagesListResponse:
@@ -186,29 +188,13 @@ async def post_message_endpoint(
     ticket=Depends(check_quota("chat_message")),
 ):
     """Stream SSE chat response for a conversation message."""
-    # Ownership: resolve conversation → chart in one joined query.
     try:
-        await conv_service.get_conversation(db, user, conv_id)
-    except ServiceError:
-        raise _http_error(NotFoundError(message="对话不存在"))
-
-    # Fetch the chart for context (conversation → chart via service internals).
-    from sqlalchemy import select
-    from app.models.conversation import Conversation
-    from app.models.chart import Chart
-
-    conv_row = (await db.execute(
-        select(Conversation).where(Conversation.id == conv_id)
-    )).scalar_one_or_none()
-    if conv_row is None:
-        raise _http_error(NotFoundError(message="对话不存在"))
-
-    try:
-        chart = await chart_service.get_chart(db, user, conv_row.chart_id)
+        conv = await conv_service.get_conversation(db, user, conv_id)
+        if conv.deleted_at is not None:
+            raise NotFoundError(message="对话不存在")
+        chart = await chart_service.get_chart(db, user, conv.chart_id)
     except ServiceError as e:
         raise _http_error(e)
-
-    from app.services import conversation_chat as chat_svc
 
     async def _gen():
         async for raw in chat_svc.stream_message(
@@ -233,25 +219,12 @@ async def post_gua_endpoint(
 ):
     """Stream SSE gua cast for a conversation."""
     try:
-        await conv_service.get_conversation(db, user, conv_id)
-    except ServiceError:
-        raise _http_error(NotFoundError(message="对话不存在"))
-
-    from sqlalchemy import select
-    from app.models.conversation import Conversation
-
-    conv_row = (await db.execute(
-        select(Conversation).where(Conversation.id == conv_id)
-    )).scalar_one_or_none()
-    if conv_row is None:
-        raise _http_error(NotFoundError(message="对话不存在"))
-
-    try:
-        chart = await chart_service.get_chart(db, user, conv_row.chart_id)
+        conv = await conv_service.get_conversation(db, user, conv_id)
+        if conv.deleted_at is not None:
+            raise NotFoundError(message="对话不存在")
+        chart = await chart_service.get_chart(db, user, conv.chart_id)
     except ServiceError as e:
         raise _http_error(e)
-
-    from app.services import conversation_gua as gua_svc
 
     async def _gen():
         async for raw in gua_svc.stream_gua(
