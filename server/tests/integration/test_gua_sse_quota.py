@@ -1,4 +1,4 @@
-"""Smoke: POST /gua does not KeyError on the quota dependency."""
+"""Integration: gua quota pre-check 429."""
 from __future__ import annotations
 
 import os
