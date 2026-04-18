@@ -11,6 +11,8 @@ from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
 from app.api.charts import router as charts_router
+from app.api.conversations import charts_router as conversations_charts_router
+from app.api.conversations import router as conversations_router
 from app.api.quota import router as quota_router
 from app.api.sessions import router as sessions_router
 from app.api.public import router as public_router
@@ -42,6 +44,8 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(sessions_router)
 app.include_router(charts_router)
+app.include_router(conversations_charts_router)
+app.include_router(conversations_router)
 app.include_router(quota_router)
 app.include_router(public_router)
 

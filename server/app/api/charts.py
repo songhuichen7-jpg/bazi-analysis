@@ -340,6 +340,7 @@ async def liunian_endpoint(
 @router.post("/{chart_id}/chips")
 async def chips_endpoint(
     chart_id: UUID,
+    conversation_id: UUID | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
@@ -349,7 +350,9 @@ async def chips_endpoint(
         raise _http_error(e)
 
     async def _gen():
-        async for raw in chart_chips_service.stream_chips(db, user, chart):
+        async for raw in chart_chips_service.stream_chips(
+            db, user, chart, conversation_id=conversation_id
+        ):
             yield raw
         await db.commit()
 
