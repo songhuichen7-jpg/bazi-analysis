@@ -146,3 +146,45 @@ async def test_stream_chart_llm_upstream_error_no_cache_write(db_session, seeded
         row = await chart_llm.get_cache_row(db_session, chart.id, "verdicts", "")
     assert row is None
     assert any(b'"type":"error"' in e for e in events)
+
+
+@pytest.mark.asyncio
+async def test_stream_chart_llm_passes_first_delta_timeout_from_settings(
+    db_session, seeded, monkeypatch,
+):
+    """Task 1 (cleanup): settings.llm_stream_first_delta_ms must flow through."""
+    from app.db_types import user_dek_context
+    from app.services import chart_llm
+
+    # Capture kwargs passed to chat_stream_with_fallback
+    captured = {}
+
+    async def _capturing_stream(**kwargs):
+        captured.update(kwargs)
+        yield {"type": "model", "modelUsed": "mimo-v2-pro"}
+        yield {"type": "delta", "text": "x"}
+        yield {"type": "done", "full": "x", "tokens_used": 1,
+               "prompt_tokens": 1, "completion_tokens": 0}
+
+    monkeypatch.setattr(chart_llm, "chat_stream_with_fallback", _capturing_stream)
+
+    async def _empty_retrieve(chart, kind):
+        return []
+    monkeypatch.setattr(chart_llm, "retrieve_for_chart", _empty_retrieve)
+
+    monkeypatch.setattr("app.services.chart_llm.settings.llm_stream_first_delta_ms", 7500)
+
+    def _build(chart_paipan, retrieved):
+        return [{"role":"system","content":"s"}, {"role":"user","content":"u"}]
+
+    user, chart, dek = seeded
+    with user_dek_context(dek):
+        async for _ in chart_llm.stream_chart_llm(
+            db_session, user, chart,
+            kind="verdicts", key="", force=False, cache_row=None, ticket=None,
+            build_messages=_build, retrieval_kind="meta",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            pass
+
+    assert captured.get("first_delta_timeout_ms") == 7500

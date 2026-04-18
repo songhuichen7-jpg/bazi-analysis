@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.llm.client import chat_stream_with_fallback
 from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
@@ -28,6 +29,7 @@ async def stream_chips(db: AsyncSession, user: User, chart: Chart) -> AsyncItera
         async for ev in chat_stream_with_fallback(
             messages=messages, tier="fast",
             temperature=0.9, max_tokens=200,
+            first_delta_timeout_ms=settings.llm_stream_first_delta_ms,
         ):
             if ev["type"] == "model":
                 model_used = ev["modelUsed"]

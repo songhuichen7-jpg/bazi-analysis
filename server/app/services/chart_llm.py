@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.llm.client import chat_stream_with_fallback
 from app.llm.events import replay_cached, sse_pack
 from app.llm.logs import insert_llm_usage_log
@@ -115,6 +116,7 @@ async def stream_chart_llm(
         async for ev in chat_stream_with_fallback(
             messages=messages, tier=tier,
             temperature=temperature, max_tokens=max_tokens,
+            first_delta_timeout_ms=settings.llm_stream_first_delta_ms,
         ):
             if ev["type"] == "model":
                 model_used = ev["modelUsed"]
