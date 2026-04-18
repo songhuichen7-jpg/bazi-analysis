@@ -229,7 +229,7 @@ async def post_gua_endpoint(
     body: GuaCastRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
-    ticket=Depends(check_quota("gua_cast")),
+    ticket=Depends(check_quota("gua")),
 ):
     """Stream SSE gua cast for a conversation."""
     try:
