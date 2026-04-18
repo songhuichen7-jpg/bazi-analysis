@@ -7,6 +7,7 @@ still raise meaningful typed errors.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 class ServiceError(Exception):
@@ -138,3 +139,19 @@ class ChartAlreadyDeleted(ServiceError):
     code = "CHART_ALREADY_DELETED"
     message = "命盘已在软删状态"
     status = 409
+
+
+# ---- Plan 5: LLM / SSE ------------------------------------------------
+
+
+class UpstreamLLMError(Exception):
+    """Raised by app.llm.client when both primary and fallback models fail.
+
+    Not a ServiceError — this is sent as an in-band SSE error event rather
+    than mapped to HTTP status (SSE 200 already on wire by the time we know).
+    """
+    def __init__(self, *, code: Literal["UPSTREAM_LLM_FAILED", "UPSTREAM_LLM_TIMEOUT"],
+                 message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
