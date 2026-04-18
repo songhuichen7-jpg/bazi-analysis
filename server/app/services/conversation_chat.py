@@ -19,7 +19,7 @@ from app.prompts import expert as prompts_expert
 from app.retrieval.service import retrieve_for_chart
 from app.services import message as msg_svc
 from app.services.chat_router import classify
-from app.services.exceptions import QuotaExceededError, UpstreamLLMError
+from app.services.exceptions import UpstreamLLMError
 from app.services.quota import QuotaTicket
 
 
@@ -47,7 +47,7 @@ async def stream_message(
         yield sse_pack({"type": "redirect", "to": "gua", "question": message})
         try:
             await ticket.commit()
-        except QuotaExceededError as e:
+        except Exception as e:  # noqa: BLE001 — quota race or other commit failure
             yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
             return
         yield sse_pack({"type": "done", "full": ""})
@@ -94,9 +94,9 @@ async def stream_message(
                 accumulator += ev["text"]
                 yield sse_pack(ev)
             elif t == "done":
-                prompt_tok = ev.get("prompt_tokens", 0) or 0
-                completion_tok = ev.get("completion_tokens", 0) or 0
-                total_tok = ev.get("tokens_used", 0) or 0
+                prompt_tok = ev.get("prompt_tokens", 0)
+                completion_tok = ev.get("completion_tokens", 0)
+                total_tok = ev.get("tokens_used", 0)
     except UpstreamLLMError as e:
         err = e
         yield sse_pack({"type": "error", "code": e.code, "message": e.message})
@@ -114,7 +114,7 @@ async def stream_message(
 
     try:
         await ticket.commit()
-    except QuotaExceededError as e:
+    except Exception as e:  # noqa: BLE001 — quota race or other commit failure
         yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
         await insert_llm_usage_log(
             db, user_id=user.id, chart_id=chart.id,
@@ -141,4 +141,4 @@ async def stream_message(
         prompt_tokens=prompt_tok, completion_tokens=completion_tok,
         duration_ms=duration_ms,
     )
-    yield sse_pack({"type": "done", "full": accumulator})
+    yield sse_pack({"type": "done", "full": accumulator, "tokens_used": total_tok})

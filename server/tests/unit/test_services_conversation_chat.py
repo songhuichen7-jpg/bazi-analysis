@@ -226,3 +226,5 @@ async def test_llm_error_keeps_user_msg_no_assistant(monkeypatch, db_session, us
                                        before=None, limit=10)
         roles = [m.role for m in page["items"]]
         assert roles == ["user"]
+        # Ticket must NOT have been committed when the LLM errored
+        assert not ticket._committed
