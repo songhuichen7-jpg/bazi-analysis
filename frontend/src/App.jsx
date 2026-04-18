@@ -17,7 +17,6 @@ export default function App() {
   const meta = useAppStore(s => s.meta);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const loadMessages = useAppStore(s => s.loadMessages);
-  const skipConversationHydration = useAppStore(s => s.skipConversationHydration);
   const logout = useAppStore(s => s.logout);
 
   useEffect(() => {
@@ -44,7 +43,7 @@ export default function App() {
     if (!currentId || !meta) return;
     (async () => {
       const result = await ensureConversation(currentId);
-      if (skipConversationHydration) {
+      if (useAppStore.getState().skipConversationHydration) {
         useAppStore.setState({ skipConversationHydration: false });
         return;
       }
@@ -52,7 +51,7 @@ export default function App() {
         await loadMessages(result.conversationId);
       }
     })().catch(e => console.error('[App] load conversations failed', e));
-  }, [currentId, meta, ensureConversation, loadMessages, skipConversationHydration]);
+  }, [currentId, meta, ensureConversation, loadMessages]);
 
   let content = null;
   if (screen === 'auth') content = <AuthScreen />;
