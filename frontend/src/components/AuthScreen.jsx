@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchConfig } from '../lib/api';
+import { setAuthSessionHint } from '../lib/authSessionHint.js';
 import SmsSendForm from './SmsSendForm';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
@@ -20,6 +21,7 @@ export default function AuthScreen() {
   }, []);
 
   async function onAuthSuccess(user) {
+    setAuthSessionHint();
     setUser(user);
     await syncChartsFromServer();
   }

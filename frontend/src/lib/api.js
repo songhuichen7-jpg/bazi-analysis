@@ -145,7 +145,10 @@ export async function logout() {
 }
 
 export async function me() {
-  return _getJSON('/api/auth/me');
+  const response = await fetch('/api/auth/me', { credentials: 'include' });
+  if (response.status === 401) return null;
+  if (!response.ok) throw await _errorFromResponse(response);
+  return response.json();
 }
 
 export async function listCharts() {

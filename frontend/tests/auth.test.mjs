@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sendSmsCode, register, login } from '../src/lib/api.js';
+import { sendSmsCode, register, login, me } from '../src/lib/api.js';
 import { useAppStore } from '../src/store/useAppStore.js';
 
 function stubFetch(impl) {
@@ -81,6 +81,21 @@ test('login returns user and store setUser keeps it', async () => {
     const result = await login({ phone: '13800138001', code: '654321' });
     useAppStore.getState().setUser(result.user);
     assert.deepEqual(useAppStore.getState().user, user);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('me returns null on expected 401 bootstrap misses', async () => {
+  stubFetch(async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({ detail: { message: 'unauthorized' } }),
+  }));
+
+  try {
+    const result = await me();
+    assert.equal(result, null);
   } finally {
     restoreFetch();
   }

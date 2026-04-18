@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { SESSION_VERSION } from '../lib/constants.js';
 import { streamVerdicts } from '../lib/api.js';
+import { clearAuthSessionHint } from '../lib/authSessionHint.js';
 import { appendChatMessage } from '../lib/chatHistory.js';
 import { clearSession } from '../lib/persistence.js';
 import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
@@ -533,6 +534,7 @@ export const useAppStore = create((set, get) => ({
   logout: async () => {
     const { logout: logoutApi } = await import('../lib/api.js');
     try { await logoutApi(); } catch { /* best effort */ }
+    clearAuthSessionHint();
     clearSession();
     clearClientSessionStorage();
     set((state) => ({
