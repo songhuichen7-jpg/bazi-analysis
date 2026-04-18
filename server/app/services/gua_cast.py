@@ -6,6 +6,7 @@ Deterministic; no IO besides reading gua64.json once at module load.
 from __future__ import annotations
 
 import json
+import warnings
 from datetime import datetime
 from importlib.resources import files
 from typing import Any
@@ -33,11 +34,20 @@ GUA64: list[dict[str, Any]] = _load_gua64()
 # NOTE: gua.js:18-26 -- combo index keyed by upperIdx*10+lowerIdx -> gua.id
 def _build_combo_index() -> dict[int, int]:
     m: dict[int, int] = {}
+    seen_names: dict[int, str] = {}
     for g in GUA64:
         u = TRIGRAM_NAMES.index(g["upper"]) + 1 if g.get("upper") in TRIGRAM_NAMES else 0
         l = TRIGRAM_NAMES.index(g["lower"]) + 1 if g.get("lower") in TRIGRAM_NAMES else 0
         if u > 0 and l > 0:
-            m[u * 10 + l] = g["id"]
+            key = u * 10 + l
+            if key in m:
+                warnings.warn(
+                    f"gua64.json: duplicate combo {g['upper']}/{g['lower']} "
+                    f"({g['name']} overwrites {seen_names[key]})",
+                    stacklevel=2,
+                )
+            m[key] = g["id"]
+            seen_names[key] = g["name"]
     return m
 
 
@@ -62,6 +72,12 @@ def cast_gua(at: datetime) -> dict[str, Any]:
 
     NOTE: gua.js:50-100. Returns dict matching the JS shape; see test for keys.
     JS used drawnAt (camelCase); Python port uses drawn_at (snake_case).
+
+    IMPORTANT: ``at`` must represent the moment in local Chinese calendar
+    time (typically Asia/Shanghai). The hour, lunar month, and lunar day are
+    read directly from ``at``; passing a UTC-aware datetime will silently
+    produce a wrong hexagram. Callers (e.g. conversation_gua.stream_gua)
+    should convert to Asia/Shanghai before calling: at.astimezone(ZoneInfo("Asia/Shanghai")).
     """
     solar = Solar.fromYmdHms(
         at.year, at.month, at.day,

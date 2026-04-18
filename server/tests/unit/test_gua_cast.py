@@ -60,3 +60,22 @@ def test_cast_gua_zi_hour_crosses_midnight():
     at_2300 = datetime(2026, 4, 18, 23, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
     g = cast_gua(at_2300)
     assert g["source"]["hourZhiIdx"] == 1
+
+
+def test_combo_index_covers_all_64_trigram_pairs():
+    """All 8×8 trigram combinations must map to a unique gua id (no dups, no gaps).
+
+    Caught a real data bug in MVP: 鼎 (id=50) had wrong upper/lower duplicating
+    家人 (id=37) and leaving (离, 巽) unmapped → live RuntimeError path.
+    """
+    from app.services.gua_cast import COMBO_INDEX, GUA64, TRIGRAM_NAMES
+    assert len(COMBO_INDEX) == 64
+    # Every combo present
+    for u_idx in range(1, 9):
+        for l_idx in range(1, 9):
+            assert COMBO_INDEX.get(u_idx * 10 + l_idx) is not None, \
+                f"missing combo {TRIGRAM_NAMES[u_idx-1]}/{TRIGRAM_NAMES[l_idx-1]}"
+    # No duplicate ids in COMBO_INDEX values
+    assert len(set(COMBO_INDEX.values())) == 64
+    # All 64 GUA64 ids reachable
+    assert {g["id"] for g in GUA64} == set(COMBO_INDEX.values())
