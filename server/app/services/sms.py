@@ -19,12 +19,14 @@ from typing import Literal
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import SmsCode
+from app.core.quotas import QUOTAS
+from app.models.user import SmsCode, User
 from app.services.exceptions import (
     SmsCodeInvalidError,
     SmsCooldownError,
     SmsHourlyLimitError,
 )
+from app.services.quota import QuotaTicket
 
 # NOTE: spec §2.1 — rate limit constants.
 _COOLDOWN_SECONDS = 60
@@ -88,13 +90,26 @@ async def send_sms_code(
     purpose: SmsPurpose,
     ip: str | None,
     provider_send,  # signature: async (phone, code) -> None
+    *,
+    user: User | None = None,
 ) -> SmsSendResult:
     """Generate a fresh code, insert it, call provider.send, return the code.
+
+    If `user` is given, also charges one `sms_send` quota slot. Registration
+    path does NOT pass user (quota can't be charged before the row exists).
 
     Caller must then commit the session (api layer). If provider.send raises,
     caller should let the transaction roll back naturally.
     """
     await _check_rate_limit(db, phone)
+
+    # NOTE: charge sms_send quota ONLY when caller provides the authenticated user
+    # (login resend, phone-change flows). Registration path passes user=None so
+    # this block is skipped — user row doesn't exist yet.
+    ticket: QuotaTicket | None = None
+    if user is not None:
+        sms_limit = QUOTAS.get(user.plan, QUOTAS["free"])["sms_send"]
+        ticket = QuotaTicket(user=user, kind="sms_send", limit=sms_limit, _db=db)
 
     code = _generate_code()
     code_hash = _hash_code(code)
@@ -110,9 +125,16 @@ async def send_sms_code(
     db.add(row)
     await db.flush()
 
-    # provider.send is called LAST so any error aborts the whole transaction
-    # (caller's outer session.commit will not run).
+    # provider.send is called LAST so any error aborts the whole transaction.
     await provider_send(phone, code)
+
+    # Commit quota only after provider.send succeeds. ticket.commit is atomic;
+    # races are rare here because SMS is rate-limited on the same table.
+    if ticket is not None:
+        try:
+            await ticket.commit()
+        except Exception:  # noqa: BLE001 — quota race; SMS already went out; best-effort
+            pass
 
     return SmsSendResult(code=code, expires_at=expires_at)
 

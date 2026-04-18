@@ -207,3 +207,51 @@ async def test_provider_error_prevents_commit(db_session):
     # This test is checking that provider error propagates, not that rows
     # are absent mid-transaction.
     assert len(rows) == 1  # present in this transaction; rollback happens at fixture tear-down
+
+
+@pytest.mark.asyncio
+async def test_send_sms_code_charges_sms_send_quota_when_user_given(db_session):
+    """Task 2 (cleanup): when user is known, send_sms_code charges sms_send quota."""
+    from sqlalchemy import text
+    from app.models.user import User
+    from app.services.sms import send_sms_code
+    from app.core.quotas import today_beijing
+    import uuid
+
+    u = User(phone=f"+86138{uuid.uuid4().int % 10**8:08d}",
+             dek_ciphertext=b"\x00" * 44)
+    db_session.add(u)
+    await db_session.flush()
+
+    await send_sms_code(
+        db_session, phone=u.phone, purpose="login", ip=None,
+        provider_send=_noop_provider, user=u,
+    )
+
+    used = (await db_session.execute(text("""
+        SELECT count FROM quota_usage
+         WHERE user_id = :uid AND period = :p AND kind = 'sms_send'
+    """), {"uid": u.id, "p": today_beijing()})).scalar()
+    assert used == 1
+
+
+@pytest.mark.asyncio
+async def test_send_sms_code_does_not_charge_when_user_none(db_session):
+    """Task 2 (cleanup): registration path (user=None) does NOT charge quota.
+
+    Regression guard: registration doesn't have a user row yet; keeping
+    this path unchanged preserves Plan 3's flow.
+    """
+    from sqlalchemy import text
+    from app.services.sms import send_sms_code
+
+    phone = "+8613800003333"
+    await send_sms_code(
+        db_session, phone=phone, purpose="register", ip=None,
+        provider_send=_noop_provider,  # user not passed
+    )
+
+    rows = (await db_session.execute(text("""
+        SELECT count(*) FROM quota_usage WHERE kind = 'sms_send'
+    """))).scalar()
+    assert rows == 0
