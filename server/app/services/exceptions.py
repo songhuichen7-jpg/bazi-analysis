@@ -144,6 +144,18 @@ class ChartAlreadyDeleted(ServiceError):
 # ---- Plan 6: conversations --------------------------------------------
 
 
+class NotFoundError(ServiceError):
+    """Generic 404 for any resource not found / wrong-owner lookups.
+
+    Preferred over leaking which specific resource class doesn't exist
+    (防枚举). Use code="NOT_FOUND" for cross-resource API mapping.
+    """
+
+    code = "NOT_FOUND"
+    message = "资源不存在"
+    status = 404
+
+
 class ConversationGoneError(ServiceError):
     """Soft-deleted conversation outside the 30-day restore window."""
 
