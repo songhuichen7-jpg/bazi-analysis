@@ -148,3 +148,18 @@ async def restore_chart_endpoint(
         await db.rollback()
         raise _http_error(e)
     return await _chart_to_response(chart, db=db)
+
+
+@router.post("/{chart_id}/recompute", response_model=ChartResponse)
+async def recompute_endpoint(
+    chart_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> ChartResponse:
+    try:
+        chart, warnings = await chart_service.recompute(db, user, chart_id)
+        await db.commit()
+    except ServiceError as e:
+        await db.rollback()
+        raise _http_error(e)
+    return await _chart_to_response(chart, db=db, warnings=warnings)

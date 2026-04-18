@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.crypto import encrypt_dek, generate_dek
+from app.core.quotas import QUOTAS
 from app.models.user import InviteCode, SmsCode, User, UserSession
 from app.services.exceptions import (
     AccountDisabledError,
@@ -22,6 +23,7 @@ from app.services.exceptions import (
     TermsNotAgreedError,
     UserNotFoundError,
 )
+from app.services.quota import QuotaTicket
 from app.services.session import create_session, revoke_all_sessions
 from app.services.sms import verify_sms_code
 
@@ -108,6 +110,11 @@ async def register(
         )
         if result.rowcount == 0:
             raise InviteCodeError("邀请码并发竞争失败，请重试")
+
+    # NOTE: charge sms_send quota for the SMS that was sent before registration.
+    sms_limit = QUOTAS.get(user.plan, QUOTAS["free"])["sms_send"]
+    ticket = QuotaTicket(user=user, kind="sms_send", limit=sms_limit, _db=db)
+    await ticket.commit()
 
     _, raw_token = await create_session(db, user.id, user_agent=user_agent, ip=ip)
     return AuthResult(user=user, raw_token=raw_token)

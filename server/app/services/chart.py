@@ -197,3 +197,27 @@ async def restore(db: AsyncSession, user: User, chart_id: UUID) -> Chart:
     chart.updated_at = datetime.now(tz=timezone.utc)
     await db.flush()
     return chart
+
+
+async def recompute(db: AsyncSession, user: User, chart_id: UUID) -> tuple[Chart, list[str]]:
+    """Re-run paipan for chart and clear all chart_cache entries.
+
+    Does NOT trigger LLM. Does NOT charge quota. Soft-deleted charts raise
+    ChartNotFound via get_chart's default include_soft_deleted=False.
+    """
+    chart = await get_chart(db, user, chart_id)    # soft-deleted → ChartNotFound
+
+    from app.schemas.chart import BirthInput
+    birth = BirthInput(**chart.birth_input)
+    paipan_dict, warnings, engine_version = paipan_adapter.run_paipan(birth)
+
+    chart.paipan = paipan_dict
+    chart.engine_version = engine_version
+    chart.updated_at = datetime.now(tz=timezone.utc)
+    await db.flush()
+
+    await db.execute(
+        text("DELETE FROM chart_cache WHERE chart_id = :cid"),
+        {"cid": chart.id},
+    )
+    return chart, warnings

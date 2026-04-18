@@ -13,8 +13,9 @@ from dataclasses import dataclass, field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.quotas import today_beijing
+from app.core.quotas import QUOTAS, next_midnight_beijing, today_beijing
 from app.models.user import User
+from app.schemas.quota import QuotaKindUsage, QuotaResponse
 from app.services.exceptions import QuotaExceededError
 
 
@@ -74,3 +75,25 @@ class QuotaTicket:
             "kind": self.kind,
         })
         self._committed = False
+
+
+async def get_snapshot(db: AsyncSession, user: User) -> QuotaResponse:
+    """Current Beijing-day quota snapshot for user, across all 7 kinds.
+
+    All 7 kinds always present; kinds with no usage today return used=0.
+    resets_at = next Beijing midnight (same timestamp for every kind).
+    """
+    limits = QUOTAS.get(user.plan, QUOTAS["free"])
+    period = today_beijing()
+    rows = (await db.execute(text("""
+        SELECT kind, count FROM quota_usage
+         WHERE user_id = :uid AND period = :p
+    """), {"uid": user.id, "p": period})).all()
+    used_by_kind = {r.kind: r.count for r in rows}
+    reset = next_midnight_beijing()
+
+    usage = {
+        kind: QuotaKindUsage(used=used_by_kind.get(kind, 0), limit=limit, resets_at=reset)
+        for kind, limit in limits.items()
+    }
+    return QuotaResponse(plan=user.plan, usage=usage)
