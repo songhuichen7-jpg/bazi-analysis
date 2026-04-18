@@ -148,7 +148,7 @@ class ConversationGoneError(ServiceError):
     """Soft-deleted conversation outside the 30-day restore window."""
 
     status = 410
-    code = "GONE"
+    code = "CONVERSATION_GONE"
 
     def __init__(self, message: str = "已超过 30 天恢复期"):
         super().__init__(message=message)

@@ -23,6 +23,8 @@ def test_conversation_create_label_optional():
     assert body.label is None
     body2 = ConversationCreateRequest(label="工作")
     assert body2.label == "工作"
+    body3 = ConversationCreateRequest(label="   ")
+    assert body3.label is None
 
 
 def test_conversation_patch_label_required_nonempty():

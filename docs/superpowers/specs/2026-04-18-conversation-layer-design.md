@@ -156,7 +156,7 @@ Order: `position ASC, created_at ASC`. Hide rows where `deleted_at IS NOT NULL`.
   - Allowed if `deleted_at IS NOT NULL AND deleted_at >= now() - INTERVAL '30 days'`.
   - Sets `deleted_at = NULL`.
   - Outside the 30d window → 410 GONE
-    `{code:"GONE", message:"已超过 30 天恢复期"}`.
+    `{code:"CONVERSATION_GONE", message:"已超过 30 天恢复期"}`.
   - **Window is enforced at application level only.** Physical delete of
     soft-deleted rows past 30d is a cron/worker job deferred to Plan 7
     (same status as chart soft-delete; see Plan 5 ACCEPTANCE item #2).

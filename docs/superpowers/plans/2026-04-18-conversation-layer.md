@@ -351,7 +351,7 @@ Read the file first to find the existing pattern (other ServiceError subclasses 
 class ConversationGoneError(ServiceError):
     """Soft-deleted conversation outside the 30-day restore window."""
     status = 410
-    code = "GONE"
+    code = "CONVERSATION_GONE"
 
     def __init__(self, message: str = "已超过 30 天恢复期"):
         super().__init__(message=message)
@@ -375,7 +375,7 @@ git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 feat(server): Plan 6 schemas + ConversationGoneError
 
 Adds Pydantic request/response models for conversations, messages,
-chat, gua. Adds 410 GONE error class for soft-delete restore window.
+chat, gua. Adds 410 CONVERSATION_GONE error class for soft-delete restore window.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -3591,7 +3591,7 @@ async def test_restore_outside_window_410(authed_client, chart_fixture, db_sessi
     await db_session.commit()
     r2 = await authed_client.post(f"/api/conversations/{conv_id}/restore")
     assert r2.status_code == 410
-    assert r2.json()["detail"]["code"] == "GONE"
+    assert r2.json()["detail"]["code"] == "CONVERSATION_GONE"
 ```
 
 - [ ] **Step 9.7: Write pagination integration test**
