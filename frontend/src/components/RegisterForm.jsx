@@ -33,7 +33,7 @@ export default function RegisterForm({ phone, requireInvite, onSuccess }) {
       const result = await register({
         phone: String(phone).trim(),
         code: code.trim(),
-        invite_code: requireInvite ? inviteCode.trim() : (inviteCode.trim() || 'DEVSKIP'),
+        invite_code: inviteCode.trim() || null,
         nickname: nickname.trim() || null,
         agreed_to_terms: agreed,
       });

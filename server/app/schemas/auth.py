@@ -26,7 +26,7 @@ class SmsSendRequest(BaseModel):
 class RegisterRequest(BaseModel):
     phone: str = Field(pattern=r"^\+?\d{11,15}$")
     code: str = Field(pattern=r"^\d{6}$")
-    invite_code: str = Field(min_length=4, max_length=16)
+    invite_code: str | None = Field(default=None, min_length=4, max_length=16)
     nickname: str | None = Field(default=None, max_length=40)
     agreed_to_terms: bool
 

@@ -37,7 +37,7 @@ async def register(
     *,
     phone: str,
     code: str,
-    invite_code: str,
+    invite_code: str | None,
     nickname: str | None,
     agreed_to_terms: bool,
     user_agent: str | None,
@@ -67,6 +67,8 @@ async def register(
 
     invite_row: InviteCode | None = None
     if settings.require_invite:
+        if invite_code is None:
+            raise InviteCodeError("请输入邀请码")
         stmt = select(InviteCode).where(
             InviteCode.code == invite_code,
             InviteCode.disabled.is_(False),

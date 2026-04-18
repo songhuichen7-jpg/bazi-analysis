@@ -188,3 +188,44 @@ async def test_register_invalid_phone_format(client):
         "agreed_to_terms": True,
     })
     assert r.status_code == 422   # Pydantic validation error
+
+
+@pytest.mark.asyncio
+async def test_register_no_invite_when_invite_not_required(client, monkeypatch):
+    import app.services.auth as auth_service
+
+    monkeypatch.setattr(auth_service.settings, "require_invite", False)
+
+    phone = f"+86138{uuid.uuid4().int % 10**8:08d}"
+    r = await client.post("/api/auth/sms/send", json={"phone": phone, "purpose": "register"})
+    code = r.json()["__devCode"]
+
+    r = await client.post("/api/auth/register", json={
+        "phone": phone,
+        "code": code,
+        "invite_code": None,
+        "nickname": "免邀请码",
+        "agreed_to_terms": True,
+    })
+    assert r.status_code == 200
+    assert r.cookies.get("session") is not None
+
+
+@pytest.mark.asyncio
+async def test_register_invite_required_missing_returns_400(client, monkeypatch):
+    import app.services.auth as auth_service
+
+    monkeypatch.setattr(auth_service.settings, "require_invite", True)
+
+    phone = f"+86138{uuid.uuid4().int % 10**8:08d}"
+    r = await client.post("/api/auth/sms/send", json={"phone": phone, "purpose": "register"})
+    code = r.json()["__devCode"]
+
+    r = await client.post("/api/auth/register", json={
+        "phone": phone,
+        "code": code,
+        "invite_code": None,
+        "agreed_to_terms": True,
+    })
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "INVITE_CODE_INVALID"
