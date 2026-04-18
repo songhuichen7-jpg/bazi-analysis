@@ -10,9 +10,7 @@ export async function streamSSE(url, body, handlers = {}) {
     body: body == null ? undefined : JSON.stringify(body),
   });
   if (!resp.ok || !resp.body) {
-    let msg = 'HTTP ' + resp.status;
-    try { const err = await resp.json(); msg = err?.detail?.message || msg; } catch { /* ignore parse error */ }
-    throw new Error(msg);
+    throw await _errorFromResponse(resp);
   }
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
@@ -42,93 +40,28 @@ export async function streamSSE(url, body, handlers = {}) {
   return full;
 }
 
-export async function fetchHealth() {
-  const r = await fetch('/api/health');
-  return r.json();
-}
-
-export async function fetchCities() {
-  const r = await fetch('/api/cities');
-  return r.json();
-}
-
-export async function fetchPaipan(payload) {
-  const r = await fetch('/api/paipan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ error: r.statusText }));
-    throw new Error(err.error || '排盘失败');
+async function _errorFromResponse(response) {
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
-  return r.json();
+  const message =
+    payload?.detail?.message ||
+    payload?.error?.message ||
+    payload?.error ||
+    payload?.message ||
+    ('HTTP ' + response.status);
+  const error = new Error(message);
+  error.status = response.status;
+  error.payload = payload;
+  return error;
 }
-
-export async function fetchSections(chart) {
-  const r = await fetch('/api/sections', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chart }),
-  });
-  return r.json();
-}
-
-export async function streamVerdicts(chart, callbacks = {}) {
-  const resp = await fetch('/api/verdicts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chart }),
-  });
-  if (!resp.ok || !resp.body) {
-    let message = 'HTTP ' + resp.status;
-    try {
-      const err = await resp.json();
-      if (err?.error) message = err.error;
-    } catch {
-      // Fall back to HTTP status when the body is not JSON.
-    }
-    throw new Error(message);
-  }
-
-  const reader = resp.body.getReader();
-  const dec = new TextDecoder();
-  let carry = '';
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    carry += dec.decode(value, { stream: true });
-    const parts = carry.split('\n\n');
-    carry = parts.pop() || '';
-
-    for (const block of parts) {
-      const line = block.trim();
-      if (!line.startsWith('data:')) continue;
-      let ev;
-      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
-      if (ev.type === 'delta' && ev.text) callbacks.onDelta?.(ev.text);
-      else if (ev.type === 'model') callbacks.onModel?.(ev.modelUsed);
-      else if (ev.type === 'done') callbacks.onDone?.(ev.full || '');
-      else if (ev.type === 'error') {
-        const err = new Error(ev.message || '判词生成失败');
-        callbacks.onError?.(err);
-        throw err;
-      }
-    }
-  }
-}
-
-// ============================================================================
-// Plan 6 — conversation layer
-// ============================================================================
 
 async function _getJSON(url) {
   const r = await fetch(url, { credentials: 'include' });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
-    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
-  }
+  if (!r.ok) throw await _errorFromResponse(r);
   return r.json();
 }
 
@@ -139,10 +72,7 @@ async function _postJSON(url, body) {
     headers: { 'Content-Type': 'application/json' },
     body: body == null ? undefined : JSON.stringify(body),
   });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
-    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
-  }
+  if (!r.ok) throw await _errorFromResponse(r);
   return r.json();
 }
 
@@ -153,20 +83,121 @@ async function _patchJSON(url, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
-    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
-  }
+  if (!r.ok) throw await _errorFromResponse(r);
   return r.json();
 }
 
 async function _delete(url) {
   const r = await fetch(url, { method: 'DELETE', credentials: 'include' });
-  if (!r.ok && r.status !== 204) {
-    const err = await r.json().catch(() => ({ detail: { message: 'HTTP ' + r.status } }));
-    throw new Error(err?.detail?.message || ('HTTP ' + r.status));
-  }
+  if (!r.ok && r.status !== 204) throw await _errorFromResponse(r);
 }
+
+function parseSectionsText(raw) {
+  if (!raw) return [];
+  const firstMark = raw.search(/§\s*\d/);
+  if (firstMark < 0) return [];
+  const parts = raw.slice(firstMark).split(/§\s*(\d+)\s*/).filter(Boolean);
+  const sections = [];
+  for (let index = 0; index < parts.length - 1; index += 2) {
+    const chunk = String(parts[index + 1] || '').trim();
+    if (!chunk) continue;
+    const lines = chunk.split('\n');
+    const title = String(lines.shift() || '').trim();
+    const body = lines.join('\n').trim();
+    if (title && body) sections.push({ title, body });
+  }
+  return sections;
+}
+
+export async function fetchHealth() {
+  return _getJSON('/api/health');
+}
+
+export async function fetchConfig() {
+  return _getJSON('/api/config');
+}
+
+export async function fetchCities() {
+  const data = await _getJSON('/api/cities');
+  return { cities: (data.items || []).map((item) => item.name) };
+}
+
+export async function sendSmsCode(phone, purpose) {
+  return _postJSON('/api/auth/sms/send', { phone, purpose });
+}
+
+export async function register({ phone, code, invite_code, nickname, agreed_to_terms }) {
+  return _postJSON('/api/auth/register', {
+    phone,
+    code,
+    invite_code,
+    nickname,
+    agreed_to_terms,
+  });
+}
+
+export async function login({ phone, code }) {
+  return _postJSON('/api/auth/login', { phone, code });
+}
+
+export async function logout() {
+  return _postJSON('/api/auth/logout', null);
+}
+
+export async function me() {
+  return _getJSON('/api/auth/me');
+}
+
+export async function listCharts() {
+  return _getJSON('/api/charts');
+}
+
+export async function getChart(chartId) {
+  return _getJSON(`/api/charts/${chartId}`);
+}
+
+export async function deleteChart(chartId) {
+  return _delete(`/api/charts/${chartId}`);
+}
+
+export async function restoreChart(chartId) {
+  return _postJSON(`/api/charts/${chartId}/restore`, null);
+}
+
+export async function createChart({ birth_input, label }) {
+  return _postJSON('/api/charts', { birth_input, label });
+}
+
+export async function fetchPaipan(payload) {
+  return createChart({ birth_input: payload, label: null });
+}
+
+export async function streamSections(chartId, body, handlers = {}) {
+  return streamSSE(`/api/charts/${chartId}/sections`, body, handlers);
+}
+
+export async function fetchSections(chartId) {
+  const full = await streamSections(chartId, { section: 'career' });
+  const sections = parseSectionsText(full);
+  if (!sections.length) throw new Error('LLM returned no parseable sections');
+  return { sections };
+}
+
+export async function streamVerdicts(chartId, handlers = {}) {
+  return streamSSE(`/api/charts/${chartId}/verdicts`, null, handlers);
+}
+
+export async function streamDayunStep(chartId, index, handlers = {}) {
+  return streamSSE(`/api/charts/${chartId}/dayun/${index}`, null, handlers);
+}
+
+export async function streamLiunian(chartId, { dayun_index, year_index }, handlers = {}) {
+  return streamSSE(`/api/charts/${chartId}/liunian`, { dayun_index, year_index }, handlers);
+}
+
+// ============================================================================
+// Plan 6 — conversation layer
+// ============================================================================
 
 export async function listConversations(chartId) {
   return _getJSON(`/api/charts/${chartId}/conversations`);
@@ -211,7 +242,7 @@ export async function fetchChips(chartId, conversationId) {
   });
   try {
     const parsed = JSON.parse(final);
-    return Array.isArray(parsed) ? parsed.filter(s => typeof s === 'string') : [];
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
   } catch {
     return [];
   }
