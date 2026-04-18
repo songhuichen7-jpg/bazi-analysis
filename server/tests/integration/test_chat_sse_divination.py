@@ -75,4 +75,4 @@ async def test_bypass_divination_consumes_cta_and_writes_assistant(client, monke
     items = r2.json()["items"]
     roles = [m["role"] for m in items]
     assert "cta" not in roles
-    assert "assistant" in roles
+    assert roles[0] == "assistant"

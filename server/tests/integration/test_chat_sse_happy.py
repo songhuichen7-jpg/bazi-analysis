@@ -1,9 +1,12 @@
 """Integration: POST /messages happy path (router → expert → assistant row)."""
 from __future__ import annotations
 
+import json
 import uuid
+from types import SimpleNamespace
 
 import pytest
+from app.llm import client as llm_client_mod
 from tests.integration.conftest import register_user
 from tests.integration.test_sse_helpers import consume_sse, patch_llm_client
 
@@ -65,10 +68,6 @@ async def test_chat_message_loads_history_in_second_turn(client, monkeypatch):
 
     # Turn 2 — capture messages sent to LLM
     captured: list[list[dict]] = []
-    from app.llm import client as llm_client_mod
-    original_create = llm_client_mod._client.chat.completions.create
-
-    from types import SimpleNamespace
 
     async def _capture_create(*, model, stream, messages, **kw):
         captured.append(messages)
@@ -96,7 +95,6 @@ async def test_chat_message_loads_history_in_second_turn(client, monkeypatch):
 
     # Inspect captured messages for prior turn content
     assert len(captured) >= 1
-    import json as _json
-    full_text = _json.dumps(captured, ensure_ascii=False)
+    full_text = json.dumps(captured, ensure_ascii=False)
     assert "事业方向 A" in full_text
     assert "A1" in full_text

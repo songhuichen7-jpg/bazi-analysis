@@ -1,10 +1,10 @@
 """Integration: chat expert LLM error keeps user row, no assistant, no quota commit."""
 from __future__ import annotations
 
-import os
 import uuid
 
 import pytest
+from app.core.quotas import today_beijing
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tests.integration.conftest import register_user
@@ -20,7 +20,7 @@ async def _make_chart(client, cookie):
     return r.json()["chart"]["id"]
 
 
-async def test_chat_llm_error_keeps_user_no_assistant(client, monkeypatch):
+async def test_chat_llm_error_keeps_user_no_assistant(client, monkeypatch, database_url):
     cookie, user = await register_user(client, f"+86138{uuid.uuid4().int % 10**8:08d}")
     chart_id = await _make_chart(client, cookie)
     r = await client.post(f"/api/charts/{chart_id}/conversations",
@@ -45,8 +45,7 @@ async def test_chat_llm_error_keeps_user_no_assistant(client, monkeypatch):
     assert roles == ["user"]  # assistant NOT written
 
     # Quota NOT charged
-    from app.core.quotas import today_beijing
-    engine = create_async_engine(os.environ["DATABASE_URL"])
+    engine = create_async_engine(str(database_url))
     async with async_sessionmaker(engine, expire_on_commit=False)() as s:
         row = (await s.execute(text("""
             SELECT count FROM quota_usage
