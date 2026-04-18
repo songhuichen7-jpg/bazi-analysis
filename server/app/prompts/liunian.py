@@ -42,11 +42,16 @@ def build_messages(
 ) -> list[dict]:
     # NOTE: prompts.js:709-758
     retrieved = retrieved or []
-    dayun = (chart or {}).get('dayun') or []
+    _dayun_raw = (chart or {}).get('dayun') or {}
+    if isinstance(_dayun_raw, dict):
+        dayun = _dayun_raw.get('list') or []
+    else:
+        dayun = list(_dayun_raw)
     if dayun_index >= len(dayun):
         raise ValueError(f'invalid dayun_index {dayun_index}: dayun has {len(dayun)} steps')
     step = dayun[dayun_index]
-    years = step.get('years') or []
+    # paipan uses 'liunian' key; JS used 'years'
+    years = step.get('years') or step.get('liunian') or []
     if year_index >= len(years):
         raise ValueError(f'invalid year_index {year_index}: dayun step has {len(years)} years')
     year_info = years[year_index]
@@ -65,7 +70,7 @@ def build_messages(
     current_liunian_year = None
     if current_dayun_index >= 0:
         cur_step = dayun[current_dayun_index]
-        for y in (cur_step.get('years') or []):
+        for y in (cur_step.get('years') or cur_step.get('liunian') or []):
             if y.get('year') == current_year or y.get('current'):
                 current_liunian_year = y.get('year')
                 break
@@ -80,16 +85,16 @@ def build_messages(
 
     rizhu = (chart or {}).get('rizhu') or '?'
     age = step.get('startAge', '?')
-    step_gz = step.get('ganZhi', '?')
-    step_ss = step.get('shiShen', '?')
+    step_gz = step.get('ganZhi') or step.get('ganzhi') or '?'
+    step_ss = step.get('shiShen') or step.get('shishen') or '?'
     step_start = step.get('startYear')
     step_end = step.get('endYear')
     step_yr = f' {step_start}\u2013{step_end}' if step_start else ''
     dayun_current = ' \u2190 正走' if dayun_index == current_dayun_index else ''
 
     yi_year = year_info.get('year', '?')
-    yi_gz = year_info.get('gz') or year_info.get('ganZhi', '?')
-    yi_ss = year_info.get('ss') or year_info.get('shiShen', '?')
+    yi_gz = year_info.get('gz') or year_info.get('ganZhi') or year_info.get('ganzhi') or '?'
+    yi_ss = year_info.get('ss') or year_info.get('shiShen') or year_info.get('shishen') or ''
     liunian_current = ' \u2190 今年' if current_liunian_year == yi_year else ''
 
     core_lines = [

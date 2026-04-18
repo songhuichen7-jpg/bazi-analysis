@@ -36,7 +36,12 @@ def compact_chart_context(paipan: dict) -> str:
     shishen = p.get("shishen") or {}
     cang_gan = p.get("cangGan") or {}
     na_yin = p.get("naYin") or {}
-    dayun = p.get("dayun") or []
+    # dayun may be a dict {"list": [...]} or a plain list
+    _dayun_raw = p.get("dayun") or {}
+    if isinstance(_dayun_raw, dict):
+        dayun = _dayun_raw.get("list") or []
+    else:
+        dayun = list(_dayun_raw)
     today_ymd = p.get("todayYmd") or ""
     today_year_gz = p.get("todayYearGz") or ""
     today_month_gz = p.get("todayMonthGz") or ""
@@ -57,7 +62,13 @@ def compact_chart_context(paipan: dict) -> str:
 
     def _cg(pos: str) -> str:
         arr = cang_gan.get(pos) or []
-        return "/".join(f"{it.get('gan','')}({it.get('shiShen','')})" for it in arr)
+        parts = []
+        for it in arr:
+            if isinstance(it, dict):
+                parts.append(f"{it.get('gan','')}({it.get('shiShen','')})")
+            else:
+                parts.append(str(it))
+        return "/".join(parts)
 
     lines.append(
         f"藏干  年:{_cg('year')}  月:{_cg('month')}  日:{_cg('day')}  时:{_cg('hour')}"
@@ -70,7 +81,11 @@ def compact_chart_context(paipan: dict) -> str:
     if dayun:
         steps = []
         for d in dayun[:8]:
-            steps.append(f"{d.get('ganZhi','')}({d.get('shiShen','')}@{d.get('startAge','?')}岁)")
+            # paipan uses 'ganzhi' (lowercase z); JS expected 'ganZhi'
+            gz = d.get("ganZhi") or d.get("ganzhi") or ""
+            ss = d.get("shiShen") or d.get("shishen") or ""
+            age = d.get("startAge", "?")
+            steps.append(f"{gz}({ss}@{age}岁)")
         lines.append("大运  " + " → ".join(steps))
 
     if today_ymd or today_year_gz:

@@ -1,15 +1,24 @@
 """HTTP layer for /api/charts/*. Thin wrapper over services/chart."""
 from __future__ import annotations
 
+from functools import partial
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import current_user
+from app.auth.deps import check_quota, current_user
 from app.core.db import get_db
 from app.models.chart import Chart
 from app.models.user import User
+from app.prompts import (
+    chips as prompts_chips,
+    dayun_step as prompts_dayun_step,
+    liunian as prompts_liunian,
+    sections as prompts_sections,
+    verdicts as prompts_verdicts,
+)
 from app.schemas.chart import (
     BirthInput,
     CacheSlot,
@@ -20,7 +29,10 @@ from app.schemas.chart import (
     ChartListResponse,
     ChartResponse,
 )
+from app.schemas.llm import LiunianBody, SectionBody
 from app.services import chart as chart_service
+from app.services import chart_chips as chart_chips_service
+from app.services import chart_llm as chart_llm_service
 from app.services import paipan_adapter
 from app.services.exceptions import ServiceError
 
@@ -163,3 +175,182 @@ async def recompute_endpoint(
         await db.rollback()
         raise _http_error(e)
     return await _chart_to_response(chart, db=db, warnings=warnings)
+
+
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+@router.post("/{chart_id}/verdicts")
+async def verdicts_endpoint(
+    chart_id: UUID,
+    force: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+    cache = await chart_llm_service.get_cache_row(db, chart.id, "verdicts", "")
+    ticket = None
+    if cache and force:
+        ticket_dep = check_quota("verdicts_regen")
+        ticket = await ticket_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in chart_llm_service.stream_chart_llm(
+            db, user, chart,
+            kind="verdicts", key="", force=force,
+            cache_row=cache, ticket=ticket,
+            build_messages=prompts_verdicts.build_messages,
+            retrieval_kind="meta",
+            temperature=0.7, max_tokens=5000, tier="primary",
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.post("/{chart_id}/sections")
+async def sections_endpoint(
+    chart_id: UUID, body: SectionBody,
+    force: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+    cache = await chart_llm_service.get_cache_row(db, chart.id, "section", body.section)
+    ticket = None
+    if cache and force:
+        ticket_dep = check_quota("section_regen")
+        ticket = await ticket_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in chart_llm_service.stream_chart_llm(
+            db, user, chart,
+            kind="section", key=body.section, force=force,
+            cache_row=cache, ticket=ticket,
+            build_messages=partial(prompts_sections.build_messages, section=body.section),
+            retrieval_kind=f"section:{body.section}",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.post("/{chart_id}/dayun/{index}")
+async def dayun_endpoint(
+    chart_id: UUID, index: int,
+    force: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    if index < 0:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "VALIDATION", "message": f"index must be ≥ 0, got {index}"},
+        )
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+    _dayun_raw = chart.paipan.get("dayun") or {}
+    dayun_list = _dayun_raw.get("list") if isinstance(_dayun_raw, dict) else list(_dayun_raw)
+    dayun_count = len(dayun_list or [])
+    if index >= dayun_count:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "VALIDATION",
+                    "message": f"dayun index {index} out of range ({dayun_count})"},
+        )
+
+    key = str(index)
+    cache = await chart_llm_service.get_cache_row(db, chart.id, "dayun_step", key)
+    ticket = None
+    if cache and force:
+        ticket_dep = check_quota("dayun_regen")
+        ticket = await ticket_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in chart_llm_service.stream_chart_llm(
+            db, user, chart,
+            kind="dayun_step", key=key, force=force,
+            cache_row=cache, ticket=ticket,
+            build_messages=partial(prompts_dayun_step.build_messages, step_index=index),
+            retrieval_kind="dayun_step",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.post("/{chart_id}/liunian")
+async def liunian_endpoint(
+    chart_id: UUID, body: LiunianBody,
+    force: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+    _dayun_raw2 = chart.paipan.get("dayun") or {}
+    dayun = _dayun_raw2.get("list") if isinstance(_dayun_raw2, dict) else list(_dayun_raw2)
+    dayun = dayun or []
+    if body.dayun_index >= len(dayun):
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "VALIDATION", "message": "dayun_index out of range"},
+        )
+
+    key = f"{body.dayun_index}:{body.year_index}"
+    cache = await chart_llm_service.get_cache_row(db, chart.id, "liunian", key)
+    ticket = None
+    if cache and force:
+        ticket_dep = check_quota("liunian_regen")
+        ticket = await ticket_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in chart_llm_service.stream_chart_llm(
+            db, user, chart,
+            kind="liunian", key=key, force=force,
+            cache_row=cache, ticket=ticket,
+            build_messages=partial(
+                prompts_liunian.build_messages,
+                dayun_index=body.dayun_index, year_index=body.year_index,
+            ),
+            retrieval_kind="liunian",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.post("/{chart_id}/chips")
+async def chips_endpoint(
+    chart_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+
+    async def _gen():
+        async for raw in chart_chips_service.stream_chips(db, user, chart):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)

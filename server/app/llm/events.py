@@ -38,14 +38,15 @@ async def replay_cached(
     modelUsed='cached' + source='cache' so the frontend can tell it's a replay.
     """
     yield sse_pack({"type": "model", "modelUsed": "cached", "source": "cache"})
-    for i in range(0, len(content), chunk_size):
-        chunk = content[i:i + chunk_size]
+    safe_content = content or ""
+    for i in range(0, len(safe_content), chunk_size):
+        chunk = safe_content[i:i + chunk_size]
         yield sse_pack({"type": "delta", "text": chunk})
         if interval_ms > 0:
             await asyncio.sleep(interval_ms / 1000.0)
     yield sse_pack({
         "type": "done",
-        "full": content,
+        "full": safe_content,
         "tokens_used": 0,
         "source": "cache",
     })

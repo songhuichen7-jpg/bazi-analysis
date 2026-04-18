@@ -39,7 +39,11 @@ def build_messages(
 ) -> list[dict]:
     # NOTE: prompts.js:658-708
     retrieved = retrieved or []
-    dayun = (chart or {}).get('dayun') or []
+    _dayun_raw = (chart or {}).get('dayun') or {}
+    if isinstance(_dayun_raw, dict):
+        dayun = _dayun_raw.get('list') or []
+    else:
+        dayun = list(_dayun_raw)
     if step_index >= len(dayun):
         raise ValueError(f'invalid step_index {step_index}: dayun has {len(dayun)} steps')
     step = dayun[step_index]
@@ -69,8 +73,8 @@ def build_messages(
         if not s:
             return '无'
         age = s.get('startAge', '?')
-        gz = s.get('ganZhi', '?')
-        ss_val = s.get('shiShen', '?')
+        gz = s.get('ganZhi') or s.get('ganzhi') or '?'
+        ss_val = s.get('shiShen') or s.get('shishen') or '?'
         start_year = s.get('startYear')
         end_year = s.get('endYear')
         yr = f' {start_year}\u2013{end_year}' if start_year else ''
@@ -92,8 +96,8 @@ def build_messages(
     core_lines.append(f'【本步】   {_fmt(step)}{is_current}')
     core_lines.append(f'【下一步】{_fmt(next_step)}')
 
-    gz_val = step.get('ganZhi', '?')
-    ss_val = step.get('shiShen', '?')
+    gz_val = step.get('ganZhi') or step.get('ganzhi') or '?'
+    ss_val = step.get('shiShen') or step.get('shishen') or '?'
     age = step.get('startAge', '?')
     user_msg = f'请讲讲 {age}岁起 {gz_val}（{ss_val}）这步大运对我意味着什么。'
 
