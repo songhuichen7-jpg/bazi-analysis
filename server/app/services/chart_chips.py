@@ -25,7 +25,7 @@ async def stream_chips(
     """FAST_MODEL tier. No cache / quota / retrieval. Errors → error event."""
     history: list[dict] = []
     if conversation_id is not None:
-        from app.services import message as _msg
+        from app.services import message as _msg  # lazy: avoid circular import at module level
         history = await _msg.recent_chat_history(
             db, conversation_id=conversation_id, limit=6,
         )

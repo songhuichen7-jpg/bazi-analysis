@@ -161,3 +161,77 @@ async def test_gua_llm_error_writes_no_message(monkeypatch, db_session, user_and
                                        before=None, limit=10)
         assert page["items"] == []
         assert not ticket._committed
+
+
+# ---------------------------------------------------------------------------
+# Pure-function unit tests for _derive_birth_context
+# ---------------------------------------------------------------------------
+
+def test_derive_birth_context_handles_none():
+    from app.services.conversation_gua import _derive_birth_context
+    assert _derive_birth_context(None) == {
+        "rizhu": None, "currentDayun": None, "currentYear": None,
+    }
+    assert _derive_birth_context({}) == {
+        "rizhu": None, "currentDayun": None, "currentYear": None,
+    }
+
+
+def test_derive_birth_context_dayun_dict_shape():
+    from app.services.conversation_gua import _derive_birth_context
+    paipan = {
+        "rizhu": "丙",
+        "todayYmd": "2026-04-18",
+        "todayYearGz": "丙午",
+        "dayun": {"list": [
+            {"ganZhi": "戊辰", "startYear": 2015, "endYear": 2024},
+            {"ganZhi": "己巳", "startYear": 2025, "endYear": 2034},
+        ]},
+    }
+    assert _derive_birth_context(paipan) == {
+        "rizhu": "丙",
+        "currentDayun": "己巳",
+        "currentYear": "丙午",
+    }
+
+
+def test_derive_birth_context_dayun_plain_list_shape():
+    from app.services.conversation_gua import _derive_birth_context
+    paipan = {
+        "rizhu": "丙",
+        "todayYmd": "2026-04-18",
+        "todayYearGz": "丙午",
+        "dayun": [
+            {"ganZhi": "戊辰", "startYear": 2015, "endYear": 2024},
+            {"ganZhi": "己巳", "startYear": 2025, "endYear": 2034},
+        ],
+    }
+    assert _derive_birth_context(paipan)["currentDayun"] == "己巳"
+
+
+def test_derive_birth_context_no_dayun_match():
+    """today_year=2026 outside all dayun ranges → currentDayun stays None."""
+    from app.services.conversation_gua import _derive_birth_context
+    paipan = {
+        "rizhu": "丙",
+        "todayYmd": "2026-04-18",
+        "todayYearGz": "丙午",
+        "dayun": {"list": [
+            {"ganZhi": "戊辰", "startYear": 1990, "endYear": 1999},
+        ]},
+    }
+    out = _derive_birth_context(paipan)
+    assert out["currentDayun"] is None
+    assert out["currentYear"] == "丙午"  # year_gz still extracted from todayYearGz
+
+
+def test_derive_birth_context_ganzhi_key_priority():
+    """Step uses 'ganzhi' (lowercase z) instead of 'ganZhi' — picked up via fallback."""
+    from app.services.conversation_gua import _derive_birth_context
+    paipan = {
+        "rizhu": "丙", "todayYmd": "2026-04-18", "todayYearGz": "丙午",
+        "dayun": {"list": [
+            {"ganzhi": "己巳", "startYear": 2025, "endYear": 2034},
+        ]},
+    }
+    assert _derive_birth_context(paipan)["currentDayun"] == "己巳"
