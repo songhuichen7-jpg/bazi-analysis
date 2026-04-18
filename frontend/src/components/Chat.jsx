@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { streamSSE } from '../lib/api';
+import { streamMessage, streamGua, fetchChips } from '../lib/api';
 import GuaCard from './GuaCard';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
@@ -69,7 +69,6 @@ function CtaBubble({ question, manual, onCast, onAnalyze, disabled }) {
 export default function Chat() {
   const history = useAppStore(s => s.chatHistory);
   const pushChat = useAppStore(s => s.pushChat);
-  const clearChat = useAppStore(s => s.clearChat);
   const replaceLastAssistant = useAppStore(s => s.replaceLastAssistant);
   const replacePlaceholderWithCta = useAppStore(s => s.replacePlaceholderWithCta);
   const replaceLastCtaWithAssistant = useAppStore(s => s.replaceLastCtaWithAssistant);
@@ -81,10 +80,9 @@ export default function Chat() {
   const guaStreaming = useAppStore(s => s.guaStreaming);
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
-  const pushGuaHistory = useAppStore(s => s.pushGuaHistory);
   const meta = useAppStore(s => s.meta);
-  const dayun = useAppStore(s => s.dayun);
   const currentConversationId = useAppStore(s => s.currentConversationId);
+  const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
 
   const [input, setInput] = useState('');
   const [chatError, setChatError] = useState(null);
@@ -95,33 +93,21 @@ export default function Chat() {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [history]);
 
-  function refreshChips(withHistory = false) {
+  async function refreshChips() {
     const state = useAppStore.getState();
-    if (!state.meta) return;
-    const chart = {
-      PAIPAN: state.paipan, FORCE: state.force, GUARDS: state.guards,
-      DAYUN: state.dayun, META: state.meta,
-    };
-    const history = withHistory
-      ? state.chatHistory.filter(m => m.role === 'user' || m.role === 'assistant').slice(-6)
-      : [];
-    fetch('/api/chips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chart, history }),
-    })
-      .then(r => r.json())
-      .then(d => { if (d.chips?.length >= 2) setChips(d.chips); })
-      .catch(() => {});
+    if (!state.currentId) return;
+    const convId = state.currentConversationId;
+    try {
+      const chipsList = await fetchChips(state.currentId, convId);
+      if (chipsList && chipsList.length >= 2) setChips(chipsList);
+    } catch {
+      // best-effort; keep prior chips
+    }
   }
 
-  // Refresh chips when chart first loads OR when user switches conversation.
-  // Use conversation's history if it has one, otherwise chart-only hint.
   useEffect(() => {
     if (!meta) return;
-    const state = useAppStore.getState();
-    const hasHistory = (state.chatHistory || []).some(m => m.role === 'user' || m.role === 'assistant');
-    refreshChips(hasHistory);
+    refreshChips();
   }, [meta, currentConversationId]);
 
   async function send(text, options = {}) {
@@ -142,28 +128,20 @@ export default function Chat() {
       return;
     }
 
+    const convId = useAppStore.getState().currentConversationId;
+    if (!convId) {
+      replaceLastAssistant('（请先创建一个对话）');
+      return;
+    }
+
     setChatStreaming(true);
-    const state = useAppStore.getState();
-    const chart = {
-      PAIPAN: state.paipan, FORCE: state.force, GUARDS: state.guards,
-      DAYUN: state.dayun, META: state.meta,
-      SECTIONS: state.sections || [],
-      VERDICTS: state.verdicts || {},
-    };
-    // History to send: exclude the empty assistant bubble + non-chat entries
-    const histToSend = state.chatHistory
-      .slice(0, -1)
-      .filter(m => m.role === 'user' || m.role === 'assistant');
     try {
-      await streamSSE('/api/chat', {
-        message: q, chart, history: histToSend, task: 'chat',
-      }, {
+      await streamMessage(convId, { message: q, bypass_divination: false }, {
         onDelta: (_t, running) => replaceLastAssistant(running),
-        onIntent: (intent, reason, source) => console.log(`[chat] intent=${intent} reason=${reason} source=${source}`),
+        onIntent: (intent, reason, source) =>
+          console.log(`[chat] intent=${intent} reason=${reason} source=${source}`),
         onRedirect: (to, redirQ) => {
-          if (to === 'gua') {
-            replacePlaceholderWithCta(redirQ || q, false);
-          }
+          if (to === 'gua') replacePlaceholderWithCta(redirQ || q, false);
         },
         onModel: (m) => console.log('[chat] modelUsed=' + m),
         onRetrieval: (src) => console.log('[chat] retrieval=' + src),
@@ -175,38 +153,20 @@ export default function Chat() {
       setChatError({ error: e, question: q });
     } finally {
       setChatStreaming(false);
-      refreshChips(true);
+      refreshChips();
     }
   }
 
   async function castGuaInline(question) {
     if (!question?.trim() || guaStreaming) return;
+    const convId = useAppStore.getState().currentConversationId;
+    if (!convId) return;
     setGuaStreaming(true);
-
-    // Build birth context from store (same as legacy Gua.jsx)
-    const metaSnap = meta;
-    const dayunSnap = dayun;
-    let birthContext = null;
-    if (metaSnap) {
-      const todayYear = Number(String(metaSnap?.today?.ymd || '').slice(0, 4));
-      const currentDayun = dayunSnap?.find(s => {
-        const start = Number(s.startYear), end = Number(s.endYear);
-        return Number.isFinite(start) && Number.isFinite(end) && todayYear >= start && todayYear <= end;
-      }) || dayunSnap?.find(s => s.current) || null;
-      const currentLiunian = currentDayun?.years?.find(y => Number(y.year) === todayYear)
-        || currentDayun?.years?.find(y => y.current)
-        || (metaSnap?.today?.yearGz ? { gz: metaSnap.today.yearGz } : null);
-      birthContext = {
-        rizhu: metaSnap.rizhu,
-        currentDayun: currentDayun?.gz,
-        currentYear: currentLiunian?.gz,
-      };
-    }
 
     let guaData = null;
     let runningBody = '';
     try {
-      const final = await streamSSE('/api/gua', { question: question.trim(), birthContext }, {
+      const final = await streamGua(convId, { question: question.trim() }, {
         onGua: (g) => {
           guaData = g;
           pushGuaCard({ ...g, question: question.trim(), body: '' });
@@ -219,10 +179,9 @@ export default function Chat() {
       });
       const finalBody = final || runningBody;
       updateLastGuaCard(finalBody, true);
-      // Keep gua.current in store for backward compat
-      const entry = { ...guaData, question: question.trim(), body: finalBody, ts: Date.now() };
-      setGuaCurrent(entry);
-      pushGuaHistory(entry);
+      setGuaCurrent({ ...(guaData || {}), question: question.trim(), body: finalBody, ts: Date.now() });
+      // Note: gua history is now server-backed (each gua becomes a role='gua' message);
+      // we no longer call pushGuaHistory.
     } catch (e) {
       console.error('[gua inline] failed:', e);
       updateLastGuaCard('（起卦失败：' + (e.message || String(e)) + '）', true);
@@ -234,25 +193,13 @@ export default function Chat() {
   async function analyzeDirectly(question) {
     if (!question?.trim() || chatStreaming) return;
     setChatError(null);
-    replaceLastCtaWithAssistant(); // turn the CTA bubble into an empty assistant placeholder
+    replaceLastCtaWithAssistant();
     setChatStreaming(true);
-    const state = useAppStore.getState();
-    const chart = {
-      PAIPAN: state.paipan, FORCE: state.force, GUARDS: state.guards,
-      DAYUN: state.dayun, META: state.meta,
-      SECTIONS: state.sections || [],
-      VERDICTS: state.verdicts || {},
-    };
-    const histToSend = state.chatHistory
-      .slice(0, -1) // exclude the empty assistant we just placed
-      .filter(m => m.role === 'user' || m.role === 'assistant');
+    const convId = useAppStore.getState().currentConversationId;
+    if (!convId) { setChatStreaming(false); return; }
     try {
-      await streamSSE('/api/chat', {
-        message: question, chart, history: histToSend, bypassDivination: true,
-      }, {
+      await streamMessage(convId, { message: question, bypass_divination: true }, {
         onDelta: (_t, running) => replaceLastAssistant(running),
-        onIntent: () => {},
-        onRedirect: () => {},
         onModel: (m) => console.log('[chat] analyze model=' + m),
         onRetrieval: (src) => console.log('[chat] retrieval=' + src),
       });
@@ -279,9 +226,16 @@ export default function Chat() {
           <button
             className="muted"
             style={{ fontSize: 11 }}
-            onClick={() => { if (confirm('清空当前对话？')) clearChat(); }}
+            onClick={async () => {
+              const chartId = useAppStore.getState().currentId;
+              if (!chartId) return;
+              const count = (useAppStore.getState().conversations || []).length;
+              if (confirm('开一个新对话？')) {
+                await newConversationOnServer(chartId, `对话 ${count + 1}`);
+              }
+            }}
             disabled={chatStreaming || guaStreaming}
-            title="清空当前对话"
+            title="新建对话"
           >清空</button>
         </div>
       </div>

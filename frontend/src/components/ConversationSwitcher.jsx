@@ -4,10 +4,11 @@ import { useAppStore } from '../store/useAppStore';
 export default function ConversationSwitcher({ disabled }) {
   const conversations = useAppStore(s => s.conversations) || [];
   const currentId = useAppStore(s => s.currentConversationId);
-  const newConversation = useAppStore(s => s.newConversation);
-  const switchConversation = useAppStore(s => s.switchConversation);
-  const deleteConversation = useAppStore(s => s.deleteConversation);
-  const renameConversation = useAppStore(s => s.renameConversation);
+  const currentChartId = useAppStore(s => s.currentId);
+  const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
+  const selectConversation = useAppStore(s => s.selectConversation);
+  const deleteConversationOnServer = useAppStore(s => s.deleteConversationOnServer);
+  const renameConversationOnServer = useAppStore(s => s.renameConversationOnServer);
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -26,27 +27,29 @@ export default function ConversationSwitcher({ disabled }) {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open]);
 
-  function onNew(e) {
+  async function onNew(e) {
     e?.stopPropagation?.();
-    newConversation();
+    if (!currentChartId) return;
+    const count = conversations.length;
+    await newConversationOnServer(currentChartId, `对话 ${count + 1}`);
     setOpen(false);
   }
 
-  function onSwitch(id) {
+  async function onSwitch(id) {
     if (id === currentId) { setOpen(false); return; }
-    switchConversation(id);
+    await selectConversation(id);
     setOpen(false);
   }
 
-  function onDelete(e, id) {
+  async function onDelete(e, id) {
     e.stopPropagation();
+    if (!currentChartId) return;
     if (conversations.length <= 1) {
-      // If last one, confirm stronger
-      if (!confirm('这是最后一个对话，删除后会清空并开一个新的，确定吗？')) return;
+      if (!confirm('这是最后一个对话，删除后会开一个新的，确定吗？')) return;
     } else {
-      if (!confirm('删除这个对话？不可恢复。')) return;
+      if (!confirm('删除这个对话？30 天内可在「已删除」里恢复。')) return;
     }
-    deleteConversation(id);
+    await deleteConversationOnServer(currentChartId, id);
   }
 
   function startRename(e, conv) {
@@ -55,9 +58,9 @@ export default function ConversationSwitcher({ disabled }) {
     setEditingLabel(conv.label || '');
   }
 
-  function commitRename() {
+  async function commitRename() {
     if (editingId && editingLabel.trim()) {
-      renameConversation(editingId, editingLabel.trim());
+      await renameConversationOnServer(editingId, editingLabel.trim());
     }
     setEditingId(null);
     setEditingLabel('');
@@ -83,7 +86,7 @@ export default function ConversationSwitcher({ disabled }) {
             {conversations.slice().reverse().map(c => {
               const isActive = c.id === currentId;
               const isEditing = editingId === c.id;
-              const preview = (c.messages || []).find(m => m.role === 'user' && typeof m.content === 'string')?.content || '（空）';
+              const preview = '';   // server items don't ship preview; out of scope for Plan 6
               return (
                 <div
                   key={c.id}

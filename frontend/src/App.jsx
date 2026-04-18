@@ -11,6 +11,11 @@ export default function App() {
   const screen = useAppStore(s => s.screen);
   const appNotice = useAppStore(s => s.appNotice);
   const clearAppNotice = useAppStore(s => s.clearAppNotice);
+  const currentId = useAppStore(s => s.currentId);
+  const meta = useAppStore(s => s.meta);
+  const loadConversations = useAppStore(s => s.loadConversations);
+  const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
+  const loadMessages = useAppStore(s => s.loadMessages);
 
   useEffect(() => {
     // LLM health
@@ -19,11 +24,16 @@ export default function App() {
       if (j.llm?.hasKey) console.log('[LLM] enabled:', j.llm.model);
     }).catch(() => {});
 
+    // cleanup legacy localStorage keys that may exist in stale browsers
+    ['conversations','chatHistory','gua','gua-history'].forEach(k => {
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    });
+
     // restore persisted session
     const saved = loadSession({
       onError: (notice) => useAppStore.getState().setAppNotice(notice),
     });
-    if (saved?.version === 3 && saved.currentId && saved.charts?.[saved.currentId]) {
+    if (saved?.version === 4 && saved.currentId && saved.charts?.[saved.currentId]) {
       useAppStore.getState().restoreFromSession(saved);
       const chart = saved.charts[saved.currentId];
       // If sections missing for active chart, try refetching once LLM is ready
@@ -65,6 +75,20 @@ export default function App() {
 
     return () => { unsub(); window.removeEventListener('bazi:ref-click', onRefClick); };
   }, []);
+
+  // Plan 6: when the active chart is loaded, fetch its server-backed conversations
+  useEffect(() => {
+    if (!currentId || !meta) return;
+    (async () => {
+      const list = await loadConversations(currentId);
+      if (!list.length) {
+        await newConversationOnServer(currentId, '对话 1');
+      } else {
+        const cid = useAppStore.getState().currentConversationId;
+        if (cid) await loadMessages(cid);
+      }
+    })().catch(e => console.error('[App] load conversations failed', e));
+  }, [currentId, meta, loadConversations, loadMessages, newConversationOnServer]);
 
   let content = null;
   if (screen === 'landing') content = <LandingScreen />;
