@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import time
 from collections.abc import AsyncIterator
+from typing import Optional
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,9 +18,18 @@ from app.prompts.chips import build_messages
 from app.services.exceptions import UpstreamLLMError
 
 
-async def stream_chips(db: AsyncSession, user: User, chart: Chart) -> AsyncIterator[bytes]:
+async def stream_chips(
+    db: AsyncSession, user: User, chart: Chart,
+    conversation_id: Optional[UUID] = None,
+) -> AsyncIterator[bytes]:
     """FAST_MODEL tier. No cache / quota / retrieval. Errors → error event."""
-    messages = build_messages(chart.paipan, history=[])
+    history: list[dict] = []
+    if conversation_id is not None:
+        from app.services import message as _msg
+        history = await _msg.recent_chat_history(
+            db, conversation_id=conversation_id, limit=6,
+        )
+    messages = build_messages(chart.paipan, history=history)
     accumulated = ""
     model_used: str | None = None
     prompt_tok = completion_tok = total_tok = 0
