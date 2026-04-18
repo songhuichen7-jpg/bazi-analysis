@@ -1,11 +1,9 @@
 import { create } from 'zustand';
-import { MAX_CHARTS, SESSION_VERSION } from '../lib/constants.js';
+import { SESSION_VERSION } from '../lib/constants.js';
 import { streamVerdicts } from '../lib/api.js';
 import { appendChatMessage } from '../lib/chatHistory.js';
-
-// Fields that belong to a single chart session (persisted per chart).
-const CHART_FIELDS = ['paipan','force','guards','dayun','meta','birthInfo',
-  'sections','dayunCache','liunianCache','verdicts'];
+import { clearSession } from '../lib/persistence.js';
+import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
 
 function _serverMsgToUiMsg(m) {
   if (m.role === 'gua') {
@@ -37,15 +35,52 @@ function hydrateVerdicts(verdicts) {
   };
 }
 
-function buildChartPayload(entry) {
-  if (!entry?.paipan || !entry?.meta) return null;
+function chartStateFromEntry(entry, extra = {}) {
   return {
-    PAIPAN: entry.paipan,
-    FORCE: entry.force || [],
-    GUARDS: entry.guards || [],
-    DAYUN: entry.dayun || [],
-    META: entry.meta,
+    ...makeBlankChart(),
+    paipan: entry?.paipan || null,
+    force: entry?.force || [],
+    guards: entry?.guards || [],
+    dayun: entry?.dayun || [],
+    meta: entry?.meta || null,
+    birthInfo: entry?.birthInfo || null,
+    sections: entry?.sections || [],
+    dayunCache: entry?.dayunCache || {},
+    liunianCache: entry?.liunianCache || {},
+    verdicts: hydrateVerdicts(entry?.verdicts),
+    screen: 'shell',
+    dayunOpenIdx: null,
+    liunianOpenKey: null,
+    ...extra,
   };
+}
+
+function readCurrentChartId() {
+  try { return sessionStorage.getItem('currentChartId'); } catch { return null; }
+}
+
+function writeCurrentChartId(chartId) {
+  try {
+    if (chartId) sessionStorage.setItem('currentChartId', chartId);
+    else sessionStorage.removeItem('currentChartId');
+  } catch {
+    // Ignore storage errors in private mode / SSR.
+  }
+}
+
+function clearClientSessionStorage() {
+  try {
+    const keys = [];
+    for (let index = 0; index < sessionStorage.length; index += 1) {
+      const key = sessionStorage.key(index);
+      if (key && (key === 'currentChartId' || key.startsWith('currentConversationId:'))) {
+        keys.push(key);
+      }
+    }
+    keys.forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Ignore storage errors in private mode / SSR.
+  }
 }
 
 function updateChartVerdicts(state, chartId, updater) {
@@ -65,6 +100,8 @@ function updateChartVerdicts(state, chartId, updater) {
   return next;
 }
 
+const conversationBootstrapPromises = new Map();
+
 const BLANK_CHART = {
   paipan: null, force: [], guards: [], dayun: [], meta: null, birthInfo: null,
   sections: [],
@@ -78,8 +115,6 @@ const BLANK_CHART = {
 };
 
 function makeBlankChart() { return { ...BLANK_CHART }; }
-
-function genId() { return 'chart_' + Date.now(); }
 
 export function generateChartLabel(formData) {
   if (!formData) return '新命盘';
@@ -102,9 +137,10 @@ function snapshotChart(s, extra = {}) {
 }
 
 const initialState = {
-  screen: 'landing',
+  screen: 'auth',
   view: 'chart',
   ...BLANK_CHART,
+  user: null,
 
   // Multi-chart index
   charts: {},      // Record<id, { id, label, createdAt, formData, ...chartFields }>
@@ -118,6 +154,7 @@ const initialState = {
   formError: null, loadingStage: 0,
   appNotice: null,
   llmEnabled: false,
+  skipConversationHydration: false,
 };
 
 export const useAppStore = create((set, get) => ({
@@ -126,6 +163,7 @@ export const useAppStore = create((set, get) => ({
   // ── Navigation ──────────────────────────────────────────────────────────────
   setScreen: (screen) => set({ screen }),
   setView:   (view)   => set({ view }),
+  setUser: (user) => set({ user }),
   setLlmStatus: (enabled) => set({ llmEnabled: enabled }),
   setFormError: (f)  => set({ formError: f }),
   setLoadingStage: (i) => set({ loadingStage: i }),
@@ -140,28 +178,13 @@ export const useAppStore = create((set, get) => ({
 
   // ── Chart data (flat) ───────────────────────────────────────────────────────
   setBirthInfo: (birthInfo) => set({ birthInfo }),
-  applyServerData: (ui) => set({
-    paipan: ui.PAIPAN, force: ui.FORCE, guards: ui.GUARDS,
-    dayun: ui.DAYUN, meta: ui.META,
-  }),
 
   setSectionsLoading: (b) => set({ sectionsLoading: b }),
   setSectionsError:   (e) => set({ sectionsError: e }),
   setSections:        (sections) => set({ sections, sectionsError: null }),
 
   loadVerdicts: async (chartId) => {
-    const state = get();
-    const entry = chartId === state.currentId
-      ? {
-          paipan: state.paipan,
-          force: state.force,
-          guards: state.guards,
-          dayun: state.dayun,
-          meta: state.meta,
-        }
-      : state.charts[chartId];
-    const chart = buildChartPayload(entry);
-    if (!chart) return;
+    if (!chartId) return;
 
     set((s) => updateChartVerdicts(s, chartId, () => ({
       status: 'streaming',
@@ -170,7 +193,7 @@ export const useAppStore = create((set, get) => ({
     })));
 
     try {
-      await streamVerdicts(chart, {
+      await streamVerdicts(chartId, {
         onDelta: (text) => {
           set((s) => updateChartVerdicts(s, chartId, (current) => ({
             ...current,
@@ -300,6 +323,34 @@ export const useAppStore = create((set, get) => ({
     set({ chatHistory: chrono.map(m => _serverMsgToUiMsg(m)) });
   },
 
+  ensureConversation: async (chartId) => {
+    const targetChartId = chartId || get().currentId;
+    if (!targetChartId) return { conversationId: null, created: false };
+
+    if (conversationBootstrapPromises.has(targetChartId)) {
+      return conversationBootstrapPromises.get(targetChartId);
+    }
+
+    const task = (async () => {
+      const list = await get().loadConversations(targetChartId);
+      let convId = get().currentConversationId;
+      let created = false;
+
+      if (!convId) {
+        const conversation = await get().newConversationOnServer(targetChartId, `对话 ${list.length + 1}`);
+        convId = conversation?.id || get().currentConversationId || null;
+        created = true;
+      }
+
+      return { conversationId: convId, created };
+    })().finally(() => {
+      conversationBootstrapPromises.delete(targetChartId);
+    });
+
+    conversationBootstrapPromises.set(targetChartId, task);
+    return task;
+  },
+
   newConversationOnServer: async (chartId, label) => {
     const { createConversation } = await import('../lib/api.js');
     const conv = await createConversation(chartId, label);
@@ -353,98 +404,147 @@ export const useAppStore = create((set, get) => ({
   setLiunianStreaming: (b)  => set({ liunianStreaming: b }),
 
   // ── Multi-chart management ────────────────────────────────────────────────
-  // Called just before submitting a new form to reserve an id.
-  prepareNewChart: () => {
-    const id = genId();
-    set({ currentId: id });
-    return id;
-  },
-
-  // After paipan returns, register the chart with its label.
-  finalizeChart: (id, formData, label) => {
-    const s = get();
-    const entry = {
-      ...snapshotChart(s),
-      id,
-      label: label || generateChartLabel(formData),
-      createdAt: Date.now(),
-      formData: formData || null,
-    };
-    const charts = { ...s.charts, [id]: entry };
-    // FIFO: keep newest MAX_CHARTS (we already checked count before prepareNewChart)
-    const keys = Object.keys(charts).sort((a,b) => (charts[a].createdAt||0) - (charts[b].createdAt||0));
-    while (keys.length > MAX_CHARTS) {
-      const del = keys.shift();
-      if (del !== id) delete charts[del];
-    }
-    set({ charts, currentId: id });
-  },
-
-  switchChart: (id) => {
-    const s = get();
-    if (id === s.currentId) return;
-    // Save current into charts map
-    const updatedCharts = s.currentId
-      ? { ...s.charts, [s.currentId]: { ...s.charts[s.currentId], ...snapshotChart(s) } }
-      : { ...s.charts };
-    const target = updatedCharts[id];
-    if (!target) return;
-    set({
-      charts: updatedCharts,
-      currentId: id,
-      ...makeBlankChart(),
-      paipan: target.paipan || null,
-      force: target.force || [],
-      guards: target.guards || [],
-      dayun: target.dayun || [],
-      meta: target.meta || null,
-      birthInfo: target.birthInfo || null,
-      sections: target.sections || [],
-      // chat data: cleared; App.jsx will call loadConversations + loadMessages
-      chatHistory: [], conversations: [], currentConversationId: null,
-      gua: { current: null, history: [] },
-      dayunCache: target.dayunCache || {},
-      liunianCache: target.liunianCache || {},
-      verdicts: hydrateVerdicts(target.verdicts),
-      screen: 'shell',
-      dayunOpenIdx: null, liunianOpenKey: null,
+  openChartFromResponse: (response, options = {}) => {
+    const nextId = response?.chart?.id;
+    if (!nextId) return;
+    writeCurrentChartId(nextId);
+    set((state) => {
+      const charts = options.preserveCurrent === false
+        ? { ...state.charts }
+        : (
+            state.currentId && state.charts[state.currentId]
+              ? {
+                  ...state.charts,
+                  [state.currentId]: { ...state.charts[state.currentId], ...snapshotChart(state) },
+                }
+              : { ...state.charts }
+          );
+      const previous = charts[nextId] || {};
+      const mapped = chartResponseToEntry(response);
+      const entry = {
+        ...makeBlankChart(),
+        ...previous,
+        ...mapped,
+        sections: previous.sections || [],
+        dayunCache: previous.dayunCache || {},
+        liunianCache: previous.liunianCache || {},
+        verdicts: previous.verdicts || blankVerdicts(),
+      };
+      charts[nextId] = entry;
+      return {
+        charts,
+        currentId: nextId,
+        skipConversationHydration: !!options.skipConversationHydration,
+        ...chartStateFromEntry(entry),
+      };
     });
   },
 
-  deleteChart: (id) => {
+  openChartFromServer: async (id) => {
+    const { getChart } = await import('../lib/api.js');
+    const response = await getChart(id);
+    get().openChartFromResponse(response);
+    return response;
+  },
+
+  syncChartsFromServer: async () => {
+    const { listCharts } = await import('../lib/api.js');
+    clearSession();
+    const data = await listCharts();
+    const items = data.items || [];
+    const previousCharts = get().charts || {};
+    const charts = {};
+    items.forEach((item) => {
+      charts[item.id] = {
+        ...makeBlankChart(),
+        ...(previousCharts[item.id] || {}),
+        ...chartListItemToEntry(item),
+      };
+    });
+    if (!items.length) {
+      writeCurrentChartId(null);
+      set({
+        charts: {},
+        currentId: null,
+        ...makeBlankChart(),
+        screen: 'input',
+        view: 'chart',
+      });
+      return [];
+    }
+    const storedId = readCurrentChartId();
+    const nextId = storedId && charts[storedId] ? storedId : items[0].id;
+    set({ charts, currentId: null });
+    await get().openChartFromServer(nextId);
+    return items;
+  },
+
+  switchChart: async (id) => {
+    const s = get();
+    if (id === s.currentId) return;
+    const target = s.charts[id];
+    if (!target) return;
+    if (!target.paipan) {
+      await get().openChartFromServer(id);
+      return;
+    }
+    writeCurrentChartId(id);
+    set((state) => {
+      const charts = state.currentId && state.charts[state.currentId]
+        ? {
+            ...state.charts,
+            [state.currentId]: { ...state.charts[state.currentId], ...snapshotChart(state) },
+          }
+        : { ...state.charts };
+      const nextEntry = charts[id];
+      return {
+        charts,
+        currentId: id,
+        skipConversationHydration: false,
+        ...chartStateFromEntry(nextEntry),
+      };
+    });
+  },
+
+  deleteChart: async (id) => {
+    const { deleteChart: deleteChartApi } = await import('../lib/api.js');
+    await deleteChartApi(id);
     const s = get();
     const charts = { ...s.charts };
     delete charts[id];
     const ids = Object.keys(charts).sort((a,b) => (charts[b].createdAt||0) - (charts[a].createdAt||0));
     if (ids.length === 0) {
+      writeCurrentChartId(null);
       set({ charts: {}, currentId: null, ...makeBlankChart(), screen: 'input' });
       return;
     }
     if (id === s.currentId) {
-      const next = ids[0];
-      const t = charts[next];
-      set({
-        charts, currentId: next,
-        ...makeBlankChart(),
-        paipan: t.paipan||null, force: t.force||[], guards: t.guards||[],
-        dayun: t.dayun||[], meta: t.meta||null, birthInfo: t.birthInfo||null,
-        sections: t.sections||[],
-        // chat data: cleared; App.jsx will call loadConversations + loadMessages
-        chatHistory: [], conversations: [], currentConversationId: null,
-        gua: { current: null, history: [] },
-        dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
-        verdicts: hydrateVerdicts(t.verdicts),
-        screen: 'shell',
-        dayunOpenIdx: null, liunianOpenKey: null,
-      });
-    } else {
-      set({ charts });
+      set({ charts, currentId: null, ...makeBlankChart(), screen: 'input' });
+      await get().switchChart(ids[0]);
+      return;
     }
+    set({ charts });
   },
 
   renameChart: (id, label) => set(s => ({
     charts: { ...s.charts, [id]: { ...s.charts[id], label } },
   })),
+
+  logout: async () => {
+    const { logout: logoutApi } = await import('../lib/api.js');
+    try { await logoutApi(); } catch { /* best effort */ }
+    clearSession();
+    clearClientSessionStorage();
+    set((state) => ({
+      ...initialState,
+      ...makeBlankChart(),
+      charts: {},
+      currentId: null,
+      screen: 'auth',
+      llmEnabled: state.llmEnabled,
+      user: null,
+    }));
+  },
 
   // Snapshot current flat state back to charts[currentId] (called by persistence).
   commitCurrentChart: () => {
@@ -477,22 +577,35 @@ export const useAppStore = create((set, get) => ({
   },
 
   // startNewChart: clear flat chart state + go to form, but KEEP all charts in memory
-  startNewChart: () => set(() => ({
-    ...makeBlankChart(),
-    screen: 'input',
-    view: 'chart',
-    dayunOpenIdx: null, liunianOpenKey: null,
-    formError: null, sectionsLoading: false, sectionsError: null,
-    // Do NOT wipe: charts, currentId (we'll assign a new currentId in prepareNewChart)
-  })),
+  startNewChart: () => set((state) => {
+    const charts = state.currentId && state.charts[state.currentId]
+      ? {
+          ...state.charts,
+          [state.currentId]: { ...state.charts[state.currentId], ...snapshotChart(state) },
+        }
+      : state.charts;
+    return {
+      ...makeBlankChart(),
+      charts,
+      currentId: null,
+      screen: 'input',
+      view: 'chart',
+      dayunOpenIdx: null,
+      liunianOpenKey: null,
+      formError: null,
+      sectionsLoading: false,
+      sectionsError: null,
+    };
+  }),
 
   // reset: clear EVERYTHING (all charts + flat state), used for "× clear all"
-  reset: () => set({
+  reset: () => set((state) => ({
     ...initialState,
     ...makeBlankChart(),
     charts: {},
     currentId: null,
     screen: 'input',
-    llmEnabled: get().llmEnabled,
-  }),
+    llmEnabled: state.llmEnabled,
+    user: state.user,
+  })),
 }));
