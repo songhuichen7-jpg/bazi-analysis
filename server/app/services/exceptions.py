@@ -141,6 +141,19 @@ class ChartAlreadyDeleted(ServiceError):
     status = 409
 
 
+# ---- Plan 6: conversations --------------------------------------------
+
+
+class ConversationGoneError(ServiceError):
+    """Soft-deleted conversation outside the 30-day restore window."""
+
+    status = 410
+    code = "GONE"
+
+    def __init__(self, message: str = "已超过 30 天恢复期"):
+        super().__init__(message=message)
+
+
 # ---- Plan 5: LLM / SSE ------------------------------------------------
 
 
