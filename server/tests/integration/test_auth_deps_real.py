@@ -123,3 +123,62 @@ async def test_phone_full_value_never_in_response(client):
     r = await client.get("/api/auth/me", cookies={"session": cookie})
     assert "+8613811110002" not in r.text
     assert "13811110002" not in r.text
+
+
+@pytest.mark.asyncio
+async def test_current_user_yield_dep_calls_reset_on_teardown(client, monkeypatch):
+    """Task 3 (cleanup): yield-dep finally-block must call _current_dek.reset.
+
+    Structural test: wraps _current_dek in a spy in app.auth.deps, hits /api/auth/me
+    (which depends on current_user), and verifies reset was called."""
+    import uuid
+    from contextvars import ContextVar
+    from app.db_types import _current_dek
+    import app.auth.deps as deps_mod
+    from tests.integration.conftest import register_user
+
+    reset_calls = []
+    original_dek = deps_mod._current_dek
+
+    class _SpyContextVar:
+        """Thin wrapper that records .reset() calls, forwarding to the real ContextVar."""
+
+        def get(self, default=None):
+            return original_dek.get(default)
+
+        def set(self, value):
+            return original_dek.set(value)
+
+        def reset(self, token):
+            reset_calls.append(token)
+            return original_dek.reset(token)
+
+    monkeypatch.setattr(deps_mod, "_current_dek", _SpyContextVar())
+
+    phone = f"+86138{uuid.uuid4().int % 10**8:08d}"
+    cookie, _ = await register_user(client, phone)
+
+    r = await client.get("/api/auth/me", cookies={"session": cookie})
+    assert r.status_code == 200
+
+    # At least one reset should have happened during the GET /api/auth/me request
+    # (current_user's yield-dep finally block)
+    assert len(reset_calls) >= 1, "_current_dek.reset should be called after current_user yield"
+
+
+@pytest.mark.asyncio
+async def test_dek_contextvar_clean_after_request(client):
+    """Task 3 (cleanup): after a request that sets DEK, the contextvar in the
+    test task is not leaking (per-task isolation + proper reset)."""
+    import uuid
+    from app.db_types import _current_dek
+    from tests.integration.conftest import register_user
+
+    phone = f"+86138{uuid.uuid4().int % 10**8:08d}"
+    cookie, _ = await register_user(client, phone)
+    await client.get("/api/auth/me", cookies={"session": cookie})
+
+    # In the test's own asyncio task, the contextvar should not have any leaked value.
+    # (Each request runs in its own task, so even without reset this would be None;
+    # but with reset, the invariant is stronger.)
+    assert _current_dek.get(None) is None

@@ -13,6 +13,7 @@ rest of the request.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, Request
@@ -31,10 +32,17 @@ def _sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
-async def current_user(
+async def _authenticate_and_mount_dek(
     request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> User:
+    db: AsyncSession,
+) -> tuple[User, object]:
+    """Shared validation used by current_user + optional_user yield-deps.
+
+    Returns (user, dek_reset_token). Caller MUST call `_current_dek.reset(token)`
+    in a `finally` block after the request completes, to prevent the contextvar
+    from leaking across task boundaries (even though asyncio per-task isolation
+    is the current safety net, this makes the invariant explicit).
+    """
     token = request.cookies.get("session")
     if not token:
         raise HTTPException(401, detail={"code": "UNAUTHORIZED", "message": "未登录", "details": None})
@@ -59,7 +67,7 @@ async def current_user(
     # Decrypt DEK and mount into request-scoped contextvar.
     kek = request.app.state.kek
     dek = decrypt_dek(user.dek_ciphertext, kek)
-    _current_dek.set(dek)
+    dek_token = _current_dek.set(dek)
     request.state.session = session_row
 
     # Rolling 30-day expiry.
@@ -74,19 +82,41 @@ async def current_user(
         {"now": now, "exp": now + timedelta(days=30), "sid": session_row.id},
     )
 
-    return user
+    return user, dek_token
+
+
+async def current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[User, None]:
+    """Yield-dep: validate session, mount DEK contextvar, reset on teardown."""
+    user, dek_token = await _authenticate_and_mount_dek(request, db)
+    try:
+        yield user
+    finally:
+        _current_dek.reset(dek_token)
 
 
 async def optional_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> User | None:
+) -> AsyncGenerator[User | None, None]:
     """Returns None for guests (no cookie). A present-but-invalid cookie still
-    raises 401 — it's an error signal, not 'anonymous'."""
-    if "session" not in request.cookies:
-        return None
-    return await current_user(request, db)
+    raises 401 — it's an error signal, not 'anonymous'.
 
+    Yield-dep so the DEK contextvar is reset on teardown even for guest requests."""
+    if "session" not in request.cookies:
+        yield None
+        return
+    user, dek_token = await _authenticate_and_mount_dek(request, db)
+    try:
+        yield user
+    finally:
+        _current_dek.reset(dek_token)
+
+
+# require_admin and check_quota remain unchanged — they call `Depends(current_user)`
+# which FastAPI handles transparently across both plain-async and yield-dep patterns.
 
 async def require_admin(user: User = Depends(current_user)) -> User:
     if user.role != "admin":
