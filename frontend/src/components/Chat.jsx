@@ -82,12 +82,14 @@ export default function Chat() {
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
   const meta = useAppStore(s => s.meta);
   const currentConversationId = useAppStore(s => s.currentConversationId);
+  const ensureConversation = useAppStore(s => s.ensureConversation);
   const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
 
   const [input, setInput] = useState('');
   const [chatError, setChatError] = useState(null);
   const [chips, setChips] = useState(DEFAULT_CHIPS);
   const bodyRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -110,11 +112,30 @@ export default function Chat() {
     refreshChips();
   }, [meta, currentConversationId]);
 
+  async function ensureConversationId() {
+    const result = await ensureConversation(useAppStore.getState().currentId);
+    return result?.conversationId || null;
+  }
+
   async function send(text, options = {}) {
     const retry = options.retry === true;
-    const q = (text ?? input).trim();
+    const q = String(text ?? inputRef.current?.value ?? input).trim();
     if (!q || chatStreaming) return;
     setChatError(null);
+
+    if (!llmEnabled) {
+      if (retry) {
+        replaceLastAssistant('（未配置 LLM，当前回到预设回复）');
+      } else {
+        setInput('');
+        pushChat({ role: 'user', content: q });
+        pushChat({ role: 'assistant', content: '' });
+        replaceLastAssistant('（未配置 LLM，当前回到预设回复）');
+      }
+      return;
+    }
+
+    const convId = await ensureConversationId();
     if (retry) {
       replaceLastAssistant('');
     } else {
@@ -123,12 +144,6 @@ export default function Chat() {
       pushChat({ role: 'assistant', content: '' });
     }
 
-    if (!llmEnabled) {
-      replaceLastAssistant('（未配置 LLM，当前回到预设回复）');
-      return;
-    }
-
-    const convId = useAppStore.getState().currentConversationId;
     if (!convId) {
       replaceLastAssistant('（请先创建一个对话）');
       return;
@@ -159,7 +174,7 @@ export default function Chat() {
 
   async function castGuaInline(question) {
     if (!question?.trim() || guaStreaming) return;
-    const convId = useAppStore.getState().currentConversationId;
+    const convId = await ensureConversationId();
     if (!convId) return;
     setGuaStreaming(true);
 
@@ -195,7 +210,7 @@ export default function Chat() {
     setChatError(null);
     replaceLastCtaWithAssistant();
     setChatStreaming(true);
-    const convId = useAppStore.getState().currentConversationId;
+    const convId = await ensureConversationId();
     if (!convId) { setChatStreaming(false); return; }
     try {
       await streamMessage(convId, { message: question, bypass_divination: true }, {
@@ -310,6 +325,7 @@ export default function Chat() {
         </div>
         <div className="chat-input">
           <input
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={onKey}

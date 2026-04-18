@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore, generateChartLabel } from '../store/useAppStore';
-import { fetchCities, fetchPaipan, fetchSections } from '../lib/api';
+import { fetchCities, createChart, fetchSections } from '../lib/api';
 import { MAX_CHARTS } from '../lib/constants';
 import { friendlyError } from '../lib/errorMessages';
 
@@ -12,15 +12,14 @@ export default function FormScreen() {
   const setFormError = useAppStore(s => s.setFormError);
   const setScreen   = useAppStore(s => s.setScreen);
   const setBirthInfo = useAppStore(s => s.setBirthInfo);
-  const applyServerData = useAppStore(s => s.applyServerData);
+  const openChartFromResponse = useAppStore(s => s.openChartFromResponse);
   const setSections = useAppStore(s => s.setSections);
   const setSectionsLoading = useAppStore(s => s.setSectionsLoading);
   const setSectionsError = useAppStore(s => s.setSectionsError);
   const llmEnabled = useAppStore(s => s.llmEnabled);
   const charts = useAppStore(s => s.charts);
-  const prepareNewChart = useAppStore(s => s.prepareNewChart);
-  const finalizeChart = useAppStore(s => s.finalizeChart);
   const loadVerdicts = useAppStore(s => s.loadVerdicts);
+  const ensureConversation = useAppStore(s => s.ensureConversation);
 
   const [date, setDate]     = useState(birthInfo?.date || '1993-07-15');
   const [time, setTime]     = useState(birthInfo?.time || '14:30');
@@ -57,7 +56,6 @@ export default function FormScreen() {
       return setFormError(`最多保存 ${MAX_CHARTS} 份命盘，请先在右上角删除一份再新建。`);
     }
 
-    const newId = prepareNewChart();
     setScreen('loading');
     const minDelay = new Promise(r => setTimeout(r, 1200));
     let stageI = 0;
@@ -69,22 +67,27 @@ export default function FormScreen() {
     }, 280);
 
     try {
-      const [data] = await Promise.all([fetchPaipan(payload), minDelay]);
-      applyServerData(data.ui);
+      const [data] = await Promise.all([
+        createChart({ birth_input: payload, label: generateChartLabel(birth) }),
+        minDelay,
+      ]);
       clearInterval(stageTimer);
       await new Promise(r => setTimeout(r, 250));
-      finalizeChart(newId, birth, generateChartLabel(birth));
-      setScreen('shell');
+      openChartFromResponse(data, { skipConversationHydration: true });
+      await ensureConversation(data.chart.id);
 
       // fire sections in background
       if (llmEnabled) {
         setSectionsLoading(true);
         setSections([]);
-        void fetchSections(data.ui).then(resp => {
-          if (resp.sections?.length) setSections(resp.sections);
-          else setSectionsError(resp.error || 'unknown');
-        }).catch(e => setSectionsError(e.message || String(e))).finally(() => setSectionsLoading(false));
-        void loadVerdicts(newId);
+        void fetchSections(data.chart.id)
+          .then(resp => {
+            if (resp.sections?.length) setSections(resp.sections);
+            else setSectionsError(resp.error || 'unknown');
+          })
+          .catch(e => setSectionsError(e.message || String(e)))
+          .finally(() => setSectionsLoading(false));
+        void loadVerdicts(data.chart.id);
       }
     } catch (e) {
       clearInterval(stageTimer);

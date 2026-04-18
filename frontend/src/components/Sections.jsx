@@ -41,21 +41,17 @@ export default function Sections() {
   const setSections = useAppStore(s => s.setSections);
   const setSectionsLoading = useAppStore(s => s.setSectionsLoading);
   const setSectionsError = useAppStore(s => s.setSectionsError);
-  const paipan = useAppStore(s => s.paipan);
-  const force = useAppStore(s => s.force);
-  const guards = useAppStore(s => s.guards);
-  const dayun = useAppStore(s => s.dayun);
-  const meta = useAppStore(s => s.meta);
+  const currentId = useAppStore(s => s.currentId);
 
   const nextStep = Math.min(sections.length + 1, SECTION_TOTAL_STEPS);
 
   async function retrySections() {
-    const chart = { PAIPAN: paipan, FORCE: force, GUARDS: guards, DAYUN: dayun, META: meta };
+    if (!currentId) return;
     setSections([]);
     setSectionsError(null);
     setSectionsLoading(true);
     try {
-      const resp = await fetchSections(chart);
+      const resp = await fetchSections(currentId);
       if (resp.sections?.length) setSections(resp.sections);
       else setSectionsError(resp.error || 'unknown');
     } catch (e) {

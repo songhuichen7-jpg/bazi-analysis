@@ -1,32 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { streamSSE } from '../lib/api';
+import { streamGua } from '../lib/api';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
-
-function resolveCurrentTiming(meta, dayun) {
-  const todayYear = Number(String(meta?.today?.ymd || '').slice(0, 4));
-  if (!Number.isFinite(todayYear) || todayYear <= 0) {
-    const flaggedDayun = dayun?.find?.((step) => step.current);
-    return {
-      currentDayun: flaggedDayun || null,
-      currentLiunian: flaggedDayun?.years?.find?.((year) => year.current) || null,
-    };
-  }
-
-  const currentDayun = dayun?.find?.((step) => {
-    const startYear = Number(step?.startYear);
-    const endYear = Number(step?.endYear);
-    return Number.isFinite(startYear) && Number.isFinite(endYear) && todayYear >= startYear && todayYear <= endYear;
-  }) || dayun?.find?.((step) => step.current) || null;
-
-  const currentLiunian = currentDayun?.years?.find?.((year) => Number(year?.year) === todayYear)
-    || currentDayun?.years?.find?.((year) => year.current)
-    || (meta?.today?.yearGz ? { gz: meta.today.yearGz } : null);
-
-  return { currentDayun, currentLiunian };
-}
 
 export default function Gua() {
   const current = useAppStore(s => s.gua?.current);
@@ -34,8 +11,7 @@ export default function Gua() {
   const pushGuaHistory = useAppStore(s => s.pushGuaHistory);
   const guaStreaming = useAppStore(s => s.guaStreaming);
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
-  const meta = useAppStore(s => s.meta);
-  const dayun = useAppStore(s => s.dayun);
+  const currentConversationId = useAppStore(s => s.currentConversationId);
 
   const [question, setQuestion] = useState('');
   const [streamingText, setStreamingText] = useState('');
@@ -59,14 +35,9 @@ export default function Gua() {
     setGuaStreaming(true);
     let gua = null;
     let full = '';
-    const timing = resolveCurrentTiming(meta, dayun);
-    const birthContext = meta ? {
-      rizhu: meta.rizhu,
-      currentDayun: timing.currentDayun?.gz,
-      currentYear: timing.currentLiunian?.gz,
-    } : null;
     try {
-      const final = await streamSSE('/api/gua', { question: txt, birthContext }, {
+      if (!currentConversationId) throw new Error('请先创建一个对话');
+      const final = await streamGua(currentConversationId, { question: txt }, {
         onGua: (g) => {
           gua = g;
           setGuaCurrent({ ...g, question: txt, body: '' });

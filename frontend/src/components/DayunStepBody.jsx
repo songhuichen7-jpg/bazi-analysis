@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { streamSSE } from '../lib/api';
+import { streamDayunStep } from '../lib/api';
 import LiunianBody from './LiunianBody';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
@@ -12,11 +12,11 @@ export default function DayunStepBody({ idx }) {
   const setDayunCache = useAppStore(s => s.setDayunCache);
   const deleteDayunCache = useAppStore(s => s.deleteDayunCache);
   const setDayunStreaming = useAppStore(s => s.setDayunStreaming);
+  const currentId = useAppStore(s => s.currentId);
 
   const [text, setText] = useState(cached || '');
   const [error, setError] = useState(null);
   const [streaming, setStreaming] = useState(false);
-  const [fallbackModel, setFallbackModel] = useState(null);
   const startedFor = useRef(null);
 
   useEffect(() => {
@@ -38,23 +38,15 @@ export default function DayunStepBody({ idx }) {
   }, [idx, cached]);
 
   async function startStream() {
-    const state = useAppStore.getState();
-    const chart = {
-      PAIPAN: state.paipan, FORCE: state.force, GUARDS: state.guards,
-      DAYUN: state.dayun, META: state.meta,
-    };
+    if (!currentId) return;
     setStreaming(true);
     setDayunStreaming(true);
     setError(null);
     setText('');
-    setFallbackModel(null);
     try {
-      const full = await streamSSE('/api/dayun-step', { chart, stepIdx: idx }, {
+      const full = await streamDayunStep(currentId, idx, {
         onDelta: (_t, running) => setText(running),
-        onModel: (m) => {
-          console.log('[dayun-step] modelUsed=' + m);
-          if (m && m !== 'z-ai/glm-5.1') setFallbackModel(m);
-        },
+        onModel: (m) => console.log('[dayun-step] modelUsed=' + m),
         onRetrieval: (src) => console.log('[dayun-step] retrieval=' + src),
       });
       if (!full.trim()) throw new Error('empty response');
@@ -73,7 +65,7 @@ export default function DayunStepBody({ idx }) {
   function onRetry() {
     deleteDayunCache(idx);
     startedFor.current = null;
-    startStream();
+    void startStream();
   }
 
   const step = dayun[idx];

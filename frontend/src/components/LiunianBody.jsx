@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { streamSSE } from '../lib/api';
+import { streamLiunian } from '../lib/api';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
@@ -11,10 +11,10 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
   const setCache = useAppStore(s => s.setLiunianCache);
   const deleteCache = useAppStore(s => s.deleteLiunianCache);
   const setStreaming = useAppStore(s => s.setLiunianStreaming);
+  const currentId = useAppStore(s => s.currentId);
 
   const [text, setText] = useState(cached || '');
   const [error, setError] = useState(null);
-  const [fallbackModel, setFallbackModel] = useState(null);
   const startedFor = useRef(null);
   const uiError = error ? friendlyError(error, 'liunian') : null;
 
@@ -36,22 +36,14 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
   }, [key, cached]);
 
   async function startStream() {
-    const state = useAppStore.getState();
-    const chart = {
-      PAIPAN: state.paipan, FORCE: state.force, GUARDS: state.guards,
-      DAYUN: state.dayun, META: state.meta,
-    };
+    if (!currentId) return;
     setStreaming(true);
     setError(null);
     setText('');
-    setFallbackModel(null);
     try {
-      const full = await streamSSE('/api/liunian', { chart, dayunIdx, yearIdx }, {
+      const full = await streamLiunian(currentId, { dayun_index: dayunIdx, year_index: yearIdx }, {
         onDelta: (_t, running) => setText(running),
-        onModel: (m) => {
-          console.log('[liunian] modelUsed=' + m);
-          if (m && m !== 'z-ai/glm-5.1') setFallbackModel(m);
-        },
+        onModel: (m) => console.log('[liunian] modelUsed=' + m),
         onRetrieval: (src) => console.log('[liunian] retrieval=' + src),
       });
       if (!full.trim()) throw new Error('empty response');
@@ -69,7 +61,7 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
   function onRetry() {
     deleteCache(key);
     startedFor.current = null;
-    startStream();
+    void startStream();
   }
 
   return (
