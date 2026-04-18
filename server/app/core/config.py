@@ -36,5 +36,15 @@ class Settings(BaseSettings):
     aliyun_sms_secret: str | None = None
     aliyun_sms_template: str | None = None
 
+    # Plan 5 LLM config
+    mimo_api_key: str = ""                       # dev/test 留空 OK（集成测试 mock client）
+    mimo_base_url: str = "https://api.xiaomimimo.com/v1"
+    llm_model: str = "mimo-v2-pro"
+    llm_fast_model: str = "mimo-v2-flash"
+    llm_fallback_model: str = "mimo-v2-flash"
+    llm_stream_first_delta_ms: int = 0           # 0 = 禁用；B 阶段生产调 8000
+
+    bazi_repo_root: str = ""                     # 空字符串 = 运行时推断
+
 
 settings = Settings()
