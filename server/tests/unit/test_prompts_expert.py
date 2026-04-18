@@ -1,6 +1,8 @@
 """prompts/expert: chart slice + INTENT_GUIDE + build_messages.
 
-NOTE: archive/server-mvp/prompts.js:472-656.
+NOTE: deviation from archive/server-mvp/prompts.js:472-562 — pick_chart_slice
+operates on the FLAT chart.paipan shape used by the Python paipan engine,
+not the JS UI-shape. FORCE/GUARDS filtering is dropped (data not in shape).
 """
 from __future__ import annotations
 
@@ -14,31 +16,25 @@ from app.prompts.expert import (
 )
 
 
+# Flat shape — matches the engine output stored in chart.paipan.
 _SAMPLE_PAIPAN = {
-    "PAIPAN": {"sizhu": {"year": "甲子", "month": "乙丑", "day": "丙寅", "hour": "丁卯"}},
-    "META": {"rizhu": "丙", "rizhuGan": "丙", "dayStrength": "中和",
-             "geju": "正官格", "yongshen": "甲木",
-             "today": {"ymd": "2026-04-18", "yearGz": "丙午", "monthGz": "壬辰"},
-             "input": {"year": 1990, "month": 5, "day": 5, "hour": 14, "minute": 0,
-                       "city": "北京", "gender": "male"}},
-    "FORCE": [
-        {"name": "正财", "val": 5.5}, {"name": "偏财", "val": 1.2},
-        {"name": "正官", "val": 7.8}, {"name": "七杀", "val": 2.1},
-        {"name": "比肩", "val": 3.0}, {"name": "劫财", "val": 0.5},
-        {"name": "食神", "val": 4.0}, {"name": "伤官", "val": 1.5},
-        {"name": "正印", "val": 6.0}, {"name": "偏印", "val": 0.8},
-    ],
-    "GUARDS": [
-        {"type": "liuhe", "note": "辰酉合（正财得地）"},
-        {"type": "chong", "note": "子午冲"},
-        {"type": "pair_mismatch", "note": "正印偏印悬殊"},
-    ],
-    "DAYUN": [
-        {"age": 5, "gz": "丙寅", "ss": "比肩", "startYear": 1995, "endYear": 2004},
-        {"age": 15, "gz": "丁卯", "ss": "劫财", "startYear": 2005, "endYear": 2014},
-        {"age": 25, "gz": "戊辰", "ss": "食神", "startYear": 2015, "endYear": 2024},
-        {"age": 35, "gz": "己巳", "ss": "伤官", "startYear": 2025, "endYear": 2034},
-    ],
+    "sizhu": {"year": "甲子", "month": "乙丑", "day": "丙寅", "hour": "丁卯"},
+    "shishen": {"year": "正印", "month": "比肩", "day": "", "hour": "正印"},
+    "cangGan": {"year": [], "month": [], "day": [], "hour": []},
+    "naYin": {"year": "海中金", "month": "海中金", "day": "炉中火", "hour": "炉中火"},
+    "rizhu": "丙",
+    "todayYmd": "2026-04-18",
+    "todayYearGz": "丙午",
+    "todayMonthGz": "壬辰",
+    "dayun": {
+        "list": [
+            {"ganZhi": "丙寅", "shiShen": "比肩", "startAge": 5,  "startYear": 1995, "endYear": 2004},
+            {"ganZhi": "丁卯", "shiShen": "劫财", "startAge": 15, "startYear": 2005, "endYear": 2014},
+            {"ganZhi": "戊辰", "shiShen": "食神", "startAge": 25, "startYear": 2015, "endYear": 2024},
+            {"ganZhi": "己巳", "shiShen": "伤官", "startAge": 35, "startYear": 2025, "endYear": 2034},
+            {"ganZhi": "庚午", "shiShen": "偏财", "startAge": 45, "startYear": 2035, "endYear": 2044},
+        ],
+    },
 }
 
 
@@ -55,30 +51,55 @@ def test_pick_chart_slice_chitchat_returns_none():
     assert pick_chart_slice(_SAMPLE_PAIPAN, "chitchat") is None
 
 
-def test_pick_chart_slice_other_returns_full():
-    assert pick_chart_slice(_SAMPLE_PAIPAN, "other") == _SAMPLE_PAIPAN
+def test_pick_chart_slice_other_returns_input_unchanged():
+    """Non-timing, non-chitchat intents pass through (no FORCE/GUARDS to filter)."""
+    s = pick_chart_slice(_SAMPLE_PAIPAN, "other")
+    assert s is _SAMPLE_PAIPAN
+    s2 = pick_chart_slice(_SAMPLE_PAIPAN, "career")
+    assert s2 is _SAMPLE_PAIPAN
+    s3 = pick_chart_slice(_SAMPLE_PAIPAN, "relationship")
+    assert s3 is _SAMPLE_PAIPAN
 
 
-def test_pick_chart_slice_relationship_filters_force():
-    s = pick_chart_slice(_SAMPLE_PAIPAN, "relationship")
-    names = {f["name"] for f in s["FORCE"]}
-    assert names == {"正财", "偏财", "正官", "七杀", "比肩", "劫财"}
-
-
-def test_pick_chart_slice_career_keeps_official_food_seal():
-    s = pick_chart_slice(_SAMPLE_PAIPAN, "career")
-    names = {f["name"] for f in s["FORCE"]}
-    assert names == {"正官", "七杀", "食神", "伤官", "正印", "偏印"}
-
-
-def test_pick_chart_slice_timing_window_around_current():
-    """Today=2026 in 4th dayun (35-44, 己巳). Window = max(0,idx-1)..idx+3."""
+def test_pick_chart_slice_timing_windows_dayun_around_current():
+    """today=2026 lives in idx=3 (己巳). Window = dayun[max(0,2):6] = dayun[2:6]."""
     s = pick_chart_slice(_SAMPLE_PAIPAN, "timing")
-    # idx=3 → slice [2..6) → indices 2,3 (only 2 entries beyond)
-    assert len(s["DAYUN"]) >= 2
-    # Verify current dayun is in the slice
-    gzs = {d["gz"] for d in s["DAYUN"]}
+    assert s is not _SAMPLE_PAIPAN  # new dict
+    windowed = s["dayun"]["list"]
+    gzs = [d["ganZhi"] for d in windowed]
     assert "己巳" in gzs
+    assert len(windowed) <= 4
+    # The original is not mutated
+    assert len(_SAMPLE_PAIPAN["dayun"]["list"]) == 5
+
+
+def test_pick_chart_slice_timing_with_no_match_falls_back_to_first_three():
+    """If no dayun contains today's year, take the first 3 steps."""
+    p = {**_SAMPLE_PAIPAN, "todayYmd": "1900-01-01"}
+    s = pick_chart_slice(p, "timing")
+    windowed = s["dayun"]["list"]
+    # First 3 from sample
+    assert [d["ganZhi"] for d in windowed] == ["丙寅", "丁卯", "戊辰"]
+
+
+def test_pick_chart_slice_returns_none_on_empty_paipan():
+    assert pick_chart_slice({}, "career") is None
+    assert pick_chart_slice(None, "career") is None
+
+
+def test_build_messages_includes_chart_context_for_non_chitchat():
+    """Critical: chart-context block must reach the LLM for normal intents."""
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN, history=[],
+        user_message="今年我适合换工作吗",
+        intent="career", retrieved=[],
+    )
+    sys = msgs[0]["content"]
+    # compact_chart_context emits "【命盘上下文】" — must be present
+    assert "【命盘上下文】" in sys
+    # And key chart fields make it through
+    assert "丙" in sys           # rizhu
+    assert "甲子" in sys         # year sizhu
 
 
 def test_build_messages_prepends_time_anchor_to_user_message():
@@ -88,8 +109,6 @@ def test_build_messages_prepends_time_anchor_to_user_message():
         user_message="今年我适合换工作吗",
         intent="career", retrieved=[],
     )
-    assert msgs[0]["role"] == "system"
-    # last message must be user with anchor prepended
     last = msgs[-1]
     assert last["role"] == "user"
     assert "【当前时间锚】" in last["content"]
@@ -102,18 +121,17 @@ def test_build_messages_history_max_8():
         paipan=_SAMPLE_PAIPAN, history=history,
         user_message="新", intent="other", retrieved=[],
     )
-    # 1 system + 8 history + 1 user
-    assert len(msgs) == 10
+    assert len(msgs) == 10  # 1 system + 8 history + 1 user
 
 
-def test_build_messages_chitchat_skips_chart_and_classical():
+def test_build_messages_chitchat_skips_chart_context():
     msgs = build_messages(
         paipan=_SAMPLE_PAIPAN, history=[],
         user_message="你好", intent="chitchat", retrieved=[],
     )
     sys = msgs[0]["content"]
-    # chitchat goes through FALLBACK_STYLE, not the chart context
-    assert "【用户命盘】" not in sys
+    # chitchat → pick_chart_slice returns None → no chart block
+    assert "【命盘上下文】" not in sys
 
 
 def test_build_messages_includes_intent_guide():

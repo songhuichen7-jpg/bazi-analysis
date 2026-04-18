@@ -81,17 +81,24 @@ def _load_shards_for(intent: str) -> str:
     return "\n\n---\n\n".join(out)
 
 
-def _resolve_today_year(meta: dict) -> Optional[int]:
-    ymd = (meta or {}).get("today", {}).get("ymd")
-    if isinstance(ymd, str) and len(ymd) >= 4 and ymd[:4].isdigit():
+def _resolve_today_year(paipan: dict) -> Optional[int]:
+    """NOTE: matches context.resolve_today_year — flat paipan with key 'todayYmd'."""
+    ymd = str((paipan or {}).get("todayYmd") or "")
+    if len(ymd) >= 4 and ymd[:4].isdigit():
         return int(ymd[:4])
     return None
 
 
 def _resolve_current_dayun_index(paipan: dict) -> int:
-    """Return index in DAYUN of the step containing today's year, or -1."""
-    today = _resolve_today_year(paipan.get("META") or {})
-    dayun = paipan.get("DAYUN") or []
+    """Index in dayun of the step containing today's year, or -1.
+
+    Reads flat paipan; dayun may be {"list": [...]} or a plain list (matches
+    context.compact_chart_context normalization).
+    """
+    today = _resolve_today_year(paipan)
+    raw = (paipan or {}).get("dayun") or {}
+    dayun = raw.get("list") if isinstance(raw, dict) else list(raw)
+    dayun = dayun or []
     if today is None or not dayun:
         return -1
     for i, step in enumerate(dayun):
@@ -108,91 +115,53 @@ def _resolve_current_dayun_index(paipan: dict) -> int:
 
 
 def pick_chart_slice(paipan: dict, intent: str) -> Optional[dict]:
-    """Return a chart-shaped subset filtered for this intent, or None for chitchat.
+    """Return a flat-paipan-shaped subset filtered for this intent, or None for chitchat.
 
-    NOTE: prompts.js:472-562.
+    Operates on the same FLAT shape that ``chart.paipan`` carries and that
+    ``compact_chart_context`` already consumes. FORCE/GUARDS filtering from
+    the JS port is dropped — the Python paipan engine output does not carry
+    those arrays separately.
+
+    For ``timing`` intent: trim the dayun list to a window around the
+    current step (±1, +3 forward) so the prompt focuses on the relevant
+    period without full 8-step history.
+
+    For all other non-chitchat intents: return the paipan unchanged.
+    For chitchat: return None (caller skips chart context entirely).
+
+    NOTE: deviation from JS prompts.js:472-562 — see commit message for rationale.
     """
     if not paipan:
         return None
     if intent == "chitchat":
         return None
-    if intent == "other":
+    if intent != "timing":
         return paipan
 
-    P = paipan.get("PAIPAN") or {}
-    M = paipan.get("META") or {}
-    F = paipan.get("FORCE") or []
-    G = paipan.get("GUARDS") or []
-    D = paipan.get("DAYUN") or []
+    # timing: window the dayun list to ±1 around current, +3 forward
     cur_idx = _resolve_current_dayun_index(paipan)
-    cur_dayun = D[cur_idx] if cur_idx >= 0 else None
-    next_dayun = D[cur_idx + 1] if cur_idx >= 0 and cur_idx + 1 < len(D) else None
+    raw = paipan.get("dayun") or {}
+    if isinstance(raw, dict):
+        dayun_list = raw.get("list") or []
+        wrap_in_dict = True
+    else:
+        dayun_list = list(raw)
+        wrap_in_dict = False
 
-    base_meta = {
-        "rizhu": M.get("rizhu"), "rizhuGan": M.get("rizhuGan"),
-        "dayStrength": M.get("dayStrength"),
-        "geju": M.get("geju"), "gejuNote": M.get("gejuNote"),
-        "yongshen": M.get("yongshen"),
-        "input": M.get("input"),
-        "today": M.get("today"),
-    }
+    if not dayun_list:
+        return paipan
+    if cur_idx >= 0:
+        window = dayun_list[max(0, cur_idx - 1):cur_idx + 3]
+    else:
+        window = dayun_list[:3]
 
-    def pick_force(names: set[str]) -> list:
-        return [x for x in F if x.get("name") in names]
-
-    if intent == "relationship":
-        return {
-            "PAIPAN": P,
-            "FORCE": pick_force({"正财", "偏财", "正官", "七杀", "比肩", "劫财"}),
-            "GUARDS": [g for g in G if g.get("type") in {"liuhe", "chong"}
-                       or "财" in (g.get("note") or "")
-                       or "官" in (g.get("note") or "")],
-            "DAYUN": [cur_dayun] if cur_dayun else [],
-            "META": base_meta,
-        }
-    if intent == "career":
-        return {
-            "PAIPAN": P,
-            "FORCE": pick_force({"正官", "七杀", "食神", "伤官", "正印", "偏印"}),
-            "GUARDS": G,
-            "DAYUN": [d for d in (cur_dayun, next_dayun) if d],
-            "META": base_meta,
-        }
-    if intent == "wealth":
-        return {
-            "PAIPAN": P,
-            "FORCE": pick_force({"正财", "偏财", "食神", "伤官", "比肩", "劫财"}),
-            "GUARDS": [g for g in G if "财" in (g.get("note") or "")
-                       or g.get("type") == "chong"],
-            "DAYUN": [d for d in (cur_dayun, next_dayun) if d],
-            "META": base_meta,
-        }
-    if intent == "timing":
-        if cur_idx >= 0:
-            window = D[max(0, cur_idx - 1):cur_idx + 3]
-        else:
-            window = D[:3]
-        return {
-            "PAIPAN": P, "FORCE": F, "GUARDS": G, "DAYUN": window, "META": base_meta,
-        }
-    if intent == "personality":
-        return {
-            "PAIPAN": P, "FORCE": F,
-            "GUARDS": [g for g in G if g.get("type") == "pair_mismatch"],
-            "DAYUN": [], "META": base_meta,
-        }
-    if intent == "health":
-        sorted_force = sorted(F, key=lambda x: -(x.get("val") or 0))
-        return {
-            "PAIPAN": P, "FORCE": sorted_force,
-            "GUARDS": [g for g in G if g.get("type") == "chong"],
-            "DAYUN": [cur_dayun] if cur_dayun else [],
-            "META": base_meta,
-        }
-    if intent == "meta":
-        return {"PAIPAN": P, "FORCE": F, "GUARDS": [], "DAYUN": [], "META": base_meta}
-    # appearance / special_geju / dayun_step / liunian → return full chart
-    return paipan
+    # Return a shallow copy with dayun replaced (preserve original wrapping)
+    sliced = dict(paipan)
+    if wrap_in_dict:
+        sliced["dayun"] = {**raw, "list": window}
+    else:
+        sliced["dayun"] = window
+    return sliced
 
 
 def _runtime_constraints() -> str:
@@ -245,12 +214,14 @@ def build_messages(
             parts.append(anchor)
 
     # Time anchor — prepended to user msg (highest-attention slot)
-    today = (paipan.get("META") or {}).get("today") or {}
-    year_gz = today.get("yearGz")
+    # Flat paipan carries todayYmd / todayYearGz / todayMonthGz directly.
+    year_gz = (paipan or {}).get("todayYearGz") or ""
     if year_gz:
+        today_ymd = (paipan or {}).get("todayYmd") or ""
+        month_gz = (paipan or {}).get("todayMonthGz") or ""
         anchor_line = (
-            "【当前时间锚】今天 " + (today.get("ymd") or "") + "，年柱 " + year_gz
-            + (("，月柱 " + today["monthGz"]) if today.get("monthGz") else "")
+            "【当前时间锚】今天 " + today_ymd + "，年柱 " + year_gz
+            + (("，月柱 " + month_gz) if month_gz else "")
             + '。所有"今年/明年/最近"默认以此为基准，不要自己另行推断。\n\n'
         )
     else:
