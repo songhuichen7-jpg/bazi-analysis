@@ -188,3 +188,105 @@ async def test_stream_chart_llm_passes_first_delta_timeout_from_settings(
             pass
 
     assert captured.get("first_delta_timeout_ms") == 7500
+
+
+@pytest.mark.asyncio
+async def test_stream_chart_llm_commits_ticket_before_yielding_done(
+    db_session, seeded, monkeypatch,
+):
+    """Task 4 (cleanup): on success, ticket.commit happens before `done` event.
+
+    If commit races (QuotaExceededError), user sees `error` INSTEAD OF `done`
+    — never both.
+    """
+    from app.db_types import user_dek_context
+    from app.services import chart_llm
+
+    class _RacingTicket:
+        kind = "verdicts_regen"
+        async def commit(self):
+            raise RuntimeError("simulated race: quota exceeded mid-request")
+
+    async def _stream(**kw):
+        yield {"type": "model", "modelUsed": "mimo-v2-pro"}
+        yield {"type": "delta", "text": "content"}
+        yield {"type": "done", "full": "content", "tokens_used": 10,
+               "prompt_tokens": 5, "completion_tokens": 5}
+    monkeypatch.setattr(chart_llm, "chat_stream_with_fallback", _stream)
+
+    async def _retrieve(chart, kind):
+        return []
+    monkeypatch.setattr(chart_llm, "retrieve_for_chart", _retrieve)
+
+    user, chart, dek = seeded
+    events = []
+    with user_dek_context(dek):
+        async for raw in chart_llm.stream_chart_llm(
+            db_session, user, chart,
+            kind="verdicts", key="", force=True,
+            cache_row=None, ticket=_RacingTicket(),
+            build_messages=lambda p, r: [{"role":"s","content":"x"}],
+            retrieval_kind="meta",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            events.append(raw)
+
+    types_on_wire = []
+    for raw in events:
+        if b'"type":"done"' in raw:
+            types_on_wire.append("done")
+        elif b'"type":"error"' in raw:
+            types_on_wire.append("error")
+        elif b'"type":"delta"' in raw:
+            types_on_wire.append("delta")
+        elif b'"type":"model"' in raw:
+            types_on_wire.append("model")
+
+    # Race path: no done event should have been emitted
+    assert "done" not in types_on_wire, f"expected no done event on race; got: {types_on_wire}"
+    assert "error" in types_on_wire
+
+
+@pytest.mark.asyncio
+async def test_stream_chart_llm_race_does_not_write_cache(
+    db_session, seeded, monkeypatch,
+):
+    """Task 4 (cleanup): ticket race → cache is NOT written.
+
+    Before Task 4: cache WAS written before commit, causing a "free regen".
+    After Task 4: commit is gated before cache write; race blocks cache.
+    """
+    from app.db_types import user_dek_context
+    from app.services import chart_llm
+
+    class _RacingTicket:
+        kind = "verdicts_regen"
+        async def commit(self):
+            raise RuntimeError("race")
+
+    async def _stream(**kw):
+        yield {"type": "model", "modelUsed": "mimo-v2-pro"}
+        yield {"type": "delta", "text": "new content"}
+        yield {"type": "done", "full": "new content", "tokens_used": 12,
+               "prompt_tokens": 6, "completion_tokens": 6}
+    monkeypatch.setattr(chart_llm, "chat_stream_with_fallback", _stream)
+
+    async def _retrieve(chart, kind):
+        return []
+    monkeypatch.setattr(chart_llm, "retrieve_for_chart", _retrieve)
+
+    user, chart, dek = seeded
+    with user_dek_context(dek):
+        async for _ in chart_llm.stream_chart_llm(
+            db_session, user, chart,
+            kind="verdicts", key="", force=True,
+            cache_row=None, ticket=_RacingTicket(),
+            build_messages=lambda p, r: [{"role":"s","content":"x"}],
+            retrieval_kind="meta",
+            temperature=0.7, max_tokens=3000, tier="primary",
+        ):
+            pass
+
+    # Cache must NOT have been written on race
+    row = await chart_llm.get_cache_row(db_session, chart.id, "verdicts", "")
+    assert row is None

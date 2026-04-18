@@ -125,14 +125,11 @@ async def stream_chart_llm(
                 accumulated += ev["text"]
                 yield sse_pack(ev)
             elif ev["type"] == "done":
+                # NOTE: DO NOT yield done here — commit ticket first so race
+                # surfaces as `error` instead of `done → error` (Plan 5 cleanup Task 4).
                 prompt_tok = ev.get("prompt_tokens", 0)
                 completion_tok = ev.get("completion_tokens", 0)
                 total_tok = ev.get("tokens_used", 0)
-                yield sse_pack({
-                    "type": "done",
-                    "full": accumulated,
-                    "tokens_used": total_tok,
-                })
     except UpstreamLLMError as e:
         err = e
         yield sse_pack({"type": "error", "code": e.code, "message": e.message})
@@ -149,7 +146,22 @@ async def stream_chart_llm(
         )
         return
 
-    # Success — UPSERT + log + ticket.commit
+    # Success path: commit-before-done (Plan 5 cleanup Task 4).
+    # On race: emit error INSTEAD of done, don't write cache.
+    if ticket is not None:
+        try:
+            await ticket.commit()
+        except Exception as e:  # noqa: BLE001 — race: another request pushed us over limit
+            yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
+            await insert_llm_usage_log(
+                db, user_id=user.id, chart_id=chart.id,
+                endpoint=kind, model=model_used,
+                prompt_tokens=None, completion_tokens=None,
+                duration_ms=duration_ms, error=f"QUOTA_EXCEEDED: {e}",
+            )
+            return
+
+    # Commit succeeded (or no ticket) — write cache + log + finally emit done.
     await upsert_cache(
         db,
         chart_id=chart.id, kind=kind, key=key,
@@ -162,8 +174,8 @@ async def stream_chart_llm(
         prompt_tokens=prompt_tok, completion_tokens=completion_tok,
         duration_ms=duration_ms,
     )
-    if ticket is not None:
-        try:
-            await ticket.commit()
-        except Exception as e:   # noqa: BLE001 — race: another request pushed us over limit
-            yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
+    yield sse_pack({
+        "type": "done",
+        "full": accumulated,
+        "tokens_used": total_tok,
+    })
