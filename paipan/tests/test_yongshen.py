@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from paipan import compute
+from paipan.yongshen import compose_yongshen
 
 
 def test_chart_yongshen_is_string_for_compat():
@@ -102,3 +103,159 @@ def test_fuyi_yongshen_unknown_strength_returns_none():
     from paipan.yongshen import fuyi_yongshen
     assert fuyi_yongshen({'scores': {}}, None) is None
     assert fuyi_yongshen({'scores': {}}, 'something_weird') is None
+
+
+def _candidate(method, name, note='', source=''):
+    return {'method': method, 'name': name, 'note': note, 'source': source}
+
+
+def test_compose_調候格局共指():
+    t = _candidate('调候', '庚金', source='穷通宝鉴·论丁火·六月')
+    g = _candidate('格局', '庚金', source='子平真诠·论七杀')
+    out = compose_yongshen(t, g, None)
+    assert out['primary'] == '庚金'
+    assert out['primaryReason'] == '调候 + 格局共指'
+    assert out['warnings'] == []
+
+
+def test_compose_調候格局不同_warns():
+    t = _candidate('调候', '庚金', source='穷通宝鉴·论丁火·六月')
+    g = _candidate('格局', '印（化杀）', source='子平真诠·论七杀')
+    out = compose_yongshen(t, g, None)
+    assert out['primary'] == '庚金'
+    assert out['primaryReason'] == '以调候为主'
+    assert len(out['warnings']) == 1
+    assert '古籍两派' in out['warnings'][0]
+
+
+def test_compose_only_geju_when_no_tiaohou():
+    g = _candidate('格局', '财（生官）', source='子平真诠·论正官')
+    out = compose_yongshen(None, g, None)
+    assert out['primary'] == '财（生官）'
+    assert out['primaryReason'] == '格局法'
+
+
+def test_compose_only_fuyi_as_last_resort():
+    f = _candidate('扶抑', '印 / 比劫', source='滴天髓·衰旺')
+    out = compose_yongshen(None, None, f)
+    assert out['primary'] == '印 / 比劫'
+    assert out['primaryReason'] == '扶抑法（前两法无明确结论）'
+
+
+def test_compose_no_method_returns_中和():
+    out = compose_yongshen(None, None, None)
+    assert out['primary'] == '中和（无明显偏枯）'
+    assert out['primaryReason'] == '三法皆无强候选'
+
+
+def test_compose_candidates_always_3_in_fixed_order():
+    """Even when methods produce no result, candidates list has 3 entries
+    in order [调候, 格局, 扶抑] for stable LLM prompt rendering."""
+    out = compose_yongshen(None, None, None)
+    assert len(out['candidates']) == 3
+    assert [c['method'] for c in out['candidates']] == ['调候', '格局', '扶抑']
+
+
+GOLDEN_YONGSHEN_CASES = [
+    {
+        'label': '丁火六月_身弱_食神格',
+        'input': dict(year=1993, month=7, day=15, hour=14, minute=30,
+                      gender='male', city='长沙'),
+        'expect': {
+            'has_tiaohou': True,
+            'has_geju': True,
+            'tiaohou_source_contains': '穷通宝鉴',
+            'geju_source_contains': '子平真诠',
+        },
+    },
+    {
+        'label': '丙火五月_身强',
+        'input': dict(year=1990, month=5, day=12, hour=12, minute=0,
+                      gender='male', city='北京'),
+        'expect': {
+            'has_tiaohou': True,
+            'primary_not_empty': True,
+        },
+    },
+    {
+        'label': '甲木八月',
+        'input': dict(year=2003, month=8, day=29, hour=8, minute=27,
+                      gender='male', city='上海'),
+        'expect': {'has_tiaohou': True},
+    },
+    {
+        'label': '癸水正月',
+        'input': dict(year=1985, month=1, day=5, hour=23, minute=45,
+                      gender='female', city='广州'),
+        'expect': {'has_tiaohou': True},
+    },
+    {
+        'label': '辛金腊月',
+        'input': dict(year=1976, month=11, day=30, hour=6, minute=15,
+                      gender='female', city='成都'),
+        'expect': {'has_tiaohou': True},
+    },
+    {
+        'label': '戊土三月',
+        'input': dict(year=2000, month=2, day=29, hour=16, minute=0,
+                      gender='male', city='深圳'),
+        'expect': {'has_tiaohou': True},
+    },
+    {
+        'label': '丁火_寅午戌_三合',
+        'input': dict(year=1984, month=10, day=5, hour=14, minute=0,
+                      gender='male', city='北京'),
+        'expect': {'primary_not_empty': True},
+    },
+    {
+        'label': '乙木_寅卯辰_三会',
+        'input': dict(year=1995, month=3, day=21, hour=12, minute=0,
+                      gender='female', city='上海'),
+        'expect': {'primary_not_empty': True},
+    },
+    {
+        'label': '日主合化',
+        'input': dict(year=1988, month=6, day=10, hour=9, minute=0,
+                      gender='male', city='北京'),
+        'expect': {'primary_not_empty': True},
+    },
+    {
+        'label': '从格疑似',
+        'input': dict(year=1974, month=8, day=8, hour=8, minute=0,
+                      gender='female', city='昆明'),
+        'expect': {'primary_not_empty': True},
+    },
+]
+
+
+@pytest.mark.parametrize('case', GOLDEN_YONGSHEN_CASES,
+                         ids=[c['label'] for c in GOLDEN_YONGSHEN_CASES])
+def test_yongshen_golden(case):
+    """Plan 7.3 §8.2: 10 golden cases assert structural soundness on real charts."""
+    out = compute(**case['input'])
+    detail = out.get('yongshenDetail')
+    assert detail, f"{case['label']}: missing yongshenDetail"
+    expect = case['expect']
+
+    if expect.get('primary_not_empty'):
+        assert detail['primary'], f"{case['label']}: primary is empty"
+
+    if expect.get('has_tiaohou'):
+        tiaohou = next(c for c in detail['candidates'] if c['method'] == '调候')
+        assert tiaohou['name'], \
+            f"{case['label']}: expected 调候 candidate (got name={tiaohou['name']!r})"
+
+    if expect.get('has_geju'):
+        geju = next(c for c in detail['candidates'] if c['method'] == '格局')
+        assert geju['name'], \
+            f"{case['label']}: expected 格局 candidate (got name={geju['name']!r})"
+
+    if 'tiaohou_source_contains' in expect:
+        tiaohou = next(c for c in detail['candidates'] if c['method'] == '调候')
+        assert expect['tiaohou_source_contains'] in (tiaohou.get('source') or ''), \
+            f"{case['label']}: 调候 source missing token"
+
+    if 'geju_source_contains' in expect:
+        geju = next(c for c in detail['candidates'] if c['method'] == '格局')
+        assert expect['geju_source_contains'] in (geju.get('source') or ''), \
+            f"{case['label']}: 格局 source missing token"
