@@ -50,6 +50,9 @@ test('chartResponseToEntry maps analyzer output into force, guards, and meta fie
         zhiRelations: {
           liuHe: [{ a: '子', b: '丑', wuxing: '土' }],
           chong: [{ a: '戌', b: '辰' }],
+          sanHe: [{ zhi: ['申', '子', '辰'], wuxing: '水', type: 'full' }],
+          banHe: [{ zhi: ['申', '子'], wuxing: '水' }],
+          sanHui: [{ zhi: ['寅', '卯', '辰'], wuxing: '木', dir: '东' }],
         },
         notes: [
           {
@@ -68,6 +71,9 @@ test('chartResponseToEntry maps analyzer output into force, guards, and meta fie
     { type: 'pair_mismatch', note: '比劫 组中 比肩 (4.4) vs 劫财 (0) 强度差异大，分析时不能笼统称"比劫旺/弱"' },
     { type: 'liuhe', note: '子丑 六合 化 土' },
     { type: 'chong', note: '戌辰 相冲' },
+    { type: 'sanhe', note: '三合 申子辰 化 水' },
+    { type: 'banhe', note: '半合 申子 → 水' },
+    { type: 'sanhui', note: '三会 寅卯辰 东方木' },
   ]);
   assert.equal(entry.meta.dayStrength, '身弱');
   assert.equal(entry.meta.geju, '食神格');
@@ -75,6 +81,42 @@ test('chartResponseToEntry maps analyzer output into force, guards, and meta fie
   assert.equal(entry.meta.yongshen, '比劫（帮身）');
   assert.equal(entry.meta.sameSideScore, 4.3);
   assert.equal(entry.meta.otherSideScore, 16);
+});
+
+test('chartResponseToEntry deduplicates repeated sanhe-style guard relations', () => {
+  const entry = chartResponseToEntry({
+    chart: {
+      id: 'chart-3',
+      created_at: '2026-04-19T00:00:00Z',
+      updated_at: '2026-04-19T00:00:00Z',
+      birth_input: {},
+      paipan: {
+        sizhu: { day: '甲子' },
+        cangGan: {},
+        shishen: {},
+        zhiRelations: {
+          sanHe: [
+            { zhi: ['申', '子', '辰'], wuxing: '水', type: 'full' },
+            { zhi: ['申', '子', '辰'], wuxing: '水', type: 'full' },
+          ],
+          banHe: [
+            { zhi: ['申', '子'], wuxing: '水' },
+            { zhi: ['申', '子'], wuxing: '水' },
+          ],
+          sanHui: [
+            { zhi: ['亥', '子', '丑'], wuxing: '水', dir: '北' },
+            { zhi: ['亥', '子', '丑'], wuxing: '水', dir: '北' },
+          ],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(entry.guards, [
+    { type: 'sanhe', note: '三合 申子辰 化 水' },
+    { type: 'banhe', note: '半合 申子 → 水' },
+    { type: 'sanhui', note: '三会 亥子丑 北方水' },
+  ]);
 });
 
 test('chartResponseToEntry keeps force and guards empty when analyzer fields are absent', () => {

@@ -167,6 +167,34 @@ function buildGuards(rawChart) {
     guards.push({ type: 'chong', note: `${pair} 相冲` });
   }
 
+  const seenSanHe = new Set();
+  for (const relation of rawChart?.zhiRelations?.sanHe || []) {
+    const zhi = Array.isArray(relation?.zhi) ? relation.zhi.filter(Boolean) : [];
+    const key = `${zhi.join('')}:${relation?.wuxing || ''}:${relation?.type || ''}`;
+    if (zhi.length !== 3 || !key || seenSanHe.has(key)) continue;
+    seenSanHe.add(key);
+    guards.push({ type: 'sanhe', note: `三合 ${zhi.join('')} 化 ${relation.wuxing || ''}`.trim() });
+  }
+
+  const seenBanHe = new Set();
+  for (const relation of rawChart?.zhiRelations?.banHe || []) {
+    const zhi = Array.isArray(relation?.zhi) ? relation.zhi.filter(Boolean) : [];
+    const key = `${zhi.join('')}:${relation?.wuxing || ''}`;
+    if (zhi.length !== 2 || !relation?.wuxing || seenBanHe.has(key)) continue;
+    seenBanHe.add(key);
+    guards.push({ type: 'banhe', note: `半合 ${zhi.join('')} → ${relation.wuxing}` });
+  }
+
+  const seenSanHui = new Set();
+  for (const relation of rawChart?.zhiRelations?.sanHui || []) {
+    const zhi = Array.isArray(relation?.zhi) ? relation.zhi.filter(Boolean) : [];
+    const dirWuxing = relation?.dir && relation?.wuxing ? `${relation.dir}方${relation.wuxing}` : '';
+    const key = `${zhi.join('')}:${dirWuxing}`;
+    if (zhi.length !== 3 || !dirWuxing || seenSanHui.has(key)) continue;
+    seenSanHui.add(key);
+    guards.push({ type: 'sanhui', note: `三会 ${zhi.join('')} ${dirWuxing}` });
+  }
+
   return guards;
 }
 
