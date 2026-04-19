@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { streamMessage, streamGua, fetchChips } from '../lib/api';
-import { finalizeChatTurn } from '../lib/chatFlow';
+import { finalizeChatTurn, resolveConversationIdForSend, startBootstrapChipsRefresh } from '../lib/chatFlow';
 import GuaCard from './GuaCard';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
@@ -109,19 +109,30 @@ export default function Chat() {
   }
 
   useEffect(() => {
-    if (!meta) return;
-    refreshChips();
-  }, [meta, currentConversationId]);
+    const bootstrapped = startBootstrapChipsRefresh({
+      meta,
+      currentConversationId,
+      historyLength: history.length,
+      refreshChips,
+    });
+    if (!bootstrapped) setChips(DEFAULT_CHIPS);
+  }, [history.length, meta, currentConversationId]);
 
   async function ensureConversationId() {
-    const result = await ensureConversation(useAppStore.getState().currentId);
-    return result?.conversationId || null;
+    const state = useAppStore.getState();
+    return resolveConversationIdForSend({
+      currentConversationId: state.currentConversationId,
+      currentChartId: state.currentId,
+      ensureConversation,
+    });
   }
 
   async function send(text, options = {}) {
     const retry = options.retry === true;
     const q = String(text ?? inputRef.current?.value ?? input).trim();
     if (!q || chatStreaming) return;
+    const sendStartedAt = Date.now();
+    console.log(`[chat] send:start retry=${retry} at=${sendStartedAt}`);
     setChatError(null);
 
     if (!llmEnabled) {
@@ -136,7 +147,9 @@ export default function Chat() {
       return;
     }
 
+    console.log(`[chat] ensureConversation:start dt=0ms`);
     const convId = await ensureConversationId();
+    console.log(`[chat] ensureConversation:ready conv=${convId || 'none'} dt=${Date.now() - sendStartedAt}ms`);
     if (retry) {
       replaceLastAssistant('');
     } else {
@@ -152,6 +165,7 @@ export default function Chat() {
 
     setChatStreaming(true);
     try {
+      console.log(`[chat] stream:start conv=${convId} dt=${Date.now() - sendStartedAt}ms`);
       await streamMessage(convId, { message: q, bypass_divination: false }, {
         onDelta: (_t, running) => replaceLastAssistant(running),
         onIntent: (intent, reason, source) =>
