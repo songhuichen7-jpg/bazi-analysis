@@ -12,6 +12,7 @@ from paipan.ge_ju import analyze_geju
 from paipan.he_ke import analyze_relations, find_gan_he
 from paipan.li_liang import analyze_force
 from paipan.shi_shen import get_shi_shen
+from paipan.yongshen import build_yongshen
 
 
 def _js_round(x: float) -> int:
@@ -88,6 +89,15 @@ def analyze(paipan_result: dict) -> dict:
 
     zhi_list = [y["zhi"], m["zhi"], d["zhi"], h["zhi"]]
     zhi_relations = analyze_relations([z for z in zhi_list if z])
+    ge_ju_main = (ge_ju or {}).get('mainCandidate', {}).get('name')
+    yongshen_dict = build_yongshen(
+        rizhu_gan=d["gan"],
+        month_zhi=m["zhi"],
+        force=force,
+        geju=ge_ju_main,
+        gan_he=gan_he,
+        day_strength=force.get('dayStrength'),
+    )
 
     return {
         "bazi": bazi,
@@ -111,6 +121,8 @@ def analyze(paipan_result: dict) -> dict:
         },
         "zhiRelations": zhi_relations,
         "notes": _build_notes(force, ge_ju, zhi_relations),
+        "yongshen": yongshen_dict["primary"],
+        "yongshenDetail": yongshen_dict,
     }
 
 
@@ -194,7 +206,8 @@ def _build_notes(force: dict, ge_ju: dict, zhi_relations: dict) -> list[dict]:
     return notes
 
 
-def suggest_yongshen(analyzer_result: dict) -> str:
+def _legacy_suggest_yongshen(analyzer_result: dict) -> str:
+    """Plan 7.3: deprecated, kept for any external callers."""
     """Very rough 用神 heuristic from archive/server-mvp/server.js."""
     force = analyzer_result.get("force") or {}
     day_strength = force.get("dayStrength")

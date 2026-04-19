@@ -17,7 +17,7 @@ from typing import Literal, Optional
 
 from lunar_python import Solar
 
-from paipan.analyzer import analyze, suggest_yongshen
+from paipan.analyzer import analyze
 from paipan.china_dst import correct_china_dst
 from paipan.cities import get_city_coords
 from paipan.dayun import compute_dayun
@@ -210,6 +210,9 @@ def compute(
     result["dayStrength"] = analysis["force"]["dayStrength"]
     main_candidate = analysis["geJu"].get("mainCandidate") or {}
     result["geju"] = main_candidate.get("name") or ""
-    result["yongshen"] = suggest_yongshen(analysis)
+    # Plan 7.3: yongshen is now a structured engine. Top-level key stays a STRING
+    # (chartUi.js compat); full dict goes in yongshenDetail.
+    result["yongshen"] = analysis["yongshen"]
+    result["yongshenDetail"] = analysis["yongshenDetail"]
 
     return result
