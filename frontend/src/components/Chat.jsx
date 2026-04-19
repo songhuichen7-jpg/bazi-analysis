@@ -7,6 +7,7 @@ import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import ConversationSwitcher from './ConversationSwitcher';
+import { buildGenerationStatus, getWelcomeMessageState } from '../lib/chatStatus';
 
 const DEFAULT_CHIPS = ['七杀格意味着什么', '我在纠结要不要离职创业', '酉辰六合会怎样', '我适合什么伴侣'];
 
@@ -82,6 +83,15 @@ export default function Chat() {
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
   const meta = useAppStore(s => s.meta);
+  const verdicts = useAppStore(s => s.verdicts);
+  const sections = useAppStore(s => s.sections);
+  const sectionsLoading = useAppStore(s => s.sectionsLoading);
+  const dayunStreaming = useAppStore(s => s.dayunStreaming);
+  const liunianStreaming = useAppStore(s => s.liunianStreaming);
+  const dayunOpenIdx = useAppStore(s => s.dayunOpenIdx);
+  const liunianOpenKey = useAppStore(s => s.liunianOpenKey);
+  const dayunCache = useAppStore(s => s.dayunCache);
+  const liunianCache = useAppStore(s => s.liunianCache);
   const currentConversationId = useAppStore(s => s.currentConversationId);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
@@ -246,6 +256,17 @@ export default function Chat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   }
 
+  const generationStatus = buildGenerationStatus({
+    verdicts,
+    sections,
+    sectionsLoading,
+    dayunStreaming,
+    dayunStarted: dayunOpenIdx != null || Object.keys(dayunCache || {}).length > 0,
+    liunianStreaming,
+    liunianStarted: liunianOpenKey != null || Object.keys(liunianCache || {}).length > 0,
+  });
+  const welcomeMessage = getWelcomeMessageState({ verdicts, sectionsLoading });
+
   return (
     <div className="right-pane">
       <div className="chat-topbar">
@@ -272,9 +293,13 @@ export default function Chat() {
       <div className="chat-body" ref={bodyRef}>
         {history.length === 0 && (
           <div className="msg msg-ai">
-            我已经看过你的命盘了。你可以：<br/>
-            <span className="muted" style={{ fontSize: 12 }}>· 直接点左侧命盘里的<b>任意字</b>——我会立即解释</span><br/>
-            <span className="muted" style={{ fontSize: 12 }}>· 告诉我一个你当下的选择困境，我会进入结构化分析</span>
+            {welcomeMessage.lead}<br/>
+            {welcomeMessage.showDefaultGuidance ? (
+              <>
+                <span className="muted" style={{ fontSize: 12 }}>· 直接点左侧命盘里的<b>任意字</b>——我会立即解释</span><br/>
+                <span className="muted" style={{ fontSize: 12 }}>· 告诉我一个你当下的选择困境，我会进入结构化分析</span>
+              </>
+            ) : null}
           </div>
         )}
         {history.map((m, i) => {
@@ -332,6 +357,9 @@ export default function Chat() {
       </div>
 
       <div className="chat-input-wrap">
+        {generationStatus.visible ? (
+          <div className="chat-status-note muted" role="status">{generationStatus.text}</div>
+        ) : null}
         <div className="chat-chips">
           {chips.map(c => (
             <button key={c} className="chip" onClick={() => send(c)} disabled={chatStreaming}>{c}</button>
