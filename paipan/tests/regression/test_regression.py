@@ -22,6 +22,7 @@ from paipan import compute
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
 ORACLE_NOW = datetime(2026, 4, 17, 12, 0, 0)
+ANALYZER_KEYS = {"force", "geJu", "zhiRelations", "notes", "dayStrength", "geju", "yongshen"}
 
 
 def _load_fixtures() -> list[pathlib.Path]:
@@ -36,6 +37,10 @@ def test_regression(fixture_path: pathlib.Path) -> None:
     expected = data["expected"]
 
     actual = compute(**birth_input, _now=ORACLE_NOW)
+    # Plan 7.1 adds analyzer fields on top of the legacy engine output. The
+    # pre-existing regression oracle fixtures intentionally stay frozen to the
+    # legacy subset; dedicated analyzer parity tests cover the new fields.
+    actual = {k: v for k, v in actual.items() if k not in ANALYZER_KEYS}
 
     diffs = deep_diff(actual, expected, float_tolerance=1e-9)
     if diffs:

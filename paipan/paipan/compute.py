@@ -17,6 +17,7 @@ from typing import Literal, Optional
 
 from lunar_python import Solar
 
+from paipan.analyzer import analyze, suggest_yongshen
 from paipan.china_dst import correct_china_dst
 from paipan.cities import get_city_coords
 from paipan.dayun import compute_dayun
@@ -199,5 +200,15 @@ def compute(
     # NOTE: paipan.js:168-189 — 大运：委托给 compute_dayun（仅依赖月柱 + 性别）
     # compute_dayun 内部对 hour==-1 做 noon 兜底，这里直接把原 hour 传下去即可。
     result["dayun"] = compute_dayun(y, mo, d, h, mi, gender)
+
+    analysis = analyze(result)
+    result["force"] = analysis["force"]
+    result["geJu"] = analysis["geJu"]
+    result["zhiRelations"] = analysis["zhiRelations"]
+    result["notes"] = analysis["notes"]
+    result["dayStrength"] = analysis["force"]["dayStrength"]
+    main_candidate = analysis["geJu"].get("mainCandidate") or {}
+    result["geju"] = main_candidate.get("name") or ""
+    result["yongshen"] = suggest_yongshen(analysis)
 
     return result
