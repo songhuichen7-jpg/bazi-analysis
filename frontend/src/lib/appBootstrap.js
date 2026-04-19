@@ -4,7 +4,6 @@ import { clearAuthPhoneHint, readAuthPhoneHint } from './authPhoneHint.js';
 export async function bootstrapAuthGate({ store, me }) {
   if (!hasAuthSessionHint()) {
     store.getState().setUser(null);
-    store.setState({ screen: 'auth' });
     return null;
   }
 
@@ -14,13 +13,11 @@ export async function bootstrapAuthGate({ store, me }) {
       clearAuthSessionHint();
       clearAuthPhoneHint();
       store.getState().setUser(null);
-      store.setState({ screen: 'auth' });
       return null;
     }
     setAuthSessionHint();
     const phone = readAuthPhoneHint();
     store.getState().setUser(result.user ? { ...result.user, ...(phone ? { phone } : {}) } : null);
-    await store.getState().syncChartsFromServer();
     return result.user || null;
   } catch (error) {
     store.getState().setUser(null);
@@ -29,7 +26,6 @@ export async function bootstrapAuthGate({ store, me }) {
       detail: error?.message || String(error),
       retryable: true,
     });
-    store.setState({ screen: 'auth' });
     return null;
   }
 }

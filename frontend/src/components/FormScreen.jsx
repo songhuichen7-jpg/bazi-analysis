@@ -193,7 +193,7 @@ export function LoadingScreen() {
 }
 
 export function LandingScreen() {
-  const setScreen = useAppStore(s => s.setScreen);
+  const enterFromLanding = useAppStore(s => s.enterFromLanding);
   return (
     <div className="screen active">
       <div className="center-wrap">
@@ -201,7 +201,7 @@ export function LandingScreen() {
           <div className="section-num" style={{ marginBottom:24 }}>命 · 盘 · 读</div>
           <h1 className="serif">一个<span className="muted">理性的</span>命理工具</h1>
           <p>不讲玄学。用子平真诠 + 现代结构化方法，把你的八字翻译成一份可以读、可以聊、可以对照的自我说明书。</p>
-          <button className="btn-primary" onClick={() => setScreen('input')}>开始排盘 →</button>
+          <button className="btn-primary" onClick={() => void enterFromLanding()}>开始排盘 →</button>
           <div className="muted" style={{ fontSize:11, marginTop:80, letterSpacing:'.2em', lineHeight:1.8 }}>v0.1 · 原型 · 模型输出为示例</div>
         </div>
       </div>

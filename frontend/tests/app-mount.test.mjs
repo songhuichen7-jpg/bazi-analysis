@@ -40,7 +40,7 @@ test('bootstrapAuthGate skips me() when there is no local auth hint', async () =
   });
 
   assert.equal(meCalls, 0);
-  assert.equal(useAppStore.getState().screen, 'auth');
+  assert.equal(useAppStore.getState().screen, 'landing');
   assert.equal(useAppStore.getState().user, null);
 });
 
@@ -65,6 +65,6 @@ test('bootstrapAuthGate treats null me() as logged out without syncing charts', 
 
   assert.equal(meCalls, 1);
   assert.equal(syncCalls, 0);
-  assert.equal(useAppStore.getState().screen, 'auth');
+  assert.equal(useAppStore.getState().screen, 'landing');
   assert.equal(useAppStore.getState().user, null);
 });

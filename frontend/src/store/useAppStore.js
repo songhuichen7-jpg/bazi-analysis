@@ -139,7 +139,7 @@ function snapshotChart(s, extra = {}) {
 }
 
 const initialState = {
-  screen: 'auth',
+  screen: 'landing',
   view: 'chart',
   ...BLANK_CHART,
   user: null,
@@ -166,6 +166,43 @@ export const useAppStore = create((set, get) => ({
   setScreen: (screen) => set({ screen }),
   setView:   (view)   => set({ view }),
   setUser: (user) => set({ user }),
+  enterFromLanding: async () => {
+    const state = get();
+    if (!state.user) {
+      set({ screen: 'auth' });
+      return 'auth';
+    }
+
+    const chartEntries = Object.values(state.charts || {});
+    if (chartEntries.length === 0) {
+      const items = await get().syncChartsFromServer();
+      if (!items.length) set({ screen: 'input' });
+      return items.length ? 'shell' : 'input';
+    }
+
+    const latest = chartEntries
+      .slice()
+      .sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0))[0];
+    const latestId = latest?.id;
+    if (!latestId) {
+      set({ screen: 'input' });
+      return 'input';
+    }
+
+    if (latestId === state.currentId && state.paipan) {
+      set({ screen: 'shell' });
+      return 'shell';
+    }
+
+    if (latest?.paipan) {
+      await get().switchChart(latestId);
+      return 'shell';
+    }
+
+    const items = await get().syncChartsFromServer();
+    if (!items.length) set({ screen: 'input' });
+    return items.length ? 'shell' : 'input';
+  },
   setLlmStatus: (enabled) => set({ llmEnabled: enabled }),
   setFormError: (f)  => set({ formError: f }),
   setLoadingStage: (i) => set({ loadingStage: i }),
@@ -534,7 +571,7 @@ export const useAppStore = create((set, get) => ({
 
   logout: async () => {
     const { logout: logoutApi } = await import('../lib/api.js');
-    try { await logoutApi(); } catch { /* best effort */ }
+    void logoutApi().catch(() => { /* best effort */ });
     clearAuthSessionHint();
     clearAuthPhoneHint();
     clearSession();
@@ -544,7 +581,7 @@ export const useAppStore = create((set, get) => ({
       ...makeBlankChart(),
       charts: {},
       currentId: null,
-      screen: 'auth',
+      screen: 'landing',
       llmEnabled: state.llmEnabled,
       user: null,
     }));

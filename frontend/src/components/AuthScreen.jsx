@@ -9,7 +9,7 @@ import LoginForm from './LoginForm';
 
 export default function AuthScreen() {
   const setUser = useAppStore(s => s.setUser);
-  const syncChartsFromServer = useAppStore(s => s.syncChartsFromServer);
+  const setScreen = useAppStore(s => s.setScreen);
 
   const [mode, setMode] = useState('register');
   const [phone, setPhone] = useState('');
@@ -26,7 +26,7 @@ export default function AuthScreen() {
     setAuthSessionHint();
     writeAuthPhoneHint(normalizedPhone);
     setUser(normalizedPhone ? { ...user, phone: normalizedPhone } : user);
-    await syncChartsFromServer();
+    setScreen('input');
   }
 
   return (
