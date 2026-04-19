@@ -22,7 +22,7 @@ from paipan import compute
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
 ORACLE_NOW = datetime(2026, 4, 17, 12, 0, 0)
-ANALYZER_KEYS = {"force", "geJu", "zhiRelations", "notes", "dayStrength", "geju", "yongshen"}
+ANALYZER_KEYS = {"force", "geJu", "ganHe", "zhiRelations", "notes", "dayStrength", "geju", "yongshen"}
 
 
 def _load_fixtures() -> list[pathlib.Path]:
