@@ -668,7 +668,7 @@ TIAOHOU: dict[tuple[str, str], dict] = {
         'source': '穷通宝鉴·论壬水·十月',
     },
     ('壬', '子'): {
-        'name': '丙火 / 戊土',
+        'name': '戊土 / 丙火',
         'supporting': None,
         'note': '阳刃帮身，丙戊并用，先戊后丙',
         'source': '穷通宝鉴·论壬水·十一月',
@@ -694,7 +694,7 @@ TIAOHOU: dict[tuple[str, str], dict] = {
         'source': '穷通宝鉴·论癸水·二月',
     },
     ('癸', '辰'): {
-        'name': '丙火 / 丙火',
+        'name': '丙火',
         'supporting': '辛金 / 甲木',
         'note': '清明后专丙，谷雨后丙火仍用辛甲',
         'source': '穷通宝鉴·论癸水·三月',
