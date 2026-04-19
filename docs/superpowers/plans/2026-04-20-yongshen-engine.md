@@ -253,8 +253,8 @@ from paipan.yongshen import build_yongshen   # add to top of file imports
 
 ge_ju_main = (ge_ju or {}).get('mainCandidate', {}).get('name')
 yongshen_dict = build_yongshen(
-    rizhu_gan=d.gan,
-    month_zhi=m.zhi,
+    rizhu_gan=d["gan"],   # codebase stores 干支 as dict, not attr
+    month_zhi=m["zhi"],
     force=force,
     geju=ge_ju_main,
     gan_he=gan_he,
