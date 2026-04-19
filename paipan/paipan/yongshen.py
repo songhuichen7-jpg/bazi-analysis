@@ -22,6 +22,13 @@ from __future__ import annotations
 from paipan.yongshen_data import TIAOHOU, GEJU_RULES, FUYI_CASES
 
 
+_GEJU_ALIASES = {
+    '建禄格': '比肩格',
+    '月刃格': '劫财格',
+    '阳刃格': '劫财格',
+}
+
+
 def tiaohou_yongshen(rizhu_gan: str, month_zhi: str) -> dict | None:
     """Return TIAOHOU entry or None if not strongly indicated."""
     entry = TIAOHOU.get((rizhu_gan, month_zhi))
@@ -40,7 +47,8 @@ def geju_yongshen(geju: str | None, force: dict, gan_he: dict) -> dict | None:
     """Return first matching GEJU_RULES entry or None if 格局 unknown/unclear."""
     if not geju:
         return None
-    rules = GEJU_RULES.get(geju, [])
+    normalized_geju = _GEJU_ALIASES.get(geju, geju)
+    rules = GEJU_RULES.get(normalized_geju, [])
     for rule in rules:
         cond = rule.get('condition')
         if cond and cond(force, gan_he):

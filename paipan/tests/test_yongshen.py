@@ -53,3 +53,25 @@ def test_tiaohou_yongshen_unknown_combination_returns_none():
     # Use a key guaranteed missing in dict (won't match any real combination)
     res = tiaohou_yongshen('XX', '寅')   # XX is not a real gan
     assert res is None
+
+
+def test_geju_yongshen_七杀格_with_食神_returns_食制():
+    from paipan.yongshen import geju_yongshen
+    force = {'scores': {'食神': 5, '七杀': 4}}
+    res = geju_yongshen('七杀格', force, {})
+    assert res is not None
+    assert res['method'] == '格局'
+    assert '食神' in res['name'] or '制' in res['name']
+    assert '子平真诠' in res['source']
+
+
+def test_geju_yongshen_unknown_geju_returns_none():
+    from paipan.yongshen import geju_yongshen
+    res = geju_yongshen('不存在的格局', {'scores': {}}, {})
+    assert res is None
+
+
+def test_geju_yongshen_格局不清_returns_none():
+    from paipan.yongshen import geju_yongshen
+    res = geju_yongshen('格局不清', {'scores': {}}, {})
+    assert res is None

@@ -36,3 +36,27 @@ def test_tiaohou_note_length_reasonable():
         note = entry.get('note', '')
         assert len(note) <= 60, \
             f"TIAOHOU[{key}].note too long ({len(note)} chars): {note!r}"
+
+
+def test_geju_rules_each_格局_has_at_least_one_default():
+    """Each 格局 with rules must have a final 'condition: lambda ...: True' default."""
+    for geju, rules in GEJU_RULES.items():
+        if not rules:
+            continue   # 格局不清 is intentionally empty
+        last = rules[-1]
+        assert callable(last.get('condition')), \
+            f"{geju} last rule missing condition"
+        # Default rule should accept anything: simulate with empty force/gan_he
+        assert last['condition']({'scores': {}}, {}) is True, \
+            f"{geju} last rule should be a default (always True)"
+
+
+def test_geju_rules_entries_have_required_fields():
+    for geju, rules in GEJU_RULES.items():
+        for i, rule in enumerate(rules):
+            assert 'condition' in rule, f"{geju}[{i}] missing condition"
+            assert callable(rule['condition'])
+            assert 'name' in rule, f"{geju}[{i}] missing name"
+            assert 'source' in rule, f"{geju}[{i}] missing source"
+            assert '子平真诠' in rule['source'], \
+                f"{geju}[{i}].source should cite 子平真诠"

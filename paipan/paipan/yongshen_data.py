@@ -755,8 +755,274 @@ TIAOHOU: dict[tuple[str, str], dict] = {
     },
 }
 
+def _scores(force: dict) -> dict:
+    """Support both direct tests ({scores}) and analyzer runtime ({scoresNormalized})."""
+    return force.get('scores') or force.get('scoresNormalized') or {}
+
+
+def _has_any(force: dict, *names: str, floor: float = 3.0) -> bool:
+    scores = _scores(force)
+    return any(scores.get(name, 0) > floor for name in names)
+
+
+def _has_all(force: dict, names: tuple[str, ...], floor: float = 3.0) -> bool:
+    scores = _scores(force)
+    return all(scores.get(name, 0) > floor for name in names)
+
+
 # Filled in Task 3
-GEJU_RULES: dict[str, list[dict]] = {}
+GEJU_RULES: dict[str, list[dict]] = {
+    '正官格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正财', '偏财'),
+            'name': '财（生官）',
+            'sub_pattern': '财官同辉',
+            'note': '官星得财滋扶，清纯而贵',
+            'source': '子平真诠·论正官',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '正印', '偏印'),
+            'name': '印（护官）',
+            'sub_pattern': '官印相生',
+            'note': '官逢印绶护卫，最怕伤官',
+            'source': '子平真诠·论正官',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '正官',
+            'note': '孤官无辅，须防伤官破格',
+            'source': '子平真诠·论正官',
+        },
+    ],
+    '七杀格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '食神'),
+            'name': '食神（制杀）',
+            'sub_pattern': '食制',
+            'note': '杀旺得食神制服，威权可取',
+            'source': '子平真诠·论偏官',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '正印', '偏印'),
+            'name': '印（化杀）',
+            'sub_pattern': '印化',
+            'note': '杀重无制之时，赖印绶化权',
+            'source': '子平真诠·论偏官',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '七杀（无制无化）',
+            'sub_pattern': '裸杀',
+            'note': '七杀失制失化，偏烈为忧',
+            'source': '子平真诠·论偏官',
+        },
+    ],
+    '食神格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正财', '偏财'),
+            'name': '财（食神生财）',
+            'sub_pattern': '食神生财',
+            'note': '食神吐秀生财，富局最真',
+            'source': '子平真诠·论食神',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '七杀'),
+            'name': '食神（制杀）',
+            'sub_pattern': '食神制杀',
+            'note': '食神带杀而清，制伏反成权',
+            'source': '子平真诠·论食神',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '食神',
+            'note': '食神有气，贵在清纯不杂',
+            'source': '子平真诠·论食神',
+        },
+    ],
+    '伤官格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正印', '偏印'),
+            'name': '印（伤官配印）',
+            'sub_pattern': '伤官配印',
+            'note': '伤官旺而佩印，文章显达',
+            'source': '子平真诠·论伤官',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '正财', '偏财'),
+            'name': '财（伤官生财）',
+            'sub_pattern': '伤官生财',
+            'note': '伤官吐秀生财，最利求财',
+            'source': '子平真诠·论伤官',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '伤官',
+            'note': '伤官虽俊，终须财印调停',
+            'source': '子平真诠·论伤官',
+        },
+    ],
+    '正财格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官（财生官）',
+            'sub_pattern': '财官相辅',
+            'note': '财旺生官，富贵两全',
+            'source': '子平真诠·论财',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（生财）',
+            'sub_pattern': '食伤生财',
+            'note': '财透得食伤转生，富气更真',
+            'source': '子平真诠·论财',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '正财',
+            'note': '财星当令，喜身健能任之',
+            'source': '子平真诠·论财',
+        },
+    ],
+    '偏财格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官（财生官）',
+            'sub_pattern': '财官相辅',
+            'note': '偏财生官，慷慨而能得贵',
+            'source': '子平真诠·论财',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（生财）',
+            'sub_pattern': '食伤生财',
+            'note': '偏财得食伤引动，最利经商',
+            'source': '子平真诠·论财',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '偏财',
+            'note': '偏财活络，须身旺方能驾驭',
+            'source': '子平真诠·论财',
+        },
+    ],
+    '正印格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官（官印相生）',
+            'sub_pattern': '官印相生',
+            'note': '印绶得官杀相生，清贵可取',
+            'source': '子平真诠·论印绶',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（泄秀）',
+            'sub_pattern': '印赖食泄',
+            'note': '印重身强，宜借食伤吐秀',
+            'source': '子平真诠·论印绶',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '正印',
+            'note': '印绶护身，贵在不过不偏',
+            'source': '子平真诠·论印绶',
+        },
+    ],
+    '偏印格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官（官印相生）',
+            'sub_pattern': '官印相生',
+            'note': '偏印得官杀相生，亦主清贵',
+            'source': '子平真诠·论印绶',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（泄秀）',
+            'sub_pattern': '枭印泄秀',
+            'note': '偏印偏重，宜食伤疏泄其气',
+            'source': '子平真诠·论印绶',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '偏印',
+            'note': '偏印成格，最忌夺食太甚',
+            'source': '子平真诠·论印绶',
+        },
+    ],
+    '比肩格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官杀（制比劫）',
+            'sub_pattern': '建禄用官',
+            'note': '建禄最喜官杀裁制比劫',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: (
+                _has_any(f, '正财', '偏财')
+                and _has_any(f, '食神', '伤官')
+            ),
+            'name': '财（食伤生财）',
+            'sub_pattern': '建禄用财',
+            'note': '用财须带食伤，化劫而生财',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（泄秀）',
+            'sub_pattern': '建禄食伤',
+            'note': '无财官时，食伤泄秀亦可取',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '比肩（自立）',
+            'note': '建禄无辅，专凭自身担当',
+            'source': '子平真诠·论建禄月劫',
+        },
+    ],
+    '劫财格': [
+        {
+            'condition': lambda f, gh: _has_any(f, '正官', '七杀'),
+            'name': '官杀（制比劫）',
+            'sub_pattern': '月劫用官',
+            'note': '月劫尤喜官杀制服争夺',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: (
+                _has_any(f, '正财', '偏财')
+                and _has_any(f, '食神', '伤官')
+            ),
+            'name': '财（食伤生财）',
+            'sub_pattern': '月劫用财',
+            'note': '月劫用财，须借食伤化劫',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: _has_any(f, '食神', '伤官'),
+            'name': '食伤（泄秀）',
+            'sub_pattern': '月劫食伤',
+            'note': '无财官时，先取食伤泄秀',
+            'source': '子平真诠·论建禄月劫',
+        },
+        {
+            'condition': lambda f, gh: True,
+            'name': '劫财（自立）',
+            'note': '月劫无辅，刚烈而待裁成',
+            'source': '子平真诠·论建禄月劫',
+        },
+    ],
+    '杂气月（辰戌丑未）': [
+        {
+            'condition': lambda f, gh: True,
+            'name': '看透出十神',
+            'note': '一透一用，兼透兼取，会支同参',
+            'source': '子平真诠·论杂气如何取用',
+        },
+    ],
+    '格局不清': [],
+}
 
 # Filled in Task 4
 FUYI_CASES: list[dict] = []
