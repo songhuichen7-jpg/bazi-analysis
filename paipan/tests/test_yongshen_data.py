@@ -60,3 +60,24 @@ def test_geju_rules_entries_have_required_fields():
             assert 'source' in rule, f"{geju}[{i}] missing source"
             assert '子平真诠' in rule['source'], \
                 f"{geju}[{i}].source should cite 子平真诠"
+
+
+def test_fuyi_cases_cover_all_5_dayStrength_values():
+    """Each of {极弱, 身弱, 中和, 身强, 极强} should match exactly one case."""
+    expected = {'极弱', '身弱', '中和', '身强', '极强'}
+    seen = set()
+    for ds in expected:
+        for case in FUYI_CASES:
+            if case['when']({'scores': {}}, ds):
+                seen.add(ds)
+                break
+    assert seen == expected, f"missing: {expected - seen}"
+
+
+def test_fuyi_cases_entries_have_required_fields():
+    for i, case in enumerate(FUYI_CASES):
+        assert 'when' in case and callable(case['when']), \
+            f"FUYI_CASES[{i}] missing or non-callable when"
+        assert 'name' in case, f"FUYI_CASES[{i}] missing name (None allowed)"
+        assert 'note' in case, f"FUYI_CASES[{i}] missing note"
+        assert 'source' in case, f"FUYI_CASES[{i}] missing source"

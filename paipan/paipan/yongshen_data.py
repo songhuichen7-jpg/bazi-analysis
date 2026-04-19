@@ -1025,4 +1025,35 @@ GEJU_RULES: dict[str, list[dict]] = {
 }
 
 # Filled in Task 4
-FUYI_CASES: list[dict] = []
+FUYI_CASES: list[dict] = [
+    {
+        'when': lambda f, ds: ds == '极弱',
+        'name': '印 + 比劫（同扶）',
+        'note': '衰者喜帮喜助，元神极弱先扶其本',
+        'source': '滴天髓·衰旺·任注',
+    },
+    {
+        'when': lambda f, ds: ds == '身弱',
+        'name': '印 / 比劫',
+        'note': '身衰喜帮助，取印比中有根者为先',
+        'source': '滴天髓·衰旺',
+    },
+    {
+        'when': lambda f, ds: ds == '中和',
+        'name': None,
+        'note': '中和为贵，无病无药不再别求扶抑',
+        'source': '滴天髓·中和',
+    },
+    {
+        'when': lambda f, ds: ds == '身强',
+        'name': '官杀 / 财 / 食伤',
+        'note': '旺则宜泄宜伤，择财官食伤调停',
+        'source': '滴天髓·衰旺·任注',
+    },
+    {
+        'when': lambda f, ds: ds == '极强',
+        'name': '官杀 + 食伤（双泄）',
+        'note': '旺极宜引其势，制泄并参以免反激',
+        'source': '滴天髓·体用·任注',
+    },
+]

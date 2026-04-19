@@ -69,6 +69,8 @@ def fuyi_yongshen(force: dict, day_strength: str | None) -> dict | None:
     for case in FUYI_CASES:
         when = case.get('when')
         if when and when(force, day_strength):
+            if case.get('name') is None:
+                return None
             return {
                 'method': '扶抑',
                 'name': case['name'],

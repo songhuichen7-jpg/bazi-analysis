@@ -75,3 +75,30 @@ def test_geju_yongshen_格局不清_returns_none():
     from paipan.yongshen import geju_yongshen
     res = geju_yongshen('格局不清', {'scores': {}}, {})
     assert res is None
+
+
+def test_fuyi_yongshen_身弱_returns_扶身_candidate():
+    from paipan.yongshen import fuyi_yongshen
+    res = fuyi_yongshen({'scores': {}}, '身弱')
+    assert res is not None
+    assert res['method'] == '扶抑'
+    assert '滴天髓' in res['source']
+
+
+def test_fuyi_yongshen_中和_returns_none():
+    """中和 should produce no 扶抑 candidate."""
+    from paipan.yongshen import fuyi_yongshen
+    assert fuyi_yongshen({'scores': {}}, '中和') is None
+
+
+def test_fuyi_yongshen_身强_returns_泄身_candidate():
+    from paipan.yongshen import fuyi_yongshen
+    res = fuyi_yongshen({'scores': {}}, '身强')
+    assert res is not None
+    assert res['method'] == '扶抑'
+
+
+def test_fuyi_yongshen_unknown_strength_returns_none():
+    from paipan.yongshen import fuyi_yongshen
+    assert fuyi_yongshen({'scores': {}}, None) is None
+    assert fuyi_yongshen({'scores': {}}, 'something_weird') is None
