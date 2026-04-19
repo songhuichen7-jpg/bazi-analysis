@@ -9,6 +9,7 @@ import Dayun from './Dayun';
 import Chat from './Chat';
 import { clearSession } from '../lib/persistence';
 import ChartSwitcher from './ChartSwitcher';
+import { buildChartVisibility } from '../lib/chartVisibility';
 
 const MIN_RIGHT = 320;
 const MAX_RIGHT = 780;
@@ -18,9 +19,12 @@ export default function Shell() {
   const view = useAppStore(s => s.view);
   const setView = useAppStore(s => s.setView);
   const meta = useAppStore(s => s.meta);
+  const force = useAppStore(s => s.force);
+  const guards = useAppStore(s => s.guards);
   const reset = useAppStore(s => s.reset);
   const setAppNotice = useAppStore(s => s.setAppNotice);
   const startNewChart = useAppStore(s => s.startNewChart);
+  const visibility = buildChartVisibility({ meta, force, guards });
 
   const [rightWidth, setRightWidth] = useState(DEFAULT_RIGHT);
   const dragging = useRef(false);
@@ -86,15 +90,19 @@ export default function Shell() {
               <BirthHeader />
               <Chart />
               <MetaGrid />
-              <div className="divider" />
-              <div>
-                <div className="section-num" style={{ marginBottom:18 }}>十神力量</div>
-                <Force />
-              </div>
-              <div className="guard-box">
-                <div className="section-num" style={{ marginBottom:12 }}>结构提示</div>
-                <GuardList />
-              </div>
+              {visibility.showForce || visibility.showGuards ? <div className="divider" /> : null}
+              {visibility.showForce ? (
+                <div>
+                  <div className="section-num" style={{ marginBottom:18 }}>十神力量</div>
+                  <Force />
+                </div>
+              ) : null}
+              {visibility.showGuards ? (
+                <div className="guard-box">
+                  <div className="section-num" style={{ marginBottom:12 }}>结构提示</div>
+                  <GuardList />
+                </div>
+              ) : null}
               <div className="divider" />
               <ReadingHeader />
               <Sections />

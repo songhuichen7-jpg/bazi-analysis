@@ -1,4 +1,5 @@
 import { useAppStore } from '../store/useAppStore';
+import { buildChartVisibility } from '../lib/chartVisibility';
 
 export function BirthHeader() {
   const meta = useAppStore(s => s.meta);
@@ -29,25 +30,32 @@ export function BirthHeader() {
 export function MetaGrid() {
   const meta = useAppStore(s => s.meta);
   if (!meta) return null;
+  const visibility = buildChartVisibility({ meta });
   return (
     <div className="meta-grid">
       <div className="meta-item">
         <div className="section-num" style={{ marginBottom:6 }}>日 主</div>
-        <div className="meta-big">{meta.rizhu} · {meta.dayStrength || ''}</div>
-        <div className="meta-small">
-          同类 {meta.sameSideScore?.toFixed?.(1) ?? '?'} / 异类 {meta.otherSideScore?.toFixed?.(1) ?? '?'}
+        <div className="meta-big">{visibility.dayMasterText}</div>
+        {visibility.showDayStrengthDetails ? (
+          <div className="meta-small">
+            同类 {meta.sameSideScore?.toFixed?.(1) ?? '?'} / 异类 {meta.otherSideScore?.toFixed?.(1) ?? '?'}
+          </div>
+        ) : null}
+      </div>
+      {visibility.showGeju ? (
+        <div className="meta-item">
+          <div className="section-num" style={{ marginBottom:6 }}>格 局</div>
+          <div className="meta-big">{meta.geju}</div>
+          <div className="meta-small">{meta.gejuNote || ''}</div>
         </div>
-      </div>
-      <div className="meta-item">
-        <div className="section-num" style={{ marginBottom:6 }}>格 局</div>
-        <div className="meta-big">{meta.geju || '—'}</div>
-        <div className="meta-small">{meta.gejuNote || ''}</div>
-      </div>
-      <div className="meta-item">
-        <div className="section-num" style={{ marginBottom:6 }}>用 神</div>
-        <div className="meta-big" style={{ fontSize:15, lineHeight:1.4 }}>{meta.yongshen || '—'}</div>
-        <div className="meta-small">{''}</div>
-      </div>
+      ) : null}
+      {visibility.showYongshen ? (
+        <div className="meta-item">
+          <div className="section-num" style={{ marginBottom:6 }}>用 神</div>
+          <div className="meta-big" style={{ fontSize:15, lineHeight:1.4 }}>{meta.yongshen}</div>
+          <div className="meta-small">{''}</div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -55,16 +63,12 @@ export function MetaGrid() {
 export function ReadingHeader() {
   const meta = useAppStore(s => s.meta);
   if (!meta) return null;
-  const parts = [];
-  if (meta.rizhu) parts.push('日主 ' + meta.rizhu);
-  if (meta.dayStrength) parts.push(meta.dayStrength);
-  if (meta.yongshen) parts.push('用神 ' + meta.yongshen);
-  if (meta.gejuNote) parts.push(meta.gejuNote);
+  const visibility = buildChartVisibility({ meta });
   return (
     <div>
       <div className="section-num" style={{ marginBottom:10 }}>解 读</div>
-      <h2 className="reading-headline">{(meta.rizhu || '') + ' · ' + (meta.geju || '—')}</h2>
-      <p className="reading-summary">{parts.join(' · ') || '正在整理命盘要点……'}</p>
+      <h2 className="reading-headline">{visibility.readingHeadline || '命盘解读'}</h2>
+      <p className="reading-summary">{visibility.readingSummary || '正在整理命盘要点……'}</p>
     </div>
   );
 }

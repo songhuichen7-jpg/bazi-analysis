@@ -159,7 +159,7 @@ export function chartResponseToEntry(response = {}) {
       dayStrength: '',
       sameSideScore: null,
       otherSideScore: null,
-      geju: '—',
+      geju: '',
       gejuNote: '',
       yongshen: '',
       lunar: rawChart.lunar || '',
