@@ -4,6 +4,8 @@ const BENQI = {
   '戌': '戊', '亥': '壬',
 };
 
+const SS_ORDER = ['比肩','劫财','食神','伤官','正财','偏财','正官','七杀','正印','偏印'];
+
 const GAN_YANG = {
   '甲': true, '乙': false, '丙': true, '丁': false, '戊': true,
   '己': false, '庚': true, '辛': false, '壬': true, '癸': false,
@@ -125,6 +127,49 @@ function buildDayun(rawChart) {
   });
 }
 
+function buildForceRows(rawChart) {
+  const scores = rawChart?.force?.scores;
+  if (!scores || typeof scores !== 'object' || Object.keys(scores).length === 0) {
+    return [];
+  }
+  return SS_ORDER.map((name) => ({
+    name,
+    val: Math.max(0, Math.min(10, Number(scores[name] || 0))),
+  }));
+}
+
+function buildGuards(rawChart) {
+  const guards = [];
+
+  for (const note of rawChart?.notes || []) {
+    if (note?.type === 'pair_mismatch' && note?.message) {
+      guards.push({ type: 'pair_mismatch', note: note.message });
+    }
+  }
+
+  const seenLiuHe = new Set();
+  for (const lh of rawChart?.zhiRelations?.liuHe || []) {
+    const key = [lh?.a || '', lh?.b || ''].sort().join('');
+    if (!key || seenLiuHe.has(key)) continue;
+    seenLiuHe.add(key);
+    const note = lh?.wuxing
+      ? `${lh.a}${lh.b} 六合 化 ${lh.wuxing}`
+      : `${lh.a}${lh.b} 六合（合日月，不化）`;
+    guards.push({ type: 'liuhe', note });
+  }
+
+  const seenChong = new Set();
+  for (const ch of rawChart?.zhiRelations?.chong || []) {
+    const pair = ch?.a && ch?.b ? `${ch.a}${ch.b}` : '';
+    const key = pair.split('').sort().join('');
+    if (!pair || seenChong.has(key)) continue;
+    seenChong.add(key);
+    guards.push({ type: 'chong', note: `${pair} 相冲` });
+  }
+
+  return guards;
+}
+
 export function chartListItemToEntry(item = {}) {
   return {
     id: item.id,
@@ -139,6 +184,10 @@ export function chartResponseToEntry(response = {}) {
   const detail = response.chart || {};
   const rawChart = detail.paipan || {};
   const birthInfo = birthInputToBirthInfo(detail.birth_input || {});
+  const force = buildForceRows(rawChart);
+  const guards = buildGuards(rawChart);
+  const geju = rawChart.geju || rawChart.geJu?.mainCandidate?.name || '';
+  const dayStrength = rawChart.dayStrength || rawChart.force?.dayStrength || '';
   return {
     id: detail.id,
     label: detail.label || buildBirthLabel(birthInfo),
@@ -150,18 +199,18 @@ export function chartResponseToEntry(response = {}) {
       shishen: rawChart.shishen || {},
       cangGan: rawChart.cangGan || {},
     },
-    force: [],
-    guards: [],
+    force,
+    guards,
     dayun: buildDayun(rawChart),
     meta: {
       rizhu: rawChart.sizhu?.day || '',
       rizhuGan: rawChart.rizhu || rawChart.sizhu?.day?.[0] || '',
-      dayStrength: '',
-      sameSideScore: null,
-      otherSideScore: null,
-      geju: '',
-      gejuNote: '',
-      yongshen: '',
+      dayStrength,
+      sameSideScore: rawChart.force?.sameSideScore ?? null,
+      otherSideScore: rawChart.force?.otherSideScore ?? null,
+      geju,
+      gejuNote: rawChart.geJu?.decisionNote || '',
+      yongshen: rawChart.yongshen || '',
       lunar: rawChart.lunar || '',
       solarCorrected: rawChart.solarCorrected || '',
       warnings: rawChart.warnings || [],
