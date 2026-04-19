@@ -35,3 +35,21 @@ def test_chart_yongshen_string_matches_detail_primary():
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
                    gender='male', city='长沙')
     assert out['yongshen'] == out['yongshenDetail']['primary']
+
+
+def test_tiaohou_yongshen_甲木_正月():
+    """甲木生寅月 (正月) → expect tiaohou hit from 论甲木."""
+    from paipan.yongshen import tiaohou_yongshen
+    res = tiaohou_yongshen('甲', '寅')
+    assert res is not None
+    assert res['method'] == '调候'
+    assert res['name'] is not None
+    assert '穷通宝鉴' in res['source']
+
+
+def test_tiaohou_yongshen_unknown_combination_returns_none():
+    """Empty key returns None (e.g. None gan)."""
+    from paipan.yongshen import tiaohou_yongshen
+    # Use a key guaranteed missing in dict (won't match any real combination)
+    res = tiaohou_yongshen('XX', '寅')   # XX is not a real gan
+    assert res is None
