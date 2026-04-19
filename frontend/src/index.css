@@ -73,8 +73,8 @@
   }
   .app-header {
     position: fixed;
-    top: 14px;
-    left: 16px;
+    top: 10px;
+    left: 20px;
     z-index: 110;
   }
   .user-menu { position: relative; }
@@ -82,15 +82,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--line);
-    background: rgba(255,255,255,.94);
-    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
   }
   .user-avatar {
-    width: 100%;
-    height: 100%;
+    width: 32px;
+    height: 32px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
@@ -311,6 +312,7 @@
   /* Left pane topbar */
   .left-topbar { position: sticky; top: 0; z-index: 5; background: rgba(250,250,250,.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
   .left-topbar-inner { padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+  .left-topbar-inner.with-user-menu { padding-left: 72px; }
   .view-switch { display: flex; gap: 24px; }
   .view-item { font-size: 13px; color: var(--mute); letter-spacing: .2em; padding: 4px 0; border-bottom: 1px solid transparent; cursor: pointer; transition: all .15s; }
   .view-item:hover { color: var(--ink); }

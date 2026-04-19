@@ -10,6 +10,7 @@ import Chat from './Chat';
 import { clearSession } from '../lib/persistence';
 import ChartSwitcher from './ChartSwitcher';
 import { buildChartVisibility } from '../lib/chartVisibility';
+import { getShellTopbarClassName } from '../lib/shellChrome';
 
 const MIN_RIGHT = 320;
 const MAX_RIGHT = 780;
@@ -21,10 +22,12 @@ export default function Shell() {
   const meta = useAppStore(s => s.meta);
   const force = useAppStore(s => s.force);
   const guards = useAppStore(s => s.guards);
+  const user = useAppStore(s => s.user);
   const reset = useAppStore(s => s.reset);
   const setAppNotice = useAppStore(s => s.setAppNotice);
   const startNewChart = useAppStore(s => s.startNewChart);
   const visibility = buildChartVisibility({ meta, force, guards });
+  const topbarClassName = getShellTopbarClassName(!!user);
 
   const [rightWidth, setRightWidth] = useState(DEFAULT_RIGHT);
   const dragging = useRef(false);
@@ -72,7 +75,7 @@ export default function Shell() {
         {/* LEFT PANE */}
         <div className="left-pane">
           <div className="left-topbar">
-            <div className="left-topbar-inner">
+            <div className={topbarClassName}>
               <div className="serif" style={{ fontSize:16 }}>{(meta?.rizhuGan || meta?.rizhu?.[0] || '命')} · 命</div>
               <div className="view-switch">
                 <div className={'view-item' + (view === 'chart' ? ' active' : '')} onClick={() => setView('chart')}>命 盘</div>

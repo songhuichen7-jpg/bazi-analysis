@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import { buildChartVisibility } from '../src/lib/chartVisibility.js';
 import { buildGenerationStatus, getWelcomeMessageState } from '../src/lib/chatStatus.js';
 import { buildUserMenuProfile, reduceUserMenuOpen } from '../src/lib/userMenu.js';
+import { getShellTopbarClassName } from '../src/lib/shellChrome.js';
 
 test('buildChartVisibility hides engine fields that are absent and drops dangling separators', () => {
   const result = buildChartVisibility({
@@ -75,4 +77,17 @@ test('buildUserMenuProfile prefers nickname initial and masks known phone digits
     displayName: '测试用户',
     maskedPhone: '+86 138 *** 1833',
   });
+});
+
+test('getShellTopbarClassName adds user-menu offset only when avatar is shown in shell', () => {
+  assert.equal(getShellTopbarClassName(false), 'left-topbar-inner');
+  assert.equal(getShellTopbarClassName(true), 'left-topbar-inner with-user-menu');
+});
+
+test('avatar trigger stays chrome-free so only the circular avatar is visible', () => {
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.user-menu-trigger\s*\{[^}]*border:\s*none;/s);
+  assert.match(css, /\.user-menu-trigger\s*\{[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.user-menu-trigger\s*\{[^}]*box-shadow:\s*none;/s);
 });
