@@ -204,6 +204,7 @@ def compute(
     analysis = analyze(result)
     result["force"] = analysis["force"]
     result["geJu"] = analysis["geJu"]
+    result["ganHe"] = analysis["ganHe"]
     result["zhiRelations"] = analysis["zhiRelations"]
     result["notes"] = analysis["notes"]
     result["dayStrength"] = analysis["force"]["dayStrength"]

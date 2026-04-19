@@ -130,11 +130,10 @@ def find_zhi_relations(zhis: list[str]) -> dict:
 def analyze_relations(zhis: list[str]) -> dict:
     """Port-friendly wrapper for Plan 7.1's analyzer API.
 
-    JS ``heKe.js`` exports the richer ``findZhiRelations`` result; the Python
-    analyzer only needs ``liuHe`` and ``chong`` for downstream UI/prompt use.
+    JS ``heKe.js`` exports the richer ``findZhiRelations`` result; Plan 7.2 now
+    passes the full JS shape through to downstream consumers.
     """
-    relations = find_zhi_relations(zhis)
-    return {"liuHe": relations["liuHe"], "chong": relations["chong"]}
+    return find_zhi_relations(zhis)
 
 
 # NOTE: ming/heKe.js:127-129

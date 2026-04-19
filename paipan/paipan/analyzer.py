@@ -9,7 +9,7 @@ import math
 
 from paipan.cang_gan import get_cang_gan_weighted
 from paipan.ge_ju import analyze_geju
-from paipan.he_ke import analyze_relations
+from paipan.he_ke import analyze_relations, find_gan_he
 from paipan.li_liang import analyze_force
 from paipan.shi_shen import get_shi_shen
 
@@ -18,6 +18,12 @@ def _js_round(x: float) -> int:
     if x >= 0:
         return math.floor(x + 0.5)
     return -math.floor(-x + 0.5)
+
+
+def _js_num_str(x: float) -> str:
+    if float(x).is_integer():
+        return str(int(x))
+    return str(x)
 
 
 def _split_pillar(pillar: str | None) -> dict:
@@ -76,6 +82,10 @@ def analyze(paipan_result: dict) -> dict:
     force = analyze_force(bazi)
     ge_ju = analyze_geju(bazi, force)
 
+    gan_list = [g for g in [y["gan"], m["gan"], d["gan"], h["gan"]] if g]
+    gan_he = find_gan_he(gan_list)
+    gan_he_with_ri_zhu = [pair for pair in gan_he if pair["a"] == ri_zhu or pair["b"] == ri_zhu]
+
     zhi_list = [y["zhi"], m["zhi"], d["zhi"], h["zhi"]]
     zhi_relations = analyze_relations([z for z in zhi_list if z])
 
@@ -95,6 +105,10 @@ def analyze(paipan_result: dict) -> dict:
             "contributions": force["contributions"],
         },
         "geJu": ge_ju,
+        "ganHe": {
+            "all": gan_he,
+            "withRiZhu": gan_he_with_ri_zhu,
+        },
         "zhiRelations": zhi_relations,
         "notes": _build_notes(force, ge_ju, zhi_relations),
     }
@@ -112,7 +126,8 @@ def _build_notes(force: dict, ge_ju: dict, zhi_relations: dict) -> list[dict]:
                 "group": group,
                 "dominant": dominant,
                 "message": (
-                    f'{group} 组中 {p1["name"]} ({p1["score"]}) vs {p2["name"]} ({p2["score"]}) '
+                    f'{group} 组中 {p1["name"]} ({_js_num_str(p1["score"])}) '
+                    f'vs {p2["name"]} ({_js_num_str(p2["score"])}) '
                     f'强度差异大，分析时不能笼统称"{group}旺/弱"'
                 ),
             })
