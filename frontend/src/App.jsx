@@ -7,6 +7,7 @@ import { fetchHealth, me } from './lib/api';
 import { bootstrapAuthGate } from './lib/appBootstrap';
 import { scrollAndFlash } from './lib/parseRef';
 import ErrorState from './components/ErrorState';
+import UserMenu from './components/UserMenu';
 
 export default function App() {
   const screen = useAppStore(s => s.screen);
@@ -17,7 +18,6 @@ export default function App() {
   const meta = useAppStore(s => s.meta);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const loadMessages = useAppStore(s => s.loadMessages);
-  const logout = useAppStore(s => s.logout);
 
   useEffect(() => {
     fetchHealth().then(j => {
@@ -63,21 +63,10 @@ export default function App() {
   return (
     <>
       {content}
-      {user && screen !== 'auth' ? (
-        <button
-          className="muted"
-          onClick={() => void logout()}
-          style={{
-            position: 'fixed',
-            bottom: 16,
-            right: 16,
-            zIndex: 110,
-            fontSize: 11,
-            letterSpacing: '.08em',
-          }}
-        >
-          退出登录
-        </button>
+      {user && screen !== 'auth' && screen !== 'landing' ? (
+        <div className="app-header">
+          <UserMenu />
+        </div>
       ) : null}
       {appNotice ? (
         <div className="app-toast">

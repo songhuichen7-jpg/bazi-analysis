@@ -1,4 +1,5 @@
 import { clearAuthSessionHint, hasAuthSessionHint, setAuthSessionHint } from './authSessionHint.js';
+import { clearAuthPhoneHint, readAuthPhoneHint } from './authPhoneHint.js';
 
 export async function bootstrapAuthGate({ store, me }) {
   if (!hasAuthSessionHint()) {
@@ -11,12 +12,14 @@ export async function bootstrapAuthGate({ store, me }) {
     const result = await me();
     if (!result) {
       clearAuthSessionHint();
+      clearAuthPhoneHint();
       store.getState().setUser(null);
       store.setState({ screen: 'auth' });
       return null;
     }
     setAuthSessionHint();
-    store.getState().setUser(result.user || null);
+    const phone = readAuthPhoneHint();
+    store.getState().setUser(result.user ? { ...result.user, ...(phone ? { phone } : {}) } : null);
     await store.getState().syncChartsFromServer();
     return result.user || null;
   } catch (error) {

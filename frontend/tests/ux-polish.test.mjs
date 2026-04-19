@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { buildChartVisibility } from '../src/lib/chartVisibility.js';
 import { buildGenerationStatus, getWelcomeMessageState } from '../src/lib/chatStatus.js';
+import { buildUserMenuProfile, reduceUserMenuOpen } from '../src/lib/userMenu.js';
 
 test('buildChartVisibility hides engine fields that are absent and drops dangling separators', () => {
   const result = buildChartVisibility({
@@ -53,4 +54,25 @@ test('getWelcomeMessageState prepends an in-flight hint while background reading
     '我正在为你生成命盘的初读和判词...你现在就可以提问，我会先答你的，背景内容会在后台陆续到位。',
   );
   assert.equal(result.showDefaultGuidance, true);
+});
+
+test('reduceUserMenuOpen toggles open and closes on outside interactions', () => {
+  assert.equal(reduceUserMenuOpen(false, { type: 'toggle' }), true);
+  assert.equal(reduceUserMenuOpen(true, { type: 'toggle' }), false);
+  assert.equal(reduceUserMenuOpen(true, { type: 'outside' }), false);
+  assert.equal(reduceUserMenuOpen(true, { type: 'logout' }), false);
+});
+
+test('buildUserMenuProfile prefers nickname initial and masks known phone digits', () => {
+  const result = buildUserMenuProfile({
+    nickname: '测试用户',
+    phone_last4: '1833',
+    phone: '+8613800131833',
+  });
+
+  assert.deepEqual(result, {
+    avatarLabel: '测',
+    displayName: '测试用户',
+    maskedPhone: '+86 138 *** 1833',
+  });
 });

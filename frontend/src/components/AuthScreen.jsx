@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchConfig } from '../lib/api';
 import { setAuthSessionHint } from '../lib/authSessionHint.js';
+import { writeAuthPhoneHint } from '../lib/authPhoneHint.js';
 import SmsSendForm from './SmsSendForm';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
@@ -21,8 +22,10 @@ export default function AuthScreen() {
   }, []);
 
   async function onAuthSuccess(user) {
+    const normalizedPhone = String(phone || '').trim();
     setAuthSessionHint();
-    setUser(user);
+    writeAuthPhoneHint(normalizedPhone);
+    setUser(normalizedPhone ? { ...user, phone: normalizedPhone } : user);
     await syncChartsFromServer();
   }
 
