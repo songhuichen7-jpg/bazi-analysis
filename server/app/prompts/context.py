@@ -8,6 +8,45 @@ from __future__ import annotations
 from datetime import datetime
 
 
+def _render_yongshen_block(paipan: dict) -> list[str]:
+    """Plan 7.3 §6.3 — render 用神 detail as compact text lines for LLM prompt.
+
+    Returns a list of lines to append to the chart-context block. Returns []
+    when yongshenDetail is absent or empty.
+    """
+    detail = paipan.get('yongshenDetail') or {}
+    if not detail.get('primary'):
+        return []
+
+    lines: list[str] = []
+    primary = detail['primary']
+    reason = detail.get('primaryReason', '')
+    head = f"用神：{primary}"
+    if reason:
+        head += f"（{reason}）"
+    lines.append(head)
+
+    for c in detail.get('candidates') or []:
+        method = c.get('method', '?')
+        name = c.get('name') or '—'
+        note = c.get('note', '')
+        source = c.get('source', '')
+        if name == '—' and not note:
+            lines.append(f"  · {method} ▸ —")
+            continue
+        line = f"  · {method} ▸ {name}"
+        if note:
+            line += f"（{note}）"
+        if source:
+            line += f"  {source}"
+        lines.append(line)
+
+    for w in detail.get('warnings') or []:
+        lines.append(f"  ⚠ {w}")
+
+    return lines
+
+
 def resolve_today_year(paipan: dict) -> int:
     """NOTE: prompts.js:53-60 — falls back to datetime.now().year if absent."""
     ymd = str((paipan or {}).get("todayYmd") or "")
@@ -54,6 +93,7 @@ def compact_chart_context(paipan: dict) -> str:
         f"  日:{sizhu.get('day','')}  时:{sizhu.get('hour','')}"
     )
     lines.append(f"日主  {p.get('rizhu','')}")
+    lines.extend(_render_yongshen_block(p))
     ss = shishen
     lines.append(
         f"十神  年:{ss.get('year','')}  月:{ss.get('month','')}"
