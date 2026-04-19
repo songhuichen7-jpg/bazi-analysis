@@ -1,4 +1,5 @@
-"""
+"""# NOTE: port of archive/paipan-engine/src/ming/geJu.js:1-205.
+
 格局识别 (§2) — Port of paipan-engine/src/ming/geJu.js.
 
 月令三类规则（子平真诠第8、16、45章）：
@@ -258,6 +259,16 @@ def identify_ge_ju(bazi: dict) -> dict:
         "tougans": tougans,
         "touInMonth": tou_in_month,
     }
+
+
+def analyze_geju(bazi: dict, force: dict | None = None) -> dict:
+    """Plan 7.1 analyzer API entrypoint.
+
+    ``geJu.js`` does not currently use ``force`` in its decision logic, but the
+    parameter is accepted to mirror the requested Python signature.
+    """
+    _ = force
+    return identify_ge_ju(bazi)
 
 
 class GeJuResult(TypedDict):

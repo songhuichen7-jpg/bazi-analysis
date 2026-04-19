@@ -1,4 +1,6 @@
-"""天干合 / 地支冲合三合三会检测. Port of paipan-engine/src/ming/heKe.js.
+"""# NOTE: port of archive/paipan-engine/src/ming/heKe.js:1-139.
+
+天干合 / 地支冲合三合三会检测. Port of paipan-engine/src/ming/heKe.js.
 
 Node exports (every one ported here):
     GAN_HE, ZHI_LIU_HE, ZHI_CHONG_PAIRS, SAN_HE_JU, SAN_HUI,
@@ -123,6 +125,16 @@ def find_zhi_relations(zhis: list[str]) -> dict:
         "banHe": ban_he,
         "sanHui": san_hui,
     }
+
+
+def analyze_relations(zhis: list[str]) -> dict:
+    """Port-friendly wrapper for Plan 7.1's analyzer API.
+
+    JS ``heKe.js`` exports the richer ``findZhiRelations`` result; the Python
+    analyzer only needs ``liuHe`` and ``chong`` for downstream UI/prompt use.
+    """
+    relations = find_zhi_relations(zhis)
+    return {"liuHe": relations["liuHe"], "chong": relations["chong"]}
 
 
 # NOTE: ming/heKe.js:127-129
