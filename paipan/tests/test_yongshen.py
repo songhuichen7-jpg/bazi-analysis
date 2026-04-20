@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from paipan import compute
-from paipan.yongshen import compose_yongshen
+from paipan.yongshen import _compute_virtual_geju_name, compose_yongshen
 
 
 def test_chart_yongshen_is_string_for_compat():
@@ -168,6 +168,31 @@ def test_compose_candidates_always_3_in_fixed_order():
     out = compose_yongshen(None, None, None)
     assert len(out['candidates']) == 3
     assert [c['method'] for c in out['candidates']] == ['调候', '格局', '扶抑']
+
+
+# 5 五行 × 2 polarity = 10 entries.
+# Day master 锚定 丁火 (阴), 配 12 月支主气支覆盖全部 10 个 (十神类, polarity) 组合.
+@pytest.mark.parametrize('new_wuxing,rizhu_gan,main_zhi,expected', [
+    # 印 (生我者): 木生火
+    ('木', '丁', '卯', '偏印格'),    # 丁(阴) + 卯(阴乙) → 印 + same → 偏印
+    ('木', '丁', '寅', '正印格'),    # 丁(阴) + 寅(阳甲) → 印 + opposite → 正印
+    # 比劫 (同我者): 火
+    ('火', '丁', '午', '比肩格'),    # 丁(阴) + 午(阴丁) → 比劫 + same → 比肩
+    ('火', '丁', '巳', '劫财格'),    # 丁(阴) + 巳(阳丙) → 比劫 + opposite → 劫财
+    # 食伤 (我生者): 火生土
+    ('土', '丁', '未', '食神格'),    # 丁(阴) + 未(阴己) → 食伤 + same → 食神
+    ('土', '丁', '辰', '伤官格'),    # 丁(阴) + 辰(阳戊) → 食伤 + opposite → 伤官
+    # 财 (我克者): 火克金
+    ('金', '丁', '酉', '偏财格'),    # 丁(阴) + 酉(阴辛) → 财 + same → 偏财
+    ('金', '丁', '申', '正财格'),    # 丁(阴) + 申(阳庚) → 财 + opposite → 正财
+    # 官杀 (克我者): 水克火
+    ('水', '丁', '亥', '正官格'),    # 丁(阴) + 亥(阳壬) → 官杀 + opposite → 正官
+    ('水', '丁', '子', '七杀格'),    # 丁(阴) + 子(阴癸) → 官杀 + same → 七杀
+])
+def test_compute_virtual_geju_name_covers_10_entries(
+    new_wuxing, rizhu_gan, main_zhi, expected
+):
+    assert _compute_virtual_geju_name(new_wuxing, rizhu_gan, main_zhi) == expected
 
 
 GOLDEN_YONGSHEN_CASES = [

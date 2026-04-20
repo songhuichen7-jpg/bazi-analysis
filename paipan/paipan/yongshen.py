@@ -28,7 +28,19 @@ from paipan.he_ke import SAN_HE_JU, SAN_HUI
 from paipan.yongshen_data import TIAOHOU, GEJU_RULES, FUYI_CASES
 
 
-_GEJU_NAME_TABLE: dict[tuple[str, str], str] = {}
+# Plan 7.5a §3.3 — 10 entries; 5 十神类 × 2 阴阳 polarity
+_GEJU_NAME_TABLE: dict[tuple[str, str], str] = {
+    ('印', 'same'):     '偏印格',
+    ('印', 'opposite'): '正印格',
+    ('比劫', 'same'):     '比肩格',
+    ('比劫', 'opposite'): '劫财格',
+    ('食伤', 'same'):     '食神格',
+    ('食伤', 'opposite'): '伤官格',
+    ('财', 'same'):     '偏财格',
+    ('财', 'opposite'): '正财格',
+    ('官杀', 'same'):     '七杀格',
+    ('官杀', 'opposite'): '正官格',
+}
 
 _GEJU_ALIASES = {
     '建禄格': '比肩格',
@@ -42,11 +54,38 @@ def _compute_virtual_geju_name(
     rizhu_gan: str,
     main_zhi: str,
 ) -> str | None:
-    """Plan 7.5a §3.3 — 五行 + 日主 + main支 → 格局名 (10种之一).
+    """五行 + 日主 + main支 → 格局名 (10种之一)。
 
-    Filled in Task 2.
+    Algorithm (spec §3.3):
+      1. 算 ten_god_class (印/比劫/食伤/财/官杀) by new_wuxing vs rizhu_wx
+      2. 算 polarity (same/opposite) by main_zhi 本气阴阳 vs rizhu_gan 阴阳
+      3. lookup _GEJU_NAME_TABLE[(ten_god_class, polarity)]
     """
-    return None
+    rizhu_wx = GAN_WUXING.get(rizhu_gan)
+    rizhu_yy = GAN_YINYANG.get(rizhu_gan)
+    if not rizhu_wx or not rizhu_yy:
+        return None
+
+    main_gan = get_ben_qi(main_zhi)
+    main_yy = GAN_YINYANG.get(main_gan)
+    if not main_yy:
+        return None
+
+    if new_wuxing == rizhu_wx:
+        ten_god_class = '比劫'
+    elif WUXING_SHENG.get(new_wuxing) == rizhu_wx:
+        ten_god_class = '印'
+    elif WUXING_SHENG.get(rizhu_wx) == new_wuxing:
+        ten_god_class = '食伤'
+    elif WUXING_KE.get(rizhu_wx) == new_wuxing:
+        ten_god_class = '财'
+    elif WUXING_KE.get(new_wuxing) == rizhu_wx:
+        ten_god_class = '官杀'
+    else:
+        return None  # 不应触发，但兜底
+
+    polarity = 'same' if main_yy == rizhu_yy else 'opposite'
+    return _GEJU_NAME_TABLE.get((ten_god_class, polarity))
 
 
 def _detect_transmutation(
