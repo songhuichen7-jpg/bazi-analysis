@@ -97,6 +97,7 @@ def analyze(paipan_result: dict) -> dict:
         geju=ge_ju_main,
         gan_he=gan_he,
         day_strength=force.get('dayStrength'),
+        mingju_zhis=[y["zhi"], m["zhi"], d["zhi"]] + ([h["zhi"]] if h["zhi"] else []),
     )
 
     return {

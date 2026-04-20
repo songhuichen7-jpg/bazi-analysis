@@ -1,7 +1,10 @@
 """Plan 7.3 — 用神 engine.
 
 Public API:
-  build_yongshen(rizhu_gan, month_zhi, force, geju, gan_he, day_strength) -> dict
+  build_yongshen(
+      rizhu_gan, month_zhi, force, geju, gan_he, day_strength,
+      mingju_zhis=None,
+  ) -> dict
 
 Returns a dict with shape:
   {
@@ -19,14 +22,48 @@ Spec: docs/superpowers/specs/2026-04-20-yongshen-engine-design.md
 """
 from __future__ import annotations
 
+from paipan.cang_gan import get_ben_qi
+from paipan.ganzhi import GAN_WUXING, GAN_YINYANG, WUXING_KE, WUXING_SHENG
+from paipan.he_ke import SAN_HE_JU, SAN_HUI
 from paipan.yongshen_data import TIAOHOU, GEJU_RULES, FUYI_CASES
 
+
+_GEJU_NAME_TABLE: dict[tuple[str, str], str] = {}
 
 _GEJU_ALIASES = {
     '建禄格': '比肩格',
     '月刃格': '劫财格',
     '阳刃格': '劫财格',
 }
+
+
+def _compute_virtual_geju_name(
+    new_wuxing: str,
+    rizhu_gan: str,
+    main_zhi: str,
+) -> str | None:
+    """Plan 7.5a §3.3 — 五行 + 日主 + main支 → 格局名 (10种之一).
+
+    Filled in Task 2.
+    """
+    return None
+
+
+def _detect_transmutation(
+    month_zhi: str,
+    mingju_zhis: list[str],
+    rizhu_gan: str,
+    force: dict,
+    gan_he: dict,
+    *,
+    original_geju_name: str = '',
+    tiaohou_candidate: dict | None = None,
+) -> dict | None:
+    """Plan 7.5a §3.3 — 检测命局自带合局是否质变月令.
+
+    Filled in Task 3.
+    """
+    return None
 
 
 def tiaohou_yongshen(rizhu_gan: str, month_zhi: str) -> dict | None:
@@ -148,9 +185,38 @@ def build_yongshen(
     geju: str | None,
     gan_he: dict,
     day_strength: str | None,
+    mingju_zhis: list[str] | None = None,
 ) -> dict:
-    """Top-level 用神 engine entry point. Composes 3 methods."""
+    """Top-level 用神 engine entry point. Composes 3 methods + optional transmutation."""
     tiaohou = tiaohou_yongshen(rizhu_gan, month_zhi) if month_zhi else None
     geju_res = geju_yongshen(geju, force, gan_he)
     fuyi_res = fuyi_yongshen(force, day_strength)
-    return compose_yongshen(tiaohou, geju_res, fuyi_res)
+    composed = compose_yongshen(tiaohou, geju_res, fuyi_res)
+
+    if mingju_zhis and month_zhi:
+        original_geju_candidate = next(
+            (c for c in composed['candidates'] if c.get('method') == '格局'),
+            None,
+        )
+        original_geju_name = (original_geju_candidate or {}).get('name', '')
+        tiaohou_candidate = next(
+            (c for c in composed['candidates'] if c.get('method') == '调候'),
+            None,
+        )
+        transmuted = _detect_transmutation(
+            month_zhi,
+            mingju_zhis,
+            rizhu_gan,
+            force,
+            gan_he,
+            original_geju_name=original_geju_name,
+            tiaohou_candidate=tiaohou_candidate,
+        )
+        if transmuted:
+            composed['transmuted'] = transmuted
+            composed['primaryReason'] = (
+                (composed.get('primaryReason') or '')
+                + '（注：月令合局触发格局质变，详见 transmuted 字段）'
+            )
+
+    return composed

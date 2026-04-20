@@ -38,6 +38,20 @@ def test_chart_yongshen_string_matches_detail_primary():
     assert out['yongshen'] == out['yongshenDetail']['primary']
 
 
+def test_chart_yongshen_transmuted_absent_when_no_combo():
+    """Plan 7.5a §1: charts without 命局自带合局 should NOT have transmuted field.
+
+    Standard 1993 chart (癸酉/己未/丁酉/丁未) has no 三合/三会 with 月令未:
+      - 月令 未 → SAN_HE_JU 中 亥卯未 (需 命局含 亥+卯, 命局支只有酉/未/酉/未, 无)
+      - 月令 未 → SAN_HUI 中 巳午未 (需 命局含 巳+午, 命局支无)
+    所以应当无 transmutation.
+    """
+    out = compute(year=1993, month=7, day=15, hour=14, minute=30,
+                   gender='male', city='长沙')
+    detail = out['yongshenDetail']
+    assert 'transmuted' not in detail or detail['transmuted'] is None
+
+
 def test_tiaohou_yongshen_甲木_正月():
     """甲木生寅月 (正月) → expect tiaohou hit from 论甲木."""
     from paipan.yongshen import tiaohou_yongshen
