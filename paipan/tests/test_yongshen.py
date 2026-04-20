@@ -4,7 +4,12 @@ from __future__ import annotations
 import pytest
 
 from paipan import compute
-from paipan.yongshen import _compute_virtual_geju_name, compose_yongshen
+from paipan.yongshen import (
+    _compute_virtual_geju_name,
+    _detect_transmutation,
+    build_yongshen,
+    compose_yongshen,
+)
 
 
 def test_chart_yongshen_is_string_for_compat():
@@ -193,6 +198,128 @@ def test_compute_virtual_geju_name_covers_10_entries(
     new_wuxing, rizhu_gan, main_zhi, expected
 ):
     assert _compute_virtual_geju_name(new_wuxing, rizhu_gan, main_zhi) == expected
+
+
+def test_detect_transmutation_sanhe_when_month_in_combo():
+    """月令亥 + 命局含卯+未 → 亥卯未三合木局触发。"""
+    result = _detect_transmutation(
+        month_zhi='亥',
+        mingju_zhis=['酉', '亥', '卯', '未'],
+        rizhu_gan='丁',
+        force={'scores': {}},
+        gan_he={},
+    )
+    assert result is not None
+    assert result['trigger']['type'] == 'sanHe'
+    assert result['trigger']['wuxing'] == '木'
+    assert result['to'] == '偏印格'   # 丁(阴)+卯(阴) → 印 + same
+
+
+def test_detect_transmutation_sanhui_when_month_in_combo():
+    """月令寅 + 命局含卯+辰 → 寅卯辰三会木方触发。"""
+    result = _detect_transmutation(
+        month_zhi='寅',
+        mingju_zhis=['酉', '寅', '卯', '辰'],
+        rizhu_gan='丙',
+        force={'scores': {}},
+        gan_he={},
+    )
+    assert result is not None
+    assert result['trigger']['type'] == 'sanHui'
+    assert result['trigger']['wuxing'] == '木'
+
+
+def test_detect_transmutation_no_trigger_when_month_not_in_combo():
+    """命局含 卯+未 但月令是 子 → 命局自带亥卯未三合 (没亥), 实际未触发。
+    更严的负向测试：月令 子, 命局 卯/未/酉, 没合局.
+    """
+    result = _detect_transmutation(
+        month_zhi='子',
+        mingju_zhis=['酉', '子', '卯', '未'],
+        rizhu_gan='丁',
+        force={'scores': {}},
+        gan_he={},
+    )
+    assert result is None   # 月令子不在亥卯未, 不在申子辰 (缺申/辰), 不在亥子丑 (缺亥/丑)
+
+
+def test_detect_transmutation_no_trigger_when_partial_combo():
+    """月令亥 + 命局只含卯 (缺未) → 不算完整三合，不触发。"""
+    result = _detect_transmutation(
+        month_zhi='亥',
+        mingju_zhis=['酉', '亥', '卯', '酉'],
+        rizhu_gan='丁',
+        force={'scores': {}},
+        gan_he={},
+    )
+    assert result is None
+
+
+def test_detect_transmutation_sanhe_priority_over_sanhui():
+    """构造同时触发 三合 + 三会 的极端 case (理论物理不可能 4 支同时凑两个)，
+    单独单元测试 _detect_transmutation 内部排序逻辑：
+    用一个 mock-like input 模拟两个 combo 都通过 (mingju_zhis 含 5 支).
+    """
+    # 月令子 + 命局含申+辰 → 申子辰 三合
+    # 月令子 + 命局含亥+丑 → 亥子丑 三会  (5 支总)
+    result = _detect_transmutation(
+        month_zhi='子',
+        mingju_zhis=['申', '子', '辰', '亥', '丑'],   # 5 支：测试用
+        rizhu_gan='丙',
+        force={'scores': {}},
+        gan_he={},
+    )
+    assert result is not None
+    assert result['trigger']['type'] == 'sanHe'   # 三合优先
+    assert len(result['alternateTriggers']) == 1
+    assert result['alternateTriggers'][0]['type'] == 'sanHui'
+
+
+def test_build_yongshen_no_mingju_zhis_skips_transmutation():
+    """build_yongshen() 不传 mingju_zhis (Plan 7.3 老调用方式) → 不挂 transmuted 字段。"""
+    out = build_yongshen(
+        rizhu_gan='丁',
+        month_zhi='亥',
+        force={'scores': {}, 'dayStrength': '中和'},
+        geju='正官格',
+        gan_he={},
+        day_strength='中和',
+        # mingju_zhis 不传
+    )
+    assert 'transmuted' not in out
+
+
+def test_build_yongshen_with_mingju_zhis_no_combo_skips_transmutation():
+    """传 mingju_zhis 但命局支不构成合局 → 也不挂 transmuted。"""
+    out = build_yongshen(
+        rizhu_gan='丁',
+        month_zhi='未',
+        force={'scores': {}, 'dayStrength': '中和'},
+        geju='食神格',
+        gan_he={},
+        day_strength='中和',
+        mingju_zhis=['酉', '未', '酉', '未'],   # 标准 1993 chart
+    )
+    assert 'transmuted' not in out
+
+
+def test_build_yongshen_with_mingju_zhis_combo_attaches_transmuted():
+    """命局自带亥卯未 → 挂 transmuted 字段, primaryReason 加 hint。"""
+    out = build_yongshen(
+        rizhu_gan='丁',
+        month_zhi='亥',
+        force={'scores': {}, 'dayStrength': '中和'},
+        geju='正官格',
+        gan_he={},
+        day_strength='中和',
+        mingju_zhis=['酉', '亥', '卯', '未'],
+    )
+    assert 'transmuted' in out
+    t = out['transmuted']
+    assert t['trigger']['type'] == 'sanHe'
+    assert t['trigger']['wuxing'] == '木'
+    assert t['to'] == '偏印格'
+    assert '月令合局触发格局质变' in out['primaryReason']
 
 
 GOLDEN_YONGSHEN_CASES = [

@@ -98,11 +98,75 @@ def _detect_transmutation(
     original_geju_name: str = '',
     tiaohou_candidate: dict | None = None,
 ) -> dict | None:
-    """Plan 7.5a §3.3 — 检测命局自带合局是否质变月令.
+    """Detect 命局自带 三合/三会 + 月令参与, return transmuted dict or None.
 
-    Filled in Task 3.
+    See spec §3.3 for trigger algorithm + §3.4 for warning rules + §4 for output shape.
     """
-    return None
+    candidate_combos: list[dict] = []
+
+    # 三合 (4 种)
+    for ju in SAN_HE_JU:
+        matched = [z for z in ju["zhi"] if z in mingju_zhis]
+        if month_zhi in matched and len(matched) == 3:
+            candidate_combos.append({
+                'type': 'sanHe',
+                'wuxing': ju["wx"],
+                'main': ju["main"],
+                'zhi_list': list(ju["zhi"]),
+                'source': f"三合{''.join(ju['zhi'])}局",
+            })
+
+    # 三会 (4 种)
+    for hui in SAN_HUI:
+        matched = [z for z in hui["zhi"] if z in mingju_zhis]
+        if month_zhi in matched and len(matched) == 3:
+            candidate_combos.append({
+                'type': 'sanHui',
+                'wuxing': hui["wx"],
+                'main': hui["zhi"][1],
+                'zhi_list': list(hui["zhi"]),
+                'source': f"三会{hui['dir']}方",
+            })
+
+    if not candidate_combos:
+        return None
+
+    # 优先级 (spec §3.3): 三合 > 三会; 同型按出现顺序
+    candidate_combos.sort(key=lambda c: 0 if c['type'] == 'sanHe' else 1)
+    chosen = candidate_combos[0]
+    alternates = candidate_combos[1:]
+
+    # 计算虚拟格局名
+    virtual_geju_name = _compute_virtual_geju_name(
+        chosen['wuxing'], rizhu_gan, chosen['main']
+    )
+    if not virtual_geju_name:
+        return None
+
+    # 重算格局法 用神 (复用 Plan 7.3 geju_yongshen)
+    new_candidate = geju_yongshen(virtual_geju_name, force, gan_he)
+    if new_candidate is None:
+        # GEJU_RULES 应该全覆盖 10 个格局名 (spec §3.4 risk #1 已 frozen)
+        # 但兜底防御
+        return None
+
+    # warning (spec §4.1)
+    warning: str | None = None
+    tiaohou_name = (tiaohou_candidate or {}).get('name', '') if tiaohou_candidate else ''
+    new_cand_name = new_candidate.get('name', '')
+    if tiaohou_name and new_cand_name and tiaohou_name == new_cand_name:
+        warning = None  # 调候 + 转化后格局 一致
+    elif new_cand_name != original_geju_name:
+        warning = f"月令合局后格局质变，原本\"{original_geju_name or '?'}\"的取用法不再适用"
+
+    return {
+        'trigger': chosen,
+        'from': original_geju_name or '?',
+        'to': virtual_geju_name,
+        'candidate': new_candidate,
+        'warning': warning,
+        'alternateTriggers': alternates,
+    }
 
 
 def tiaohou_yongshen(rizhu_gan: str, month_zhi: str) -> dict | None:
