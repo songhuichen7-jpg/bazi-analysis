@@ -41,6 +41,26 @@ def _render_yongshen_block(paipan: dict) -> list[str]:
             line += f"  {source}"
         lines.append(line)
 
+    # Plan 7.5a: transmutation block
+    transmuted = detail.get('transmuted')
+    if transmuted:
+        trig = transmuted['trigger']
+        lines.append(
+            f"  ⟳ 月令变化  {transmuted['from']} → {transmuted['to']}  {trig['source']}"
+        )
+        cand = transmuted['candidate']
+        cand_name = cand.get('name', '?')
+        cand_note = cand.get('note', '')
+        cand_src  = cand.get('source', '')
+        line = f"      格局新候选：{cand_name}"
+        if cand_note:
+            line += f"（{cand_note}）"
+        if cand_src:
+            line += f"  {cand_src}"
+        lines.append(line)
+        if transmuted.get('warning'):
+            lines.append(f"      ⚠ {transmuted['warning']}")
+
     for w in detail.get('warnings') or []:
         lines.append(f"  ⚠ {w}")
 
