@@ -32,6 +32,7 @@ ANALYZER_KEYS = {
     "geju",
     "yongshen",
     "yongshenDetail",
+    "xingyun",
 }
 
 

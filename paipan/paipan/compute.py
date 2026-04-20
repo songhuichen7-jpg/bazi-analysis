@@ -22,6 +22,7 @@ from paipan.china_dst import correct_china_dst
 from paipan.cities import get_city_coords
 from paipan.dayun import compute_dayun
 from paipan.solar_time import to_true_solar_time
+from paipan.xingyun import build_xingyun
 from paipan.zi_hour import check_jieqi_boundary, convert_to_late_zi_convention
 
 
@@ -214,5 +215,16 @@ def compute(
     # (chartUi.js compat); full dict goes in yongshenDetail.
     result["yongshen"] = analysis["yongshen"]
     result["yongshenDetail"] = analysis["yongshenDetail"]
+    # Plan 7.4: 行运 evaluation against 命局 用神 (Plan 7.3 anchor)
+    bazi = result["sizhu"]
+    mingju_gans = [bazi[k][0] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
+    mingju_zhis = [bazi[k][1] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
+    result["xingyun"] = build_xingyun(
+        dayun=result["dayun"],
+        yongshen_detail=result["yongshenDetail"],
+        mingju_gans=mingju_gans,
+        mingju_zhis=mingju_zhis,
+        current_year=now.year,
+    )
 
     return result
