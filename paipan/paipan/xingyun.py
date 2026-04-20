@@ -13,8 +13,19 @@ from paipan.xingyun_data import GAN_HE_TABLE, ZHI_LIUHE_TABLE, SCORE_THRESHOLDS
 
 
 def _classify_score(score: int) -> str:
-    """5-bin classifier (filled in Task 2)."""
-    return '平'   # stub
+    """5-bin classifier per spec §3.4.
+
+    Bins: >=4 大喜, 2-3 喜, -1..1 平, -3..-2 忌, <=-4 大忌
+    """
+    if score >= SCORE_THRESHOLDS['大喜']:
+        return '大喜'
+    if score >= SCORE_THRESHOLDS['喜']:
+        return '喜'
+    if score >= -1:
+        return '平'
+    if score >= -3:
+        return '忌'
+    return '大忌'
 
 
 def _extract_yongshen_wuxings(primary: str) -> list[str]:

@@ -12,11 +12,31 @@ Spec: docs/superpowers/specs/2026-04-20-xingyun-engine-design.md
 """
 from __future__ import annotations
 
-# 5 对天干合化 (filled in Task 2)
-GAN_HE_TABLE: dict[frozenset[str], str] = {}
+# 天干五合 (Plan 7.4 §4.1) — frozenset({a, b}) → 化出五行
+GAN_HE_TABLE: dict[frozenset[str], str] = {
+    frozenset({'甲', '己'}): '土',
+    frozenset({'乙', '庚'}): '金',
+    frozenset({'丙', '辛'}): '水',
+    frozenset({'丁', '壬'}): '木',
+    frozenset({'戊', '癸'}): '火',
+}
 
-# 6 对地支六合 (filled in Task 2)
-ZHI_LIUHE_TABLE: dict[frozenset[str], str] = {}
+# 地支六合 (Plan 7.4 §4.2)
+ZHI_LIUHE_TABLE: dict[frozenset[str], str] = {
+    frozenset({'子', '丑'}): '土',
+    frozenset({'寅', '亥'}): '木',
+    frozenset({'卯', '戌'}): '火',
+    frozenset({'辰', '酉'}): '金',
+    frozenset({'巳', '申'}): '水',
+    frozenset({'午', '未'}): '土',  # 午未传统标"火土无气"，简化标土
+}
 
-# 5-bin 分类阈值 (filled in Task 2)
-SCORE_THRESHOLDS: dict[str, int] = {}
+# 5-bin 分类下限阈值 (Plan 7.4 §3.4)
+# >= 4 大喜; 2-3 喜; -1 to 1 平; -3 to -2 忌; <= -4 大忌
+SCORE_THRESHOLDS: dict[str, int] = {
+    '大喜': 4,
+    '喜':   2,
+    '平':   0,
+    '忌':  -2,
+    '大忌': -4,
+}
