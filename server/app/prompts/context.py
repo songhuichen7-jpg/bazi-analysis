@@ -47,6 +47,64 @@ def _render_yongshen_block(paipan: dict) -> list[str]:
     return lines
 
 
+_XINGYUN_GLYPH = {
+    '大喜': '⭐⭐',
+    '喜':   '⭐',
+    '平':   '·',
+    '忌':   '⚠',
+    '大忌': '⚠⚠',
+}
+
+
+def _render_xingyun_block(paipan: dict) -> list[str]:
+    """Plan 7.4 §6.2 — render 行运 评分块.
+
+    Renders 8 大运 (with ★ marker on current) + the 10 流年 within the
+    current 大运 (other 大运's 流年 collapsed). Returns [] when xingyun
+    is absent or all-平 (中和 命局 fallback).
+    """
+    xy = paipan.get('xingyun') or {}
+    dayun_list = xy.get('dayun') or []
+    if not dayun_list:
+        return []
+
+    # If every 大运 is '平' AND yongshenSnapshot 含 '中和', collapse entirely
+    if (all(d.get('label') == '平' for d in dayun_list)
+            and '中和' in (xy.get('yongshenSnapshot') or '')):
+        return []
+
+    snapshot = xy.get('yongshenSnapshot', '?')
+    lines = [f'行运（对照命局用神 {snapshot}）：']
+    cur_idx = xy.get('currentDayunIndex')
+
+    for entry in dayun_list:
+        marker = '★ ' if entry['index'] == cur_idx else '  '
+        end_age = entry['startAge'] + (entry['endYear'] - entry['startYear'])
+        glyph = _XINGYUN_GLYPH.get(entry['label'], '?')
+        lines.append(
+            f"  {marker}{entry['startAge']}-{end_age}岁  "
+            f"{entry['ganzhi']}  {glyph}{entry['label']}  {entry['note']}"
+        )
+
+    if cur_idx is not None:
+        ln_list = xy.get('liunian', {}).get(str(cur_idx), [])
+        if ln_list:
+            cur_dy = next(
+                (d for d in dayun_list if d['index'] == cur_idx),
+                None,
+            )
+            if cur_dy:
+                lines.append(f'  ↳ 当前大运 {cur_dy["ganzhi"]} 内流年明细：')
+                for ly in ln_list:
+                    glyph = _XINGYUN_GLYPH.get(ly['label'], '?')
+                    lines.append(
+                        f"      {ly['year']}({ly['ganzhi']},{ly['age']}岁)  "
+                        f"{glyph}{ly['label']}  {ly['note']}"
+                    )
+
+    return lines
+
+
 def resolve_today_year(paipan: dict) -> int:
     """NOTE: prompts.js:53-60 — falls back to datetime.now().year if absent."""
     ymd = str((paipan or {}).get("todayYmd") or "")
@@ -94,6 +152,8 @@ def compact_chart_context(paipan: dict) -> str:
     )
     lines.append(f"日主  {p.get('rizhu','')}")
     lines.extend(_render_yongshen_block(p))
+    # Plan 7.4: 行运 evaluation block
+    lines.extend(_render_xingyun_block(p))
     ss = shishen
     lines.append(
         f"十神  年:{ss.get('year','')}  月:{ss.get('month','')}"
