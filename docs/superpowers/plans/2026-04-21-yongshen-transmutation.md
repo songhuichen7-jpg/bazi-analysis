@@ -173,7 +173,16 @@ yongshen_dict = build_yongshen(
 )
 ```
 
-`y/m/d/h` are existing local variables in analyzer.py (the bazi pillars). Verify they are dicts with `"zhi"` key. If `h` (hour) is None due to unknown-hour input, you may need a guard like `[y["zhi"], m["zhi"], d["zhi"]] + ([h["zhi"]] if h else [])`. Read analyzer.py first to confirm.
+`y/m/d/h` are existing local variables in analyzer.py (the bazi pillars). Verify them by reading analyzer.py:30-42:
+- `_split_pillar(None)` returns `{"gan": None, "zhi": None}` — so `h` is **always a dict**, never None
+- For unknown-hour input, `h["zhi"]` is None (not h itself)
+- Guard must check `h["zhi"]` truthiness, NOT `h`:
+
+```python
+mingju_zhis=[y["zhi"], m["zhi"], d["zhi"]] + ([h["zhi"]] if h["zhi"] else []),
+```
+
+If you use `if h` (always truthy since h is a dict) you'll silently inject None into mingju_zhis, breaking downstream wuxing lookup (None not in GAN_WUXING/ZHI_WUXING tables → KeyError).
 
 - [ ] **Step 1.4: Write skeleton test in `paipan/tests/test_yongshen.py`**
 
