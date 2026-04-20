@@ -225,13 +225,15 @@ def test_trim_note_short_unchanged():
 
 
 def test_trim_note_long_with_comma_cuts_at_comma():
-    """> 30 字, 含 ","在后半截 → 切到最后一个 ",".  """
-    long_note = '丙生用神，午比助用神，但与命局丁壬合化木有反作用'  # 25 字, 还没超
-    # 构造一个真超的:
-    long_note = '丙生用神，午比助用神，但与命局丁壬合化木有反作用使整体偏弱很多'  # 31 字
+    """> 30 字, 含 ","在**后半截** (idx > limit//2=15) → 切到最后一个 ",".
+
+    NOTE: fixture 必须保证 "，" 落在 idx > 15. 一个 "，" 在 idx ≤ 15 的 long
+    note 会 fallback 到 char cut, 不测到 comma branch.
+    """
+    long_note = '丙生用神调候扶抑兼顾格局仍偏燥些，午比助用神但与命局丁壬合化木有反作用使整体偏弱很多'
+    # "，" 在 idx=16, > limit//2=15 → cuts at this 边界
     out = _trim_note(long_note)
     assert len(out) <= 30
-    # 切在 "，" 边界 (倒数第二个 "，" 在 idx ~15)
     assert out.endswith('，')
 
 
