@@ -1197,20 +1197,25 @@ def test_build_xingyun_returns_8_dayun():
 
 
 def test_build_xingyun_currentDayunIndex_is_set():
-    """For 1993 birth + 2026 current_year, current大运 should be in [0,7]."""
+    """For 1993 birth + 2026 current_year, current大运 should be in [1,8].
+
+    NOTE: dayun.list entries use lunar-python's getIndex() which is 1-based
+    (raw_dayun[1:9] in dayun.py:54 skips the pre-起运 entry; remaining entries
+    are numbered 1..8). Plan originally assumed 0..7 — wrong.
+    """
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
                    gender='male', city='长沙')
     xy = out['xingyun']
     assert xy['currentDayunIndex'] is not None
-    assert 0 <= xy['currentDayunIndex'] <= 7
+    assert 1 <= xy['currentDayunIndex'] <= 8
 
 
 def test_build_xingyun_liunian_keyed_by_dayun_index():
-    """liunian dict keys are str(0)..str(7) and each list has 10 entries."""
+    """liunian dict keys are str(1)..str(8) and each list has 10 entries."""
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
                    gender='male', city='长沙')
     xy = out['xingyun']
-    assert set(xy['liunian'].keys()) == {str(i) for i in range(8)}
+    assert set(xy['liunian'].keys()) == {str(i) for i in range(1, 9)}
     for k, ln_list in xy['liunian'].items():
         assert len(ln_list) == 10, f'大运 {k} should have 10 流年, got {len(ln_list)}'
 
@@ -1325,7 +1330,7 @@ def test_xingyun_golden_structural(case):
 
         cur = xy['currentDayunIndex']
         if cur is not None:
-            assert 0 <= cur <= 7
+            assert 1 <= cur <= 8   # 1-indexed per lunar-python; see test_build_xingyun_currentDayunIndex_is_set
     else:
         # 中和 命局 — verify empty consistency
         assert xy['liunian'] == {}
@@ -1482,24 +1487,26 @@ def _sample_paipan(xingyun=None):
 
 
 def _make_xingyun_with_label(label='喜'):
+    """Build a synthetic xingyun dict with 8 大运 (indices 1..8 to match real
+    lunar-python data) and 10 流年 each. currentDayunIndex=4 (mid-range)."""
     return {
         'yongshenSnapshot': '甲木',
-        'currentDayunIndex': 3,
+        'currentDayunIndex': 4,
         'dayun': [
-            {'index': i, 'ganzhi': f'X{i}', 'startAge': 4 + i*10,
-             'startYear': 1997 + i*10, 'endYear': 2006 + i*10,
+            {'index': i, 'ganzhi': f'X{i}', 'startAge': 4 + (i-1)*10,
+             'startYear': 1997 + (i-1)*10, 'endYear': 2006 + (i-1)*10,
              'label': label, 'score': 2,
-             'note': f'测试note{i}', 'mechanisms': [], 'isCurrent': i == 3}
-            for i in range(8)
+             'note': f'测试note{i}', 'mechanisms': [], 'isCurrent': i == 4}
+            for i in range(1, 9)
         ],
         'liunian': {
             str(i): [
-                {'year': 1997 + i*10 + j, 'ganzhi': f'L{j}', 'age': 5 + i*10 + j,
+                {'year': 1997 + (i-1)*10 + j, 'ganzhi': f'L{j}', 'age': 5 + (i-1)*10 + j,
                  'label': '平', 'score': 0,
                  'note': f'流年{j}', 'mechanisms': []}
                 for j in range(10)
             ]
-            for i in range(8)
+            for i in range(1, 9)
         },
     }
 
@@ -1516,10 +1523,10 @@ def test_renders_行运_block_when_xingyun_present():
 def test_renders_star_marker_for_current_dayun():
     xy = _make_xingyun_with_label('喜')
     text = compact_chart_context(_sample_paipan(xy))
-    # ★ should appear on the current dayun (index 3, ganzhi X3)
+    # ★ should appear on the current dayun (index 4, ganzhi X4 — 1-indexed real data)
     lines = text.splitlines()
-    star_lines = [l for l in lines if '★' in l and 'X3' in l]
-    assert len(star_lines) == 1, f'expected one star line on X3, found {star_lines}'
+    star_lines = [l for l in lines if '★' in l and 'X4' in l]
+    assert len(star_lines) == 1, f'expected one star line on X4, found {star_lines}'
 
 
 def test_renders_glyph_for_each_label_bin():
