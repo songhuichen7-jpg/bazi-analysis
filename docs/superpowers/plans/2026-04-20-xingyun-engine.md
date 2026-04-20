@@ -377,6 +377,16 @@ def _classify_score(score: int) -> str:
     """5-bin classifier per spec §3.4.
 
     Bins: >=4 大喜, 2-3 喜, -1..1 平, -3..-2 忌, <=-4 大忌
+
+    NOTE: SCORE_THRESHOLDS values are bin "midpoints/labels" (e.g. '忌':-2),
+    NOT lower bounds. The cascade below uses literal lower bounds for the
+    middle bins because the table values are misleading there. Reads as:
+      >= 4   → 大喜  (uses SCORE_THRESHOLDS['大喜'])
+      >= 2   → 喜    (uses SCORE_THRESHOLDS['喜'])
+      >= -1  → 平    (literal lower bound)
+      >= -3  → 忌    (literal lower bound; SCORE_THRESHOLDS['忌'] is -2 which
+                       would silently drop -3 into 大忌 — wrong)
+      else   → 大忌
     """
     if score >= SCORE_THRESHOLDS['大喜']:
         return '大喜'
@@ -384,7 +394,7 @@ def _classify_score(score: int) -> str:
         return '喜'
     if score >= -1:
         return '平'
-    if score >= SCORE_THRESHOLDS['忌']:
+    if score >= -3:
         return '忌'
     return '大忌'
 ```
