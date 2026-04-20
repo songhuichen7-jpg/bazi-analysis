@@ -387,6 +387,26 @@ def test_yongshen_transmutation_golden(case):
     assert '月令合局触发格局质变' in detail['primaryReason']
 
 
+def test_transmuted_from_uses_geju_key_not_candidate_name():
+    """Plan 7.5a.1 §5.1 — transmuted.from 用真格局名 (post-alias).
+
+    Before fix: from = '劫财（自立）' (candidate name from GEJU_RULES rule).
+    After fix:  from = '劫财格' (GEJU_RULES key, post-alias from analyzer's '月刃格').
+    """
+    out = compute(year=1980, month=2, day=12, hour=8, minute=0,
+                   gender='male', city='北京')
+    detail = out['yongshenDetail']
+    transmuted = detail.get('transmuted')
+    assert transmuted is not None, '1980-02-12 案例应触发 transmutation'
+    # from 应是格局名 (e.g. '劫财格' or '比肩格'), 不是 candidate name
+    assert transmuted['from'].endswith('格'), \
+        f"from='{transmuted['from']}' should end with '格'"
+    assert '（' not in transmuted['from'], \
+        f"from='{transmuted['from']}' should not contain '（' (candidate name marker)"
+    # to 也是格局名 — 验证 from/to 同命名空间
+    assert transmuted['to'].endswith('格')
+
+
 GOLDEN_YONGSHEN_CASES = [
     {
         'label': '丁火六月_身弱_食神格',

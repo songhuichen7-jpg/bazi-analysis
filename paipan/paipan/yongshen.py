@@ -297,11 +297,7 @@ def build_yongshen(
     composed = compose_yongshen(tiaohou, geju_res, fuyi_res)
 
     if mingju_zhis and month_zhi:
-        original_geju_candidate = next(
-            (c for c in composed['candidates'] if c.get('method') == '格局'),
-            None,
-        )
-        original_geju_name = (original_geju_candidate or {}).get('name', '')
+        original_geju_name = _GEJU_ALIASES.get(geju, geju) if geju else ''
         tiaohou_candidate = next(
             (c for c in composed['candidates'] if c.get('method') == '调候'),
             None,
