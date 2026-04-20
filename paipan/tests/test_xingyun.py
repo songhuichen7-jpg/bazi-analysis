@@ -7,6 +7,7 @@ from paipan.xingyun import (
     _detect_liuhe,
     _score_gan_to_yongshen,
     _score_zhi_to_yongshen,
+    score_yun,
 )
 
 
@@ -101,3 +102,75 @@ def test_score_zhi_with_liuhe_modifier():
     assert delta == 2
     assert '六合' in reason
     assert any('六合化木' in m for m in mech)
+
+
+def test_score_yun_label_大喜():
+    """甲寅 vs 甲木 用神: 干甲比助 (+1) + 支寅比助 (+1) +
+    寅+命局亥 六合化木转助 (+1) + 干甲+命局己 合化土反克 (-1) → +2... 喜 not 大喜 :(
+    Need a cleaner case. Try: 甲寅 vs 甲木 用神, 命局支含亥 (寅亥合木) + no 命局己 →
+    干 +1 (比助), 支 +1 + 1 (比助 + 六合化木) = +2 → final +3 喜.
+    Still not 大喜. To hit 大喜 we need +4: try 癸卯 vs 木 用神, 命局含亥 (卯亥不合).
+    Actually 癸 (水) 生 木 +2; 卯 (木) 比助 +1. Total +3 → 喜.
+    Need at least +4: 甲寅 vs 木, 命局亥 (六合木 +1) + 命局戊 (甲戊不合) →
+    干 +1 (比助), 支 +1 + 1 = +2 → +3 still 喜.
+    Hmm — 大喜 requires 干生 (+2) + 支生 (+2) = +4. That's 癸亥 vs 木 用神.
+    癸 生 木 +2; 亥 (水) 生 木 +2. Total +4 → 大喜.
+    """
+    out = score_yun('癸亥', '甲木', [], [])
+    assert out['label'] == '大喜'
+    assert out['score'] >= 4
+
+
+def test_score_yun_label_喜():
+    """甲寅 vs 甲木: 比助 +1 + 比助 +1 = +2 → 喜."""
+    out = score_yun('甲寅', '甲木', [], [])
+    assert out['label'] == '喜'
+    assert 2 <= out['score'] <= 3
+
+
+def test_score_yun_label_平():
+    """戊辰 vs 甲木: 用神克 戊 (0) + 用神克 辰 (0) = 0 → 平."""
+    out = score_yun('戊辰', '甲木', [], [])
+    assert out['label'] == '平'
+    assert -1 <= out['score'] <= 1
+
+
+def test_score_yun_label_忌():
+    """丁巳 vs 甲木: 用神生丁 -1 + 用神生巳火 -1 = -2 → 忌."""
+    out = score_yun('丁巳', '甲木', [], [])
+    assert out['label'] == '忌'
+    assert -3 <= out['score'] <= -2
+
+
+def test_score_yun_label_大忌():
+    """庚申 vs 甲木: 庚克木 -2 + 申金克木 -2 = -4 → 大忌."""
+    out = score_yun('庚申', '甲木', [], [])
+    assert out['label'] == '大忌'
+    assert out['score'] <= -4
+
+
+def test_multi_element_yongshen_takes_max_score():
+    """用神 '甲木 / 戊土 / 庚金'，行运 庚申:
+       - vs 木: 庚克木 -2, 申克木 -2 → -4
+       - vs 土: 庚 not directly act on 土 (土生庚) → 用神土被泄 -1, 申 同 → -1
+       - vs 金: 庚比助 +1, 申比助 +1 → +2
+       max = +2 → 喜
+    """
+    out = score_yun('庚申', '甲木 / 戊土 / 庚金', [], [])
+    assert out['label'] == '喜'
+    assert out['score'] >= 2
+
+
+def test_multi_element_winning_element_recorded():
+    """For the same case, winningYongshenElement should name 庚金."""
+    out = score_yun('庚申', '甲木 / 戊土 / 庚金', [], [])
+    assert out['winningYongshenElement'] == '庚金'
+
+
+def test_score_yun_中和_命局_returns_平():
+    """用神 = '中和（无明显偏枯）' → 平 with empty mechanisms."""
+    out = score_yun('庚申', '中和（无明显偏枯）', [], [])
+    assert out['label'] == '平'
+    assert out['score'] == 0
+    assert out['mechanisms'] == []
+    assert '中和' in out['note']

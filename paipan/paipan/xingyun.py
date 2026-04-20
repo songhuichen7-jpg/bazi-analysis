@@ -8,7 +8,13 @@ Spec: docs/superpowers/specs/2026-04-20-xingyun-engine-design.md
 """
 from __future__ import annotations
 
-from paipan.ganzhi import GAN_WUXING, ZHI_WUXING, WUXING_SHENG, WUXING_KE
+from paipan.ganzhi import (
+    GAN_WUXING,
+    ZHI_WUXING,
+    WUXING_SHENG,
+    WUXING_KE,
+    split_ganzhi,
+)
 from paipan.xingyun_data import GAN_HE_TABLE, ZHI_LIUHE_TABLE, SCORE_THRESHOLDS
 
 
@@ -29,8 +35,29 @@ def _classify_score(score: int) -> str:
 
 
 def _extract_yongshen_wuxings(primary: str) -> list[str]:
-    """Parse '甲木 / 戊土 / 庚金' → ['木','土','金']. Filled in Task 5."""
-    return []   # stub
+    """Parse '甲木 / 戊土 / 庚金' → ['木', '土', '金'].
+
+    Rules:
+      - Split on ' / ' (with surrounding spaces, matches Plan 7.3 format)
+      - For each element, the last char should be a 五行 (木/火/土/金/水)
+      - If element is '中和（无明显偏枯）' or has no 五行 char → return []
+        (caller treats this as 中和 命局, returns 平/empty per spec §3.3)
+    """
+    if not primary:
+        return []
+    if '中和' in primary:
+        return []
+    valid_wuxings = {'木', '火', '土', '金', '水'}
+    parts = [p.strip() for p in primary.split(' / ')]
+    out: list[str] = []
+    for part in parts:
+        if not part:
+            continue
+        last_char = part[-1]
+        if last_char in valid_wuxings:
+            out.append(last_char)
+        # else skip silently — primary may have unexpected formats
+    return out
 
 
 def _detect_ganhe(gan: str, mingju_gans: list[str]) -> str | None:
@@ -186,15 +213,71 @@ def score_yun(
     mingju_gans: list[str],
     mingju_zhis: list[str],
 ) -> dict:
-    """Score one 大运/流年 ganzhi against 命局 用神. Filled in Task 5."""
+    """Score one 大运/流年 ganzhi against 命局 用神. Spec §5.1.
+
+    Multi-element 用神: take max sub-score across elements (spec §5.3).
+    中和 命局: return label='平', score=0, empty mechanisms (spec §3.3).
+    """
+    ys_wuxings = _extract_yongshen_wuxings(yongshen_primary)
+    if not ys_wuxings:
+        return {
+            'label': '平',
+            'score': 0,
+            'note': '命局中和，行运无明显偏向',
+            'mechanisms': [],
+            'gan_effect': {'delta': 0, 'reason': ''},
+            'zhi_effect': {'delta': 0, 'reason': ''},
+            'winningYongshenElement': None,
+        }
+
+    yun_gan, yun_zhi = split_ganzhi(yun_ganzhi)
+
+    # Compute sub-score for each yongshen element; pick max
+    best = None  # (final_score, gan_eff, zhi_eff, winning_wuxing)
+    for ys_wx in ys_wuxings:
+        gan_d, gan_r, gan_m = _score_gan_to_yongshen(yun_gan, ys_wx, mingju_gans)
+        zhi_d, zhi_r, zhi_m = _score_zhi_to_yongshen(yun_zhi, ys_wx, mingju_zhis)
+        total = gan_d + zhi_d
+        candidate = (
+            total,
+            {'delta': gan_d, 'reason': gan_r, 'mech': gan_m},
+            {'delta': zhi_d, 'reason': zhi_r, 'mech': zhi_m},
+            ys_wx,
+        )
+        if best is None or candidate[0] > best[0]:
+            best = candidate
+
+    final_score, gan_eff, zhi_eff, winning_wx = best
+
+    # Note: combine gan + zhi reason, comma-separated, ≤30 字
+    parts = []
+    if gan_eff['reason']:
+        parts.append(gan_eff['reason'])
+    if zhi_eff['reason']:
+        parts.append(zhi_eff['reason'])
+    note = '，'.join(parts) if parts else '无显著作用'
+    if len(note) > 30:
+        # Trim to 30 chars on a 中文 boundary; simple cut
+        note = note[:30]
+
+    mechanisms = list(gan_eff['mech']) + list(zhi_eff['mech'])
+
+    # Find which yongshen element name matches winning_wx
+    winning_element_name = None
+    for elem in (yongshen_primary or '').split(' / '):
+        elem = elem.strip()
+        if elem and elem.endswith(winning_wx):
+            winning_element_name = elem
+            break
+
     return {
-        'label': '平',
-        'score': 0,
-        'note': '',
-        'mechanisms': [],
-        'gan_effect': {'delta': 0, 'reason': ''},
-        'zhi_effect': {'delta': 0, 'reason': ''},
-        'winningYongshenElement': None,
+        'label': _classify_score(final_score),
+        'score': final_score,
+        'note': note,
+        'mechanisms': mechanisms,
+        'gan_effect': {'delta': gan_eff['delta'], 'reason': gan_eff['reason']},
+        'zhi_effect': {'delta': zhi_eff['delta'], 'reason': zhi_eff['reason']},
+        'winningYongshenElement': winning_element_name,
     }
 
 
