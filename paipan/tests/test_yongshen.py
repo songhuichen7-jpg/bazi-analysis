@@ -322,6 +322,71 @@ def test_build_yongshen_with_mingju_zhis_combo_attaches_transmuted():
     assert '月令合局触发格局质变' in out['primaryReason']
 
 
+GOLDEN_TRANSMUTATION_CASES = [
+    {
+        'label': '辛金亥月_亥卯未三合',
+        'input': dict(year=1980, month=11, day=14, hour=14, minute=0,
+                      gender='male', city='北京'),
+        'trigger_type': 'sanHe',
+        'trigger_wuxing': '木',
+        'expected_to': '偏财格',
+    },
+    {
+        'label': '乙木子月_申子辰三合',
+        'input': dict(year=1992, month=12, day=15, hour=8, minute=0,
+                      gender='female', city='上海'),
+        'trigger_type': 'sanHe',
+        'trigger_wuxing': '水',
+        'expected_to': '偏印格',
+    },
+    {
+        'label': '甲木午月_寅午戌三合',
+        'input': dict(year=1980, month=6, day=10, hour=20, minute=0,
+                      gender='male', city='北京'),
+        'trigger_type': 'sanHe',
+        'trigger_wuxing': '火',
+        'expected_to': '伤官格',
+    },
+    {
+        'label': '乙木寅月_寅卯辰三会',
+        'input': dict(year=1980, month=2, day=12, hour=8, minute=0,
+                      gender='male', city='北京'),
+        'trigger_type': 'sanHui',
+        'trigger_wuxing': '木',
+        'expected_to': '比肩格',
+    },
+    {
+        'label': '壬水巳月_巳午未三会',
+        'input': dict(year=1980, month=5, day=9, hour=14, minute=0,
+                      gender='male', city='北京'),
+        'trigger_type': 'sanHui',
+        'trigger_wuxing': '火',
+        'expected_to': '正财格',
+    },
+]
+
+
+@pytest.mark.parametrize(
+    'case',
+    GOLDEN_TRANSMUTATION_CASES,
+    ids=[c['label'] for c in GOLDEN_TRANSMUTATION_CASES],
+)
+def test_yongshen_transmutation_golden(case):
+    """Plan 7.5a §6.2: real charts trigger transmutation as expected."""
+    out = compute(**case['input'])
+    detail = out['yongshenDetail']
+    transmuted = detail.get('transmuted')
+    assert transmuted is not None, f"{case['label']}: expected transmuted, got None"
+    assert transmuted['trigger']['type'] == case['trigger_type']
+    assert transmuted['trigger']['wuxing'] == case['trigger_wuxing']
+    assert transmuted['to'] == case['expected_to']
+    cand = transmuted['candidate']
+    assert cand['method'] == '格局'
+    assert cand.get('name')
+    assert cand.get('source', '').startswith('子平真诠')
+    assert '月令合局触发格局质变' in detail['primaryReason']
+
+
 GOLDEN_YONGSHEN_CASES = [
     {
         'label': '丁火六月_身弱_食神格',
