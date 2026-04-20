@@ -4,7 +4,9 @@ from __future__ import annotations
 from paipan import compute
 from paipan.xingyun import (
     _detect_ganhe,
+    _detect_liuhe,
     _score_gan_to_yongshen,
+    _score_zhi_to_yongshen,
 )
 
 
@@ -67,3 +69,35 @@ def test_score_gan_with_ganhe_modifier():
     # base: 木 克 戊 → 0
     # 戊+癸 合化 火, 火 不== 木, 火不生木 (金生木 actually no — 水生木), 火不克木 (金克木) → no modifier
     assert delta == 0
+
+
+# === 六合 detection ===
+
+def test_detect_liuhe_寅亥合木():
+    """命局含 亥 + 行运 寅 → 六合 木."""
+    assert _detect_liuhe('寅', ['亥', '酉', '酉']) == '木'
+
+
+def test_detect_liuhe_no_match():
+    """命局没有可六合的 支 → None."""
+    assert _detect_liuhe('寅', ['酉', '酉', '未']) is None
+
+
+# === 支 score ===
+
+def test_score_zhi_pure_bizhu():
+    """寅 (木) 比助 木 用神 → +1."""
+    delta, reason, mech = _score_zhi_to_yongshen('寅', '木', [])
+    assert delta == 1
+    assert '比助' in reason
+    assert any('比助' in m for m in mech)
+
+
+def test_score_zhi_with_liuhe_modifier():
+    """寅 vs 木 用神，命局含 亥 → 寅亥合化木，本气木已比助 +1, 六合化木 转助 +1 → +2."""
+    delta, reason, mech = _score_zhi_to_yongshen('寅', '木', ['亥', '酉', '酉'])
+    # base: 寅 (木) 比助 木 → +1
+    # 寅+亥 合化 木, 木 == 用神木 → modifier +1
+    assert delta == 2
+    assert '六合' in reason
+    assert any('六合化木' in m for m in mech)

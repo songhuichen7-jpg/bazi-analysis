@@ -49,7 +49,17 @@ def _detect_ganhe(gan: str, mingju_gans: list[str]) -> str | None:
 
 
 def _detect_liuhe(zhi: str, mingju_zhis: list[str]) -> str | None:
-    """Filled in Task 4."""
+    """Detect 地支六合 between yun_zhi and any mingju zhi.
+
+    Returns the 化出 wuxing if any 命局支 forms a 六合 with `zhi`, else None.
+    Simplified: any-position pair (does NOT require adjacency).
+    """
+    for mz in mingju_zhis:
+        if mz == zhi:
+            continue   # self-pair doesn't count
+        wx = ZHI_LIUHE_TABLE.get(frozenset({zhi, mz}))
+        if wx:
+            return wx
     return None
 
 
@@ -120,8 +130,54 @@ def _score_gan_to_yongshen(
 def _score_zhi_to_yongshen(
     zhi: str, ys_wuxing: str, mingju_zhis: list[str]
 ) -> tuple[int, str, list[str]]:
-    """Filled in Task 4."""
-    return (0, '', [])
+    """Score 大运/流年 支 (本气五行) against a single 用神 五行.
+
+    Logic mirrors _score_gan_to_yongshen but uses ZHI_WUXING for base 五行
+    and ZHI_LIUHE_TABLE for the合化 modifier.
+
+    Returns (delta, reason, mechanisms).
+    """
+    zw = ZHI_WUXING.get(zhi)
+    if zw is None:
+        return (0, '未知支', [])
+
+    base_delta = 0
+    base_reason = ''
+    base_mech: list[str] = []
+
+    if zw == ys_wuxing:
+        base_delta = 1
+        base_reason = f'{zhi}比助用神'
+        base_mech.append('支·比助')
+    elif WUXING_SHENG.get(zw) == ys_wuxing:
+        base_delta = 2
+        base_reason = f'{zhi}生用神'
+        base_mech.append('支·相生')
+    elif WUXING_SHENG.get(ys_wuxing) == zw:
+        base_delta = -1
+        base_reason = f'用神被{zhi}泄'
+        base_mech.append('支·相泄')
+    elif WUXING_KE.get(zw) == ys_wuxing:
+        base_delta = -2
+        base_reason = f'{zhi}克用神'
+        base_mech.append('支·相克')
+    elif WUXING_KE.get(ys_wuxing) == zw:
+        base_delta = 0
+        base_reason = f'用神克{zhi}'
+
+    # 六合 modifier
+    he_wx = _detect_liuhe(zhi, mingju_zhis)
+    if he_wx:
+        if he_wx == ys_wuxing or WUXING_SHENG.get(he_wx) == ys_wuxing:
+            base_delta += 1
+            base_reason += f'，与命局六合化{he_wx}转助'
+            base_mech.append(f'支·六合化{he_wx}·转助')
+        elif WUXING_KE.get(he_wx) == ys_wuxing:
+            base_delta -= 1
+            base_reason += f'，与命局六合化{he_wx}反克'
+            base_mech.append(f'支·六合化{he_wx}·反克')
+
+    return (base_delta, base_reason, base_mech)
 
 
 def score_yun(
