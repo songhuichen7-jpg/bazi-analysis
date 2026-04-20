@@ -34,7 +34,17 @@ def _extract_yongshen_wuxings(primary: str) -> list[str]:
 
 
 def _detect_ganhe(gan: str, mingju_gans: list[str]) -> str | None:
-    """Filled in Task 3."""
+    """Detect 干合化 between yun_gan and any mingju gan.
+
+    Returns the 化出 wuxing if any 命局干 forms a 五合 with `gan`, else None.
+    Simplified: any-position pair (does NOT require adjacency).
+    """
+    for mg in mingju_gans:
+        if mg == gan:
+            continue   # self-pair doesn't count
+        wx = GAN_HE_TABLE.get(frozenset({gan, mg}))
+        if wx:
+            return wx
     return None
 
 
@@ -46,8 +56,65 @@ def _detect_liuhe(zhi: str, mingju_zhis: list[str]) -> str | None:
 def _score_gan_to_yongshen(
     gan: str, ys_wuxing: str, mingju_gans: list[str]
 ) -> tuple[int, str, list[str]]:
-    """Filled in Task 3. Returns (delta, reason_text, mechanism_tags)."""
-    return (0, '', [])
+    """Score 大运/流年 干 against a single 用神 五行.
+
+    Base scoring (per spec §3.3 step 2):
+      - gan_wuxing == ys_wuxing → +1 (比助)
+      - gan_wuxing 生 ys_wuxing → +2
+      - ys_wuxing 生 gan_wuxing → -1 (用神被泄)
+      - gan_wuxing 克 ys_wuxing → -2
+      - ys_wuxing 克 gan_wuxing → 0 (中性)
+      - else → 0
+
+    干合化 modifier (spec §3.3):
+      - 合化 五行 == ys_wuxing → +1
+      - 合化 五行 生 ys_wuxing → +1
+      - 合化 五行 克 ys_wuxing → -1
+
+    Returns (delta, human-readable reason, list of structured mechanism tags).
+    """
+    gw = GAN_WUXING.get(gan)
+    if gw is None:
+        return (0, '未知干', [])
+
+    base_delta = 0
+    base_reason = ''
+    base_mech: list[str] = []
+
+    if gw == ys_wuxing:
+        base_delta = 1
+        base_reason = f'{gan}比助用神'
+        base_mech.append('干·比助')
+    elif WUXING_SHENG.get(gw) == ys_wuxing:
+        base_delta = 2
+        base_reason = f'{gan}生用神'
+        base_mech.append('干·相生')
+    elif WUXING_SHENG.get(ys_wuxing) == gw:
+        base_delta = -1
+        base_reason = f'用神被{gan}泄'
+        base_mech.append('干·相泄')
+    elif WUXING_KE.get(gw) == ys_wuxing:
+        base_delta = -2
+        base_reason = f'{gan}克用神'
+        base_mech.append('干·相克')
+    elif WUXING_KE.get(ys_wuxing) == gw:
+        base_delta = 0
+        base_reason = f'用神克{gan}'
+        # No mechanism tag for this — neutral
+
+    # 干合化 modifier
+    he_wx = _detect_ganhe(gan, mingju_gans)
+    if he_wx:
+        if he_wx == ys_wuxing or WUXING_SHENG.get(he_wx) == ys_wuxing:
+            base_delta += 1
+            base_reason += f'，与命局合化{he_wx}转助'
+            base_mech.append(f'干·合化转助·{he_wx}')
+        elif WUXING_KE.get(he_wx) == ys_wuxing:
+            base_delta -= 1
+            base_reason += f'，与命局合化{he_wx}反克'
+            base_mech.append(f'干·合化反克·{he_wx}')
+
+    return (base_delta, base_reason, base_mech)
 
 
 def _score_zhi_to_yongshen(
