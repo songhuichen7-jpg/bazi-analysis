@@ -288,19 +288,72 @@ def build_xingyun(
     mingju_zhis: list[str],
     current_year: int,
 ) -> dict:
-    """Batch entry. Filled in Task 6.
+    """Batch entry. Spec §5.2.
 
-    Returns:
-        {
-          'dayun': [...8 条...],
-          'liunian': {str(idx): [...10 条...]},
-          'currentDayunIndex': int | None,
-          'yongshenSnapshot': str,
-        }
+    Iterates 8 大运 + each大运's 10 流年, scoring each via score_yun.
+    Locates currentDayunIndex by which entry's [startYear, endYear]
+    contains current_year (None if none match).
     """
+    yongshen_primary = (yongshen_detail or {}).get('primary', '')
+
+    # 中和 命局 → empty result (spec §3.3 末尾 + §11 risk #5)
+    if not _extract_yongshen_wuxings(yongshen_primary):
+        return {
+            'dayun': [],
+            'liunian': {},
+            'currentDayunIndex': None,
+            'yongshenSnapshot': yongshen_primary,
+        }
+
+    dayun_list = (dayun or {}).get('list', [])
+    out_dayun: list[dict] = []
+    out_liunian: dict[str, list[dict]] = {}
+    current_idx: int | None = None
+
+    for entry in dayun_list:
+        idx = entry['index']
+        ganzhi = entry['ganzhi']
+        start_year = entry['startYear']
+        end_year = entry['endYear']
+
+        # Score this 大运
+        score = score_yun(ganzhi, yongshen_primary, mingju_gans, mingju_zhis)
+        out_dayun.append({
+            'index': idx,
+            'ganzhi': ganzhi,
+            'startAge': entry['startAge'],
+            'startYear': start_year,
+            'endYear': end_year,
+            'label': score['label'],
+            'score': score['score'],
+            'note': score['note'],
+            'mechanisms': score['mechanisms'],
+            'isCurrent': start_year <= current_year <= end_year,
+        })
+
+        if start_year <= current_year <= end_year:
+            current_idx = idx
+
+        # Score 10 流年 in this 大运
+        ln_entries = []
+        for ly in entry.get('liunian', []):
+            ly_score = score_yun(
+                ly['ganzhi'], yongshen_primary, mingju_gans, mingju_zhis
+            )
+            ln_entries.append({
+                'year': ly['year'],
+                'ganzhi': ly['ganzhi'],
+                'age': ly['age'],
+                'label': ly_score['label'],
+                'score': ly_score['score'],
+                'note': ly_score['note'],
+                'mechanisms': ly_score['mechanisms'],
+            })
+        out_liunian[str(idx)] = ln_entries
+
     return {
-        'dayun': [],
-        'liunian': {},
-        'currentDayunIndex': None,
-        'yongshenSnapshot': (yongshen_detail or {}).get('primary', ''),
+        'dayun': out_dayun,
+        'liunian': out_liunian,
+        'currentDayunIndex': current_idx,
+        'yongshenSnapshot': yongshen_primary,
     }

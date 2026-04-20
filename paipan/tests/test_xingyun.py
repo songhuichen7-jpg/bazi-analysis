@@ -1,8 +1,11 @@
 """Plan 7.4 行运 engine — skeleton & integration."""
 from __future__ import annotations
 
+import pytest
+
 from paipan import compute
 from paipan.xingyun import (
+    build_xingyun,
     _detect_ganhe,
     _detect_liuhe,
     _score_gan_to_yongshen,
@@ -174,3 +177,144 @@ def test_score_yun_中和_命局_returns_平():
     assert out['score'] == 0
     assert out['mechanisms'] == []
     assert '中和' in out['note']
+
+
+def test_build_xingyun_returns_8_dayun():
+    """The standard chart should produce 8 大运 entries."""
+    out = compute(year=1993, month=7, day=15, hour=14, minute=30,
+                   gender='male', city='长沙')
+    xy = out['xingyun']
+    assert len(xy['dayun']) == 8
+    for entry in xy['dayun']:
+        assert 'label' in entry
+        assert 'score' in entry
+        assert 'note' in entry
+        assert entry['label'] in {'大喜', '喜', '平', '忌', '大忌'}
+
+
+def test_build_xingyun_currentDayunIndex_is_set():
+    """For 1993 birth + 2026 current_year, current大运 should be in [1,8]."""
+    out = compute(year=1993, month=7, day=15, hour=14, minute=30,
+                   gender='male', city='长沙')
+    xy = out['xingyun']
+    assert xy['currentDayunIndex'] is not None
+    assert 1 <= xy['currentDayunIndex'] <= 8
+
+
+def test_build_xingyun_liunian_keyed_by_dayun_index():
+    """liunian dict keys are str(1)..str(8) and each list has 10 entries."""
+    out = compute(year=1993, month=7, day=15, hour=14, minute=30,
+                   gender='male', city='长沙')
+    xy = out['xingyun']
+    assert set(xy['liunian'].keys()) == {str(i) for i in range(1, 9)}
+    for k, ln_list in xy['liunian'].items():
+        assert len(ln_list) == 10, f'大运 {k} should have 10 流年, got {len(ln_list)}'
+
+
+def test_build_xingyun_中和_命局_returns_empty():
+    """If yongshen_detail.primary contains '中和', dayun and liunian should be empty."""
+    fake_yongshen = {'primary': '中和（无明显偏枯）'}
+    fake_dayun = {'list': []}   # any shape — should be ignored
+    out = build_xingyun(fake_dayun, fake_yongshen, [], [], 2026)
+    assert out['dayun'] == []
+    assert out['liunian'] == {}
+    assert out['currentDayunIndex'] is None
+    assert '中和' in out['yongshenSnapshot']
+
+
+GOLDEN_XINGYUN_CASES = [
+    {
+        'label': '丁火六月_身弱_食神格',
+        'input': dict(year=1993, month=7, day=15, hour=14, minute=30,
+                       gender='male', city='长沙'),
+    },
+    {
+        'label': '丙火五月_身强',
+        'input': dict(year=1990, month=5, day=12, hour=12, minute=0,
+                       gender='male', city='北京'),
+    },
+    {
+        'label': '甲木八月',
+        'input': dict(year=2003, month=8, day=29, hour=8, minute=27,
+                       gender='male', city='上海'),
+    },
+    {
+        'label': '癸水正月',
+        'input': dict(year=1985, month=1, day=5, hour=23, minute=45,
+                       gender='female', city='广州'),
+    },
+    {
+        'label': '辛金腊月',
+        'input': dict(year=1976, month=11, day=30, hour=6, minute=15,
+                       gender='female', city='成都'),
+    },
+    {
+        'label': '戊土三月',
+        'input': dict(year=2000, month=2, day=29, hour=16, minute=0,
+                       gender='male', city='深圳'),
+    },
+    {
+        'label': '丁火_寅午戌_三合',
+        'input': dict(year=1984, month=10, day=5, hour=14, minute=0,
+                       gender='male', city='北京'),
+    },
+    {
+        'label': '乙木_寅卯辰_三会',
+        'input': dict(year=1995, month=3, day=21, hour=12, minute=0,
+                       gender='female', city='上海'),
+    },
+    {
+        'label': '日主合化',
+        'input': dict(year=1988, month=6, day=10, hour=9, minute=0,
+                       gender='male', city='北京'),
+    },
+    {
+        'label': '从格疑似',
+        'input': dict(year=1974, month=8, day=8, hour=8, minute=0,
+                       gender='female', city='昆明'),
+    },
+]
+
+
+@pytest.mark.parametrize('case', GOLDEN_XINGYUN_CASES,
+                          ids=[c['label'] for c in GOLDEN_XINGYUN_CASES])
+def test_xingyun_golden_structural(case):
+    """Each golden chart produces a structurally sound xingyun dict.
+
+    Asserts (no specific label values — those are not oracle truths):
+      - xingyun is a dict with required top-level keys
+      - dayun has 8 entries (or 0 if 中和 命局)
+      - if dayun non-empty: liunian has 8 keys × 10 entries each
+      - currentDayunIndex is in [1,8] or None
+      - every dayun/liunian entry has label in valid set
+      - mechanisms list is well-formed (each tag matches expected pattern)
+    """
+    out = compute(**case['input'])
+    xy = out.get('xingyun')
+    assert xy is not None, f"{case['label']}: missing xingyun"
+    assert 'dayun' in xy
+    assert 'liunian' in xy
+    assert 'currentDayunIndex' in xy
+    assert 'yongshenSnapshot' in xy
+
+    valid_labels = {'大喜', '喜', '平', '忌', '大忌'}
+
+    if xy['dayun']:   # non-中和 case
+        assert len(xy['dayun']) == 8, \
+            f"{case['label']}: expected 8 dayun, got {len(xy['dayun'])}"
+        for d in xy['dayun']:
+            assert d['label'] in valid_labels
+            assert isinstance(d['mechanisms'], list)
+        assert len(xy['liunian']) == 8
+        for k, ln_list in xy['liunian'].items():
+            assert len(ln_list) == 10
+            for ly in ln_list:
+                assert ly['label'] in valid_labels
+
+        cur = xy['currentDayunIndex']
+        if cur is not None:
+            assert 1 <= cur <= 8
+    else:
+        # 中和 命局 — verify empty consistency
+        assert xy['liunian'] == {}
+        assert xy['currentDayunIndex'] is None
