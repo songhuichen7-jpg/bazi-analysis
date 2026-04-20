@@ -34,6 +34,26 @@ def _classify_score(score: int) -> str:
     return '大忌'
 
 
+def _trim_note(note: str, limit: int = 30) -> str:
+    """在 ≤ limit 字符内优先在中文标点边界截断 (Plan 7.5a.1 §5.4).
+
+    优先级: 句末 (。) > 分句 (；：) > 子句 (，)
+    回退: 字符级硬切（如果在 limit//2 之前就找到分隔符放弃，避免切得太短）
+
+    Examples:
+        _trim_note('丙生用神，午比助用神') → '丙生用神，午比助用神'  (短不变)
+        _trim_note('丙生用神，午比助用神，但与命局丁壬合化木') → '丙生用神，午比助用神，'  (切到最后",")
+        _trim_note('一二三，四五六七八九十一二三四五六七八九十一二三四五六七八九十') → '一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十'[:30]  (",":idx=3 < 15, fallback)
+    """
+    if len(note) <= limit:
+        return note
+    for sep in ['。', '；', '：', '，']:
+        idx = note.rfind(sep, 0, limit)
+        if idx > limit // 2:
+            return note[:idx + 1]
+    return note[:limit]
+
+
 def _extract_yongshen_wuxings(primary: str) -> list[str]:
     """Parse '甲木 / 戊土 / 庚金' → ['木', '土', '金'].
 
@@ -256,9 +276,7 @@ def score_yun(
     if zhi_eff['reason']:
         parts.append(zhi_eff['reason'])
     note = '，'.join(parts) if parts else '无显著作用'
-    if len(note) > 30:
-        # Trim to 30 chars on a 中文 boundary; simple cut
-        note = note[:30]
+    note = _trim_note(note)
 
     mechanisms = list(gan_eff['mech']) + list(zhi_eff['mech'])
 

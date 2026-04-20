@@ -5,6 +5,7 @@ import pytest
 
 from paipan import compute
 from paipan.xingyun import (
+    _trim_note,
     build_xingyun,
     _detect_ganhe,
     _detect_liuhe,
@@ -177,6 +178,39 @@ def test_score_yun_中和_命局_returns_平():
     assert out['score'] == 0
     assert out['mechanisms'] == []
     assert '中和' in out['note']
+
+
+def test_trim_note_short_unchanged():
+    """≤ 30 字 → 不变."""
+    s = '丙生用神，午比助用神'
+    assert _trim_note(s) == s
+
+
+def test_trim_note_long_with_comma_cuts_at_comma():
+    """> 30 字, 含 ","在后半截 → 切到最后一个 ",".  """
+    long_note = '丙生用神调候扶抑兼顾格局仍偏燥些，午比助用神但与命局丁壬合化木有反作用使整体偏弱很多'
+    out = _trim_note(long_note)
+    assert len(out) <= 30
+    # 切在 "，" 边界 (该 "，" 在 idx=16 > limit//2=15)
+    assert out.endswith('，')
+
+
+def test_trim_note_long_no_punct_falls_back_to_char_cut():
+    """> 30 字 + 全无标点 → 字符切到 30."""
+    long_note = '一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三'
+    out = _trim_note(long_note)
+    assert len(out) == 30
+
+
+def test_trim_note_punct_in_first_half_falls_back():
+    """> 30 字 + 标点在前半截 (idx < limit//2=15) → fallback 字符切.
+
+    NOTE: 字符切会保留前面的 "，"; 只断言长度, 不断言标点存在与否.
+    """
+    long_note = '一二，四五六七八九十一二三四五六七八九十一二三四五六七八九十一二'
+    # "，" 在 idx=2, < 15 → fallback to char cut
+    out = _trim_note(long_note)
+    assert len(out) == 30
 
 
 def test_build_xingyun_returns_8_dayun():
