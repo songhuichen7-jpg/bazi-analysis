@@ -201,9 +201,10 @@ from paipan.xingyun import build_xingyun
 Add after the existing `result["yongshenDetail"] = analysis["yongshenDetail"]` line:
 ```python
 # Plan 7.4: 行运 evaluation against 命局 用神 (Plan 7.3 anchor)
-bazi = result["bazi"]
-mingju_gans = [bazi[k][0] for k in ['year', 'month', 'day', 'hour']]
-mingju_zhis = [bazi[k][1] for k in ['year', 'month', 'day', 'hour']]
+bazi = result["sizhu"]   # actual key is "sizhu" not "bazi"
+# Guard against hour=None (unknown-hour sentinel; compute.py:163 sets hour to None)
+mingju_gans = [bazi[k][0] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
+mingju_zhis = [bazi[k][1] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
 result["xingyun"] = build_xingyun(
     dayun=result["dayun"],
     yongshen_detail=result["yongshenDetail"],
