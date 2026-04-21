@@ -317,7 +317,7 @@ for entry in dayun_list:
 - 流年支不贡献 + 大运也无合局 → None
 
 **`build_xingyun` 集成 (3 tests)**:
-- 标准 1993 chart：所有 88 transmuted 都 None
+- All-None chart (verified at codex Task 4 实施时；e.g. 1989-08-15 北京)：所有 88 transmuted 都 None。⚠️ 1993-07-15 长沙 chart (Plan 7.3/7.4 standard) **不适合做 all-None oracle** — 它的流年在 Plan 7.5b 下会真触发 (巳午未 / 亥卯未 via 月令未 + 流年带巳/午/亥/卯)。
 - 1980-02-12 chart (命局自带，Plan 7.5a 触发)：xingyun.dayun[*].transmuted 都 None (被 yongshenDetail.transmuted 处理)
 - 一个 dynamic 触发的真盘：至少 1 个 dayun 或 liunian entry 有 transmuted
 
@@ -344,7 +344,7 @@ for entry in dayun_list:
 3. **Plan 7.5a 静态 transmutation 不重复**: 1980-02-12 chart 跑后 `yongshenDetail.transmuted` 仍触发，但 `xingyun.dayun[*].transmuted` 都 None (dedup 验证)
 4. **Backward compat**: 调 `build_xingyun(...)` 不传 `chart_context=` 时，行为 = Plan 7.4 (无 transmuted 字段)
 5. **Browser smoke**:
-   - 标准 1993 chart: chart panel 无新视觉, chat 答 "未来十年格局会变吗" → LLM 答 "不会变" 引用 transmutation 检测全 None
+   - All-none chart (e.g. 1989-08-15 北京 — Task 4 verified): chart panel 无新视觉, chat 答 "未来十年格局会变吗" → LLM 答 "不会变" 引用 transmutation 检测全 None。⚠️ 注意 1993 standard chart 不能做 all-None smoke 因为流年会真触发 (Task 4 codex catch)。
    - dynamic 触发的 chart (Task 4 verify 之一): chat 答 "我大运里某段格局会变吗" → LLM 引用 ⟳ 月令变化 + 解释
 
 ## 8. Risks

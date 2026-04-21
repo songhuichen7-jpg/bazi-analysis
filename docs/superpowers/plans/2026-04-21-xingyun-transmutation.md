@@ -748,9 +748,19 @@ Append:
 
 ```python
 def test_build_xingyun_standard_chart_all_transmuted_none():
-    """1993 chart 命局/大运/流年 都无合局触发 → 所有 transmuted 都是 None."""
-    out = compute(year=1993, month=7, day=15, hour=14, minute=30,
-                   gender='male', city='长沙')
+    """All-None chart: 命局/大运/流年 都无合局触发 → 所有 transmuted 都是 None.
+    
+    NOTE: 1993-07-15 长沙 chart (Plan 7.3/7.4 standard smoke) was ORIGINALLY
+    spec'd here, but Plan 7.5b verification (Task 4 codex catch) found that
+    chart's 流年 actually DO fire dynamic transmutation (辛巳/甲午/辛亥/辛卯
+    via 巳午未 / 亥卯未 with month_zhi=未). So replaced with 1989-08-15 北京
+    which is a verified all-None chart.
+    
+    Codex must verify the chosen all-None chart still produces zero 
+    transmutations under canonical Task 3 algorithm before locking it in.
+    """
+    out = compute(year=1989, month=8, day=15, hour=12, minute=0,
+                   gender='male', city='北京')
     xy = out['xingyun']
     for d in xy['dayun']:
         assert d['transmuted'] is None, f"dayun[{d['index']}] unexpected transmuted: {d['transmuted']}"
