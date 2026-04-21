@@ -459,6 +459,55 @@ def test_detect_xingyun_liunian_no_trigger_when_no_combo():
     assert result is None
 
 
+def test_build_xingyun_standard_chart_all_transmuted_none():
+    """Verified all-none chart: 命局/大运/流年 都无合局触发 → 所有 transmuted 都是 None."""
+    out = compute(year=1989, month=8, day=15, hour=12, minute=0,
+                   gender='male', city='北京')
+    xy = out['xingyun']
+    for d in xy['dayun']:
+        assert d['transmuted'] is None, f"dayun[{d['index']}] unexpected transmuted: {d['transmuted']}"
+    for k, ln_list in xy['liunian'].items():
+        for ly in ln_list:
+            assert ly['transmuted'] is None, \
+                f"liunian[{k}] {ly['year']} unexpected transmuted"
+
+
+def test_build_xingyun_static_chart_dayun_dedup():
+    """1980-02-12 chart 命局自带寅卯辰三会 (Plan 7.5a 静态 fire) → xingyun.dayun 全 dedup → None."""
+    out = compute(year=1980, month=2, day=12, hour=8, minute=0,
+                   gender='male', city='北京')
+    detail = out['yongshenDetail']
+    assert detail.get('transmuted') is not None, '1980-02-12 应触发 Plan 7.5a static'
+
+    xy = out['xingyun']
+    for d in xy['dayun']:
+        assert d['transmuted'] is None, \
+            f"dayun[{d['index']}] should be dedup'd against 命局 baseline, got: {d['transmuted']}"
+
+
+def test_build_xingyun_chart_context_none_skips_transmutation():
+    """build_xingyun() called without chart_context → transmuted 字段 None (backward compat)."""
+    from paipan.xingyun import build_xingyun
+
+    # 用一个本应触发 transmutation 的 chart 但不传 chart_context
+    out = compute(year=1980, month=2, day=12, hour=8, minute=0,
+                   gender='male', city='北京')
+    fake_dayun = out['dayun']
+    fake_yongshen = out['yongshenDetail']
+
+    # 调 build_xingyun 不传 chart_context
+    xy_no_ctx = build_xingyun(
+        dayun=fake_dayun,
+        yongshen_detail=fake_yongshen,
+        mingju_gans=['庚', '戊', '乙', '庚'],
+        mingju_zhis=['申', '寅', '卯', '辰'],
+        current_year=2026,
+        # chart_context 不传
+    )
+    for d in xy_no_ctx['dayun']:
+        assert d['transmuted'] is None, 'no chart_context → no transmutation'
+
+
 def test_build_xingyun_returns_8_dayun():
     """The standard chart should produce 8 大运 entries."""
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
@@ -598,3 +647,82 @@ def test_xingyun_golden_structural(case):
         # 中和 命局 — verify empty consistency
         assert xy['liunian'] == {}
         assert xy['currentDayunIndex'] is None
+
+
+GOLDEN_DYNAMIC_TRANSMUTATION_CASES = [
+    {
+        'label': '丑月金局_双层触发',
+        'input': dict(year=1970, month=1, day=15, hour=12, minute=0,
+                       gender='male', city='北京'),
+        'expect_dayun_transmutations': 1,
+        'expect_liunian_transmutations': 7,
+        'expected_trigger_types': {'sanHe', 'sanHui'},
+    },
+    {
+        'label': '未月木火双局',
+        'input': dict(year=1971, month=7, day=15, hour=12, minute=0,
+                       gender='male', city='北京'),
+        'expect_dayun_transmutations': 2,
+        'expect_liunian_transmutations': 11,
+        'expected_trigger_types': {'sanHe', 'sanHui'},
+    },
+    {
+        'label': '申月金水双局',
+        'input': dict(year=1970, month=8, day=15, hour=12, minute=0,
+                       gender='male', city='北京'),
+        'expect_dayun_transmutations': 1,
+        'expect_liunian_transmutations': 8,
+        'expected_trigger_types': {'sanHe', 'sanHui'},
+    },
+    {
+        'label': '戌月火局建禄',
+        'input': dict(year=1970, month=10, day=15, hour=12, minute=0,
+                       gender='male', city='北京'),
+        'expect_dayun_transmutations': 1,
+        'expect_liunian_transmutations': 5,
+        'expected_trigger_types': {'sanHe'},
+    },
+    {
+        'label': '巳月官杀转化',
+        'input': dict(year=1971, month=5, day=15, hour=12, minute=0,
+                       gender='male', city='北京'),
+        'expect_dayun_transmutations': 0,
+        'expect_liunian_transmutations': 9,
+        'expected_trigger_types': {'sanHe', 'sanHui'},
+    },
+]
+
+
+@pytest.mark.parametrize('case', GOLDEN_DYNAMIC_TRANSMUTATION_CASES,
+                          ids=[c['label'] for c in GOLDEN_DYNAMIC_TRANSMUTATION_CASES])
+def test_xingyun_dynamic_transmutation_golden(case):
+    """Plan 7.5b §6.1 golden: real charts trigger dynamic transmutation as expected."""
+    out = compute(**case['input'])
+    xy = out['xingyun']
+
+    dayun_transmuted_count = sum(1 for d in xy['dayun'] if d.get('transmuted'))
+    liunian_transmuted_count = sum(
+        1 for ln_list in xy['liunian'].values()
+        for ly in ln_list if ly.get('transmuted')
+    )
+
+    if 'expect_dayun_transmutations' in case:
+        assert dayun_transmuted_count >= case['expect_dayun_transmutations'], \
+            f"{case['label']}: expected ≥{case['expect_dayun_transmutations']} dayun transmutations, got {dayun_transmuted_count}"
+
+    if 'expect_liunian_transmutations' in case:
+        assert liunian_transmuted_count >= case['expect_liunian_transmutations'], \
+            f"{case['label']}: expected ≥{case['expect_liunian_transmutations']} liunian transmutations, got {liunian_transmuted_count}"
+
+    # 验证 trigger.type 在预期集合内
+    if 'expected_trigger_types' in case:
+        all_types = set()
+        for d in xy['dayun']:
+            if d.get('transmuted'):
+                all_types.add(d['transmuted']['trigger']['type'])
+        for ln_list in xy['liunian'].values():
+            for ly in ln_list:
+                if ly.get('transmuted'):
+                    all_types.add(ly['transmuted']['trigger']['type'])
+        assert all_types.issubset(case['expected_trigger_types']), \
+            f"{case['label']}: actual types {all_types} not subset of expected {case['expected_trigger_types']}"

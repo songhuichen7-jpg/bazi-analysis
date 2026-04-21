@@ -387,12 +387,9 @@ def build_xingyun(
     contains current_year (None if none match).
     """
     yongshen_primary = (yongshen_detail or {}).get('primary', '')
-
-    # 中和 命局 → empty result (spec §3.3 末尾 + §11 risk #5)
     if not _extract_yongshen_wuxings(yongshen_primary):
         return {
-            'dayun': [],
-            'liunian': {},
+            'dayun': [], 'liunian': {},
             'currentDayunIndex': None,
             'yongshenSnapshot': yongshen_primary,
         }
@@ -408,8 +405,22 @@ def build_xingyun(
         start_year = entry['startYear']
         end_year = entry['endYear']
 
-        # Score this 大运
         score = score_yun(ganzhi, yongshen_primary, mingju_gans, mingju_zhis)
+
+        # Plan 7.5b: dayun-level transmutation detection
+        dayun_transmuted = None
+        if chart_context:
+            dayun_transmuted = _detect_xingyun_transmutation(
+                month_zhi=chart_context['month_zhi'],
+                base_mingju_zhis=mingju_zhis,
+                dayun_zhi=ganzhi[1],
+                liunian_zhi=None,
+                rizhu_gan=chart_context['rizhu_gan'],
+                force=chart_context['force'],
+                gan_he=chart_context['gan_he'],
+                original_geju_name=chart_context['original_geju_name'],
+            )
+
         out_dayun.append({
             'index': idx,
             'ganzhi': ganzhi,
@@ -421,17 +432,34 @@ def build_xingyun(
             'note': score['note'],
             'mechanisms': score['mechanisms'],
             'isCurrent': start_year <= current_year <= end_year,
+            'transmuted': dayun_transmuted,    # NEW (Plan 7.5b)
         })
 
         if start_year <= current_year <= end_year:
             current_idx = idx
 
-        # Score 10 流年 in this 大运
+        # 流年 evaluations within this 大运
         ln_entries = []
         for ly in entry.get('liunian', []):
             ly_score = score_yun(
                 ly['ganzhi'], yongshen_primary, mingju_gans, mingju_zhis
             )
+
+            # Plan 7.5b: liunian-level transmutation detection (with dedup against dayun)
+            liunian_transmuted = None
+            if chart_context:
+                liunian_transmuted = _detect_xingyun_transmutation(
+                    month_zhi=chart_context['month_zhi'],
+                    base_mingju_zhis=mingju_zhis,
+                    dayun_zhi=ganzhi[1],
+                    liunian_zhi=ly['ganzhi'][1],
+                    rizhu_gan=chart_context['rizhu_gan'],
+                    force=chart_context['force'],
+                    gan_he=chart_context['gan_he'],
+                    original_geju_name=chart_context['original_geju_name'],
+                    baseline_transmuted=dayun_transmuted,
+                )
+
             ln_entries.append({
                 'year': ly['year'],
                 'ganzhi': ly['ganzhi'],
@@ -440,6 +468,7 @@ def build_xingyun(
                 'score': ly_score['score'],
                 'note': ly_score['note'],
                 'mechanisms': ly_score['mechanisms'],
+                'transmuted': liunian_transmuted,    # NEW (Plan 7.5b)
             })
         out_liunian[str(idx)] = ln_entries
 
