@@ -54,6 +54,24 @@ def test_detect_ganhe_no_match():
     assert _detect_ganhe('甲', ['乙', '丙', '丁']) is None
 
 
+def test_detect_ganhe_adjacent_命局_fires():
+    """命局干 [甲, 己, ...] 年-月相邻 → 土."""
+    result = _detect_ganhe('甲', ['甲', '己', '乙', '丙'], source_idx=0)
+    assert result == '土'
+
+
+def test_detect_ganhe_non_adjacent_命局_misses():
+    """命局干 [甲, 乙, 己, 丙] 年-日不相邻 → strict reject."""
+    result = _detect_ganhe('甲', ['甲', '乙', '己', '丙'], source_idx=0)
+    assert result is None
+
+
+def test_detect_ganhe_external_any_position_fires():
+    """External 干 with source_idx=None still matches any position."""
+    result = _detect_ganhe('甲', ['乙', '丙', '丁', '己'])
+    assert result == '土'
+
+
 # === 干 score ===
 
 def test_score_gan_pure_sheng():
@@ -88,6 +106,24 @@ def test_detect_liuhe_寅亥合木():
 def test_detect_liuhe_no_match():
     """命局没有可六合的 支 → None."""
     assert _detect_liuhe('寅', ['酉', '酉', '未']) is None
+
+
+def test_detect_liuhe_adjacent_命局_fires():
+    """命局支 [寅, 亥, ...] 相邻 → 木."""
+    result = _detect_liuhe('寅', ['寅', '亥', '子', '丑'], source_idx=0)
+    assert result == '木'
+
+
+def test_detect_liuhe_non_adjacent_命局_misses():
+    """命局支 [寅, 子, 亥, 丑] idx 0-2 不相邻 → None."""
+    result = _detect_liuhe('寅', ['寅', '子', '亥', '丑'], source_idx=0)
+    assert result is None
+
+
+def test_detect_liuhe_external_any_position_fires():
+    """External 支 with source_idx=None still matches any position."""
+    result = _detect_liuhe('寅', ['子', '丑', '未', '亥'])
+    assert result == '木'
 
 
 # === 支 score ===

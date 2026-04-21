@@ -152,30 +152,46 @@ def _extract_yongshen_wuxings(primary: str) -> list[str]:
     return out
 
 
-def _detect_ganhe(gan: str, mingju_gans: list[str]) -> str | None:
-    """Detect 干合化 between yun_gan and any mingju gan.
+def _detect_ganhe(
+    gan: str,
+    mingju_gans: list[str],
+    *,
+    source_idx: int | None = None,
+) -> str | None:
+    """Detect 干合化.
 
-    Returns the 化出 wuxing if any 命局干 forms a 五合 with `gan`, else None.
-    Simplified: any-position pair (does NOT require adjacency).
+    If source_idx is None, gan is external (大运/流年) and any position counts.
+    If source_idx is given, gan is mingju_gans[source_idx] and only adjacent
+    pairs count.
     """
-    for mg in mingju_gans:
+    for idx, mg in enumerate(mingju_gans):
         if mg == gan:
             continue   # self-pair doesn't count
+        if source_idx is not None and abs(idx - source_idx) != 1:
+            continue
         wx = GAN_HE_TABLE.get(frozenset({gan, mg}))
         if wx:
             return wx
     return None
 
 
-def _detect_liuhe(zhi: str, mingju_zhis: list[str]) -> str | None:
-    """Detect 地支六合 between yun_zhi and any mingju zhi.
+def _detect_liuhe(
+    zhi: str,
+    mingju_zhis: list[str],
+    *,
+    source_idx: int | None = None,
+) -> str | None:
+    """Detect 地支六合.
 
-    Returns the 化出 wuxing if any 命局支 forms a 六合 with `zhi`, else None.
-    Simplified: any-position pair (does NOT require adjacency).
+    If source_idx is None, zhi is external (大运/流年) and any position counts.
+    If source_idx is given, zhi is mingju_zhis[source_idx] and only adjacent
+    pairs count.
     """
-    for mz in mingju_zhis:
+    for idx, mz in enumerate(mingju_zhis):
         if mz == zhi:
             continue   # self-pair doesn't count
+        if source_idx is not None and abs(idx - source_idx) != 1:
+            continue
         wx = ZHI_LIUHE_TABLE.get(frozenset({zhi, mz}))
         if wx:
             return wx
