@@ -478,8 +478,11 @@ def build_xingyun(
         # 流年 evaluations within this 大运
         ln_entries = []
         for ly in entry.get('liunian', []):
+            # Plan 7.7: extend mingju with 当前大运干支 for cross interaction scoring.
+            extended_gans = mingju_gans + [ganzhi[0]]
+            extended_zhis = mingju_zhis + [ganzhi[1]]
             ly_score = score_yun(
-                ly['ganzhi'], yongshen_primary, mingju_gans, mingju_zhis
+                ly['ganzhi'], yongshen_primary, extended_gans, extended_zhis
             )
 
             # Plan 7.5b: liunian-level transmutation detection (with dedup against dayun)

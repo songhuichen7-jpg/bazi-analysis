@@ -579,6 +579,108 @@ def test_build_xingyun_chart_context_none_skips_transmutation():
         assert d['transmuted'] is None, 'no chart_context → no transmutation'
 
 
+def test_cross_interaction_dayun_gan_extends_mingju_for_liunian_score():
+    """Plan 7.7: 大运庚 + 流年乙 → 乙庚合化金 modifier 应在流年 mechanisms 里."""
+    mock_dayun = {
+        'list': [
+            {
+                'index': 1,
+                'ganzhi': '庚午',
+                'startAge': 5,
+                'startYear': 2000,
+                'endYear': 2009,
+                'liunian': [
+                    {'year': 2005, 'ganzhi': '乙酉', 'age': 10},
+                ],
+            },
+        ],
+    }
+    out = build_xingyun(
+        dayun=mock_dayun,
+        yongshen_detail={'primary': '癸水'},
+        mingju_gans=['丁', '丙', '己', '辛'],
+        mingju_zhis=['未', '寅', '卯', '亥'],
+        current_year=2010,
+        chart_context=None,
+    )
+
+    liunian_entries = out['liunian']['1']
+    assert len(liunian_entries) == 1
+    ly_2005 = liunian_entries[0]
+    assert ly_2005['year'] == 2005
+    assert any('合化' in m and '金' in m for m in ly_2005['mechanisms']), (
+        f"expected 干合化金 modifier in mechanisms, got: {ly_2005['mechanisms']}"
+    )
+
+
+def test_cross_interaction_dayun_zhi_extends_mingju_for_liunian_score():
+    """Plan 7.7: 大运卯 + 流年戌 → 卯戌合化火 modifier 应在流年 mechanisms 里."""
+    mock_dayun = {
+        'list': [
+            {
+                'index': 1,
+                'ganzhi': '丁卯',
+                'startAge': 5,
+                'startYear': 2000,
+                'endYear': 2009,
+                'liunian': [
+                    {'year': 2006, 'ganzhi': '丙戌', 'age': 11},
+                ],
+            },
+        ],
+    }
+    out = build_xingyun(
+        dayun=mock_dayun,
+        yongshen_detail={'primary': '戊土'},
+        mingju_gans=['庚', '己', '癸', '甲'],
+        mingju_zhis=['申', '丑', '巳', '酉'],
+        current_year=2010,
+        chart_context=None,
+    )
+
+    liunian_entries = out['liunian']['1']
+    ly_2006 = liunian_entries[0]
+    assert ly_2006['year'] == 2006
+    assert any('六合' in m and '火' in m for m in ly_2006['mechanisms']), (
+        f"expected 支六合化火 modifier in mechanisms, got: {ly_2006['mechanisms']}"
+    )
+
+
+def test_cross_interaction_no_overlap_behavior_matches_plan74():
+    """Plan 7.7: 当大运干支跟流年干支不形成合化, score 跟 Plan 7.4 行为一致."""
+    mock_dayun = {
+        'list': [
+            {
+                'index': 1,
+                'ganzhi': '甲寅',
+                'startAge': 5,
+                'startYear': 2000,
+                'endYear': 2009,
+                'liunian': [
+                    {'year': 2004, 'ganzhi': '甲申', 'age': 9},
+                ],
+            },
+        ],
+    }
+    mingju_gans = ['丁', '丙', '戊', '辛']
+    mingju_zhis = ['未', '午', '辰', '酉']
+    out = build_xingyun(
+        dayun=mock_dayun,
+        yongshen_detail={'primary': '丙火'},
+        mingju_gans=mingju_gans,
+        mingju_zhis=mingju_zhis,
+        current_year=2010,
+        chart_context=None,
+    )
+    liunian_score = out['liunian']['1'][0]['score']
+
+    plan74_result = score_yun('甲申', '丙火', mingju_gans, mingju_zhis)
+    assert liunian_score == plan74_result['score'], (
+        'cross interaction should not affect score when no overlap; '
+        f"got Plan 7.7 {liunian_score} vs Plan 7.4 {plan74_result['score']}"
+    )
+
+
 def test_build_xingyun_returns_8_dayun():
     """The standard chart should produce 8 大运 entries."""
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
