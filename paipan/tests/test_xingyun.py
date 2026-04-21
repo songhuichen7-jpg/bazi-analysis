@@ -213,6 +213,31 @@ def test_trim_note_punct_in_first_half_falls_back():
     assert len(out) == 30
 
 
+def test_mechanism_tags_byte_identical_to_plan74_strings():
+    """Plan 7.5a.1 §5.3 + §6.3: 重构后 mechanism 字符串跟 Plan 7.4 ship 的字面值一致."""
+    from paipan import mechanism_tags as M
+
+    # 5 干 base
+    assert M.GAN_SHENG == '干·相生'
+    assert M.GAN_KE == '干·相克'
+    assert M.GAN_BIZHU == '干·比助'
+    assert M.GAN_XIE == '干·相泄'
+    assert M.GAN_HAO == '干·相耗'
+
+    # 5 支 base
+    assert M.ZHI_SHENG == '支·相生'
+    assert M.ZHI_KE == '支·相克'
+    assert M.ZHI_BIZHU == '支·比助'
+    assert M.ZHI_XIE == '支·相泄'
+    assert M.ZHI_HAO == '支·相耗'
+
+    # 4 modifier builder
+    assert M.gan_hehua_zhuanzhu('木') == '干·合化转助·木'
+    assert M.gan_hehua_fanke('金') == '干·合化反克·金'
+    assert M.zhi_liuhe_zhuanzhu('木') == '支·六合化木·转助'
+    assert M.zhi_liuhe_fanke('火') == '支·六合化火·反克'
+
+
 def test_build_xingyun_returns_8_dayun():
     """The standard chart should produce 8 大运 entries."""
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,

@@ -8,6 +8,7 @@ Spec: docs/superpowers/specs/2026-04-20-xingyun-engine-design.md
 """
 from __future__ import annotations
 
+from paipan import mechanism_tags as M
 from paipan.ganzhi import (
     GAN_WUXING,
     ZHI_WUXING,
@@ -141,19 +142,19 @@ def _score_gan_to_yongshen(
     if gw == ys_wuxing:
         base_delta = 1
         base_reason = f'{gan}比助用神'
-        base_mech.append('干·比助')
+        base_mech.append(M.GAN_BIZHU)
     elif WUXING_SHENG.get(gw) == ys_wuxing:
         base_delta = 2
         base_reason = f'{gan}生用神'
-        base_mech.append('干·相生')
+        base_mech.append(M.GAN_SHENG)
     elif WUXING_SHENG.get(ys_wuxing) == gw:
         base_delta = -1
         base_reason = f'用神被{gan}泄'
-        base_mech.append('干·相泄')
+        base_mech.append(M.GAN_XIE)
     elif WUXING_KE.get(gw) == ys_wuxing:
         base_delta = -2
         base_reason = f'{gan}克用神'
-        base_mech.append('干·相克')
+        base_mech.append(M.GAN_KE)
     elif WUXING_KE.get(ys_wuxing) == gw:
         base_delta = 0
         base_reason = f'用神克{gan}'
@@ -165,11 +166,11 @@ def _score_gan_to_yongshen(
         if he_wx == ys_wuxing or WUXING_SHENG.get(he_wx) == ys_wuxing:
             base_delta += 1
             base_reason += f'，与命局合化{he_wx}转助'
-            base_mech.append(f'干·合化转助·{he_wx}')
+            base_mech.append(M.gan_hehua_zhuanzhu(he_wx))
         elif WUXING_KE.get(he_wx) == ys_wuxing:
             base_delta -= 1
             base_reason += f'，与命局合化{he_wx}反克'
-            base_mech.append(f'干·合化反克·{he_wx}')
+            base_mech.append(M.gan_hehua_fanke(he_wx))
 
     return (base_delta, base_reason, base_mech)
 
@@ -195,19 +196,19 @@ def _score_zhi_to_yongshen(
     if zw == ys_wuxing:
         base_delta = 1
         base_reason = f'{zhi}比助用神'
-        base_mech.append('支·比助')
+        base_mech.append(M.ZHI_BIZHU)
     elif WUXING_SHENG.get(zw) == ys_wuxing:
         base_delta = 2
         base_reason = f'{zhi}生用神'
-        base_mech.append('支·相生')
+        base_mech.append(M.ZHI_SHENG)
     elif WUXING_SHENG.get(ys_wuxing) == zw:
         base_delta = -1
         base_reason = f'用神被{zhi}泄'
-        base_mech.append('支·相泄')
+        base_mech.append(M.ZHI_XIE)
     elif WUXING_KE.get(zw) == ys_wuxing:
         base_delta = -2
         base_reason = f'{zhi}克用神'
-        base_mech.append('支·相克')
+        base_mech.append(M.ZHI_KE)
     elif WUXING_KE.get(ys_wuxing) == zw:
         base_delta = 0
         base_reason = f'用神克{zhi}'
@@ -218,11 +219,11 @@ def _score_zhi_to_yongshen(
         if he_wx == ys_wuxing or WUXING_SHENG.get(he_wx) == ys_wuxing:
             base_delta += 1
             base_reason += f'，与命局六合化{he_wx}转助'
-            base_mech.append(f'支·六合化{he_wx}·转助')
+            base_mech.append(M.zhi_liuhe_zhuanzhu(he_wx))
         elif WUXING_KE.get(he_wx) == ys_wuxing:
             base_delta -= 1
             base_reason += f'，与命局六合化{he_wx}反克'
-            base_mech.append(f'支·六合化{he_wx}·反克')
+            base_mech.append(M.zhi_liuhe_fanke(he_wx))
 
     return (base_delta, base_reason, base_mech)
 
