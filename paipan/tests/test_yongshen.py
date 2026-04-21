@@ -118,6 +118,30 @@ def test_fuyi_yongshen_身强_returns_泄身_candidate():
     assert res['method'] == '扶抑'
 
 
+def test_fuyi_yongshen_极弱_returns_compound_扶身():
+    """Plan 7.6: 极弱 dayStrength → FUYI_CASES '印 + 比劫（同扶）' rule fires."""
+    from paipan.yongshen import fuyi_yongshen
+
+    res = fuyi_yongshen({'scores': {}}, '极弱')
+    assert res is not None
+    assert res['method'] == '扶抑'
+    assert '印' in res['name'] and '比劫' in res['name']
+    assert '+' in res['name']
+    assert res['source'].startswith('滴天髓')
+
+
+def test_fuyi_yongshen_极强_returns_compound_双泄():
+    """Plan 7.6: 极强 dayStrength → FUYI_CASES '官杀 + 食伤（双泄）' rule fires."""
+    from paipan.yongshen import fuyi_yongshen
+
+    res = fuyi_yongshen({'scores': {}}, '极强')
+    assert res is not None
+    assert res['method'] == '扶抑'
+    assert '官杀' in res['name'] and '食伤' in res['name']
+    assert '+' in res['name']
+    assert res['source'].startswith('滴天髓')
+
+
 def test_fuyi_yongshen_unknown_strength_returns_none():
     from paipan.yongshen import fuyi_yongshen
     assert fuyi_yongshen({'scores': {}}, None) is None
