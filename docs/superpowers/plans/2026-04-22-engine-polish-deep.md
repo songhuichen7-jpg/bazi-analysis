@@ -183,93 +183,152 @@ Record sampling output values in the subsequent Task 1 commit message for tracea
 
 - [ ] **Step 1.1: Read current li_liang.py dayStrength block**
 
-Find the existing 3-branch block (Plan 7.3 ship, around line 191):
+Find the existing block at `paipan/paipan/li_liang.py:192-199` (confirmed via Task 0 audit):
 
 ```python
-if day_score >= SHEN_QIANG_THRESHOLD:
+if same_ratio >= 0.55:
     day_strength = "身强"
-elif day_score >= ZHONG_HE_THRESHOLD:
-    day_strength = "中和"
-else:
+elif same_ratio <= 0.35:
     day_strength = "身弱"
-```
-
-Note actual constant names + existing threshold values.
-
-- [ ] **Step 1.2: Add 2 new threshold constants**
-
-In `paipan/paipan/li_liang.py` near the existing thresholds:
-
-```python
-# Plan 7.6 §4.3 — data-driven 5-bin thresholds
-# Values from Task 0 sampling (seed=42, N=1000)
-# p95 → BIN_JI_QIANG_THRESHOLD; p5 → BIN_JI_RUO_THRESHOLD
-BIN_JI_QIANG_THRESHOLD = <from Task 0 output>   # replace literal
-BIN_JI_RUO_THRESHOLD = <from Task 0 output>      # replace literal
-```
-
-**Important**: use literal int/float from Task 0 output, NOT placeholders. Spec §4.3 has example values (60 / -25) but real values come from sampling.
-
-- [ ] **Step 1.3: Extend dayStrength branch**
-
-Replace the existing 3-branch logic:
-
-```python
-if day_score >= BIN_JI_QIANG_THRESHOLD:
-    day_strength = "极强"
-elif day_score >= SHEN_QIANG_THRESHOLD:    # existing constant
-    day_strength = "身强"
-elif day_score >= ZHONG_HE_THRESHOLD:      # existing constant
+else:
     day_strength = "中和"
-elif day_score >= BIN_JI_RUO_THRESHOLD:
+
+cong_candidate = same_ratio <= 0.15   # Existing "从格候选" flag
+```
+
+**KEY FINDINGS from Task 0**:
+- The classifier uses `same_ratio` (ratio [0, 1]), NOT a signed `day_score`
+- Existing thresholds are **inline literals** (`0.55` / `0.35` / `0.15`), no named constants yet
+- Sampling: p5=0.12, p95=0.76; suggested boundaries for 极弱/极强
+
+This means Task 1 is **refactor + extend**, not just extend. We introduce named constants for all 5-bin thresholds and replace the literals.
+
+- [ ] **Step 1.2: Add 5-bin threshold constants (module-level)**
+
+In `paipan/paipan/li_liang.py` add near the top (after imports), introducing named constants for ALL 5 thresholds (refactoring existing literals + adding 2 new):
+
+```python
+# Plan 7.6 §4.3 — 5-bin day_strength thresholds (keyed on same_ratio ∈ [0,1])
+# Existing Plan 7.3 boundaries (inline literals 0.55 / 0.35 / 0.15) now named.
+# 极强 / 极弱 boundaries data-driven from Task 0 sampling (seed=42, N=1000,
+# paipan/scripts/sample_day_strength.py output).
+THRESHOLD_JI_QIANG = 0.76   # p95 from Task 0 — 极强 boundary
+THRESHOLD_SHEN_QIANG = 0.55  # existing Plan 7.3 inline literal
+THRESHOLD_ZHONG_HE = 0.35    # existing Plan 7.3 inline literal (中和 lower)
+THRESHOLD_JI_RUO = 0.12      # p5 from Task 0 — 极弱 boundary
+THRESHOLD_CONG_CANDIDATE = 0.15   # existing Plan 7.3 inline literal (从格候选 flag)
+```
+
+**Note**: `THRESHOLD_JI_RUO (0.12) < THRESHOLD_CONG_CANDIDATE (0.15)`. This means 极弱 is a MORE extreme zone than 从格候选 —— 盘 landing in 极弱 is both 极弱 AND cong_candidate. This is consistent semantically (极弱日主 是 从格 首要候选).
+
+- [ ] **Step 1.3: Replace inline literals with constants + extend to 5-bin**
+
+Replace the existing 3-branch block (line 192-199):
+
+```python
+# OLD (Plan 7.3 inline literals):
+# if same_ratio >= 0.55:
+#     day_strength = "身强"
+# elif same_ratio <= 0.35:
+#     day_strength = "身弱"
+# else:
+#     day_strength = "中和"
+#
+# cong_candidate = same_ratio <= 0.15
+
+# NEW (Plan 7.6 5-bin + named constants):
+if same_ratio >= THRESHOLD_JI_QIANG:
+    day_strength = "极强"
+elif same_ratio >= THRESHOLD_SHEN_QIANG:
+    day_strength = "身强"
+elif same_ratio >= THRESHOLD_ZHONG_HE:
+    day_strength = "中和"
+elif same_ratio >= THRESHOLD_JI_RUO:
     day_strength = "身弱"
 else:
     day_strength = "极弱"
+
+cong_candidate = same_ratio <= THRESHOLD_CONG_CANDIDATE
 ```
+
+Verify:
+- 5 bins partition [0, 1]: [0, 0.12) = 极弱; [0.12, 0.35) = 身弱; [0.35, 0.55) = 中和; [0.55, 0.76) = 身强; [0.76, 1] = 极强 ✓
+- cong_candidate logic preserved ✓
+- same_ratio 的 return 字段不变 ✓
 
 - [ ] **Step 1.4: Write 5 boundary tests**
 
 Create or append to `paipan/tests/test_force.py` (or `test_li_liang.py` if that's the existing file):
 
+The existing li_liang.py `compute_li_liang(...)` function is the classifier entry. It doesn't expose a separate classifier — the branch lives inline. For tests, we can either:
+- (a) Refactor: extract a small `_classify_day_strength(same_ratio: float) -> str` helper and unit-test it directly
+- (b) Test via `compute(...)` with birth_inputs chosen so their sameRatio lands in each bin
+
+Prefer (a) — 5 tests of a pure function are much faster + clearer than 5 compute() calls:
+
 ```python
-from paipan.li_liang import (
-    BIN_JI_QIANG_THRESHOLD,
-    SHEN_QIANG_THRESHOLD,
-    ZHONG_HE_THRESHOLD,
-    BIN_JI_RUO_THRESHOLD,
-)
-# You may need to expose the classifier as a function, OR test via compute()
+# In paipan/paipan/li_liang.py, add the pure helper:
+def _classify_day_strength(same_ratio: float) -> str:
+    if same_ratio >= THRESHOLD_JI_QIANG:
+        return "极强"
+    if same_ratio >= THRESHOLD_SHEN_QIANG:
+        return "身强"
+    if same_ratio >= THRESHOLD_ZHONG_HE:
+        return "中和"
+    if same_ratio >= THRESHOLD_JI_RUO:
+        return "身弱"
+    return "极弱"
 
-
-def test_day_strength_极强_at_and_above_ji_qiang_threshold():
-    """score >= BIN_JI_QIANG_THRESHOLD → '极强'."""
-    # Find a birth_input whose day_score >= threshold, OR directly test classifier
-    # If no exposed classifier, use compute + force dict lookup
-    ...   # implementation: Task 1 engineer to determine based on li_liang.py API
-
-
-def test_day_strength_身强_between_shen_qiang_and_ji_qiang():
-    """SHEN_QIANG_THRESHOLD <= score < BIN_JI_QIANG_THRESHOLD → '身强'."""
-    ...
-
-
-def test_day_strength_中和_between_zhong_he_and_shen_qiang():
-    ...
-
-
-def test_day_strength_身弱_between_ji_ruo_and_zhong_he():
-    ...
-
-
-def test_day_strength_极弱_below_ji_ruo_threshold():
-    ...
+# Then in the compute_li_liang body, replace the inline if/elif with:
+day_strength = _classify_day_strength(same_ratio)
 ```
 
-**NOTE**: the exact implementation depends on how li_liang.py exposes day_score / dayStrength. Two options:
-- (a) If there's a standalone classifier function → unit test directly
-- (b) Otherwise test via `compute()` with birth_inputs chosen to land in each bin — use Task 0 sampling output to pick representative inputs
+Then tests:
 
-Task 1 engineer picks (a) if possible, (b) otherwise. Document choice.
+```python
+from paipan.li_liang import (
+    _classify_day_strength,
+    THRESHOLD_JI_QIANG,
+    THRESHOLD_SHEN_QIANG,
+    THRESHOLD_ZHONG_HE,
+    THRESHOLD_JI_RUO,
+)
+
+
+def test_day_strength_极强_at_boundary():
+    """same_ratio = 0.76 (=THRESHOLD_JI_QIANG) → '极强'."""
+    assert _classify_day_strength(THRESHOLD_JI_QIANG) == "极强"
+    assert _classify_day_strength(THRESHOLD_JI_QIANG + 0.01) == "极强"
+    assert _classify_day_strength(1.0) == "极强"
+
+
+def test_day_strength_身强_zone():
+    """[THRESHOLD_SHEN_QIANG, THRESHOLD_JI_QIANG) → '身强'."""
+    assert _classify_day_strength(THRESHOLD_SHEN_QIANG) == "身强"
+    assert _classify_day_strength(0.65) == "身强"
+    assert _classify_day_strength(THRESHOLD_JI_QIANG - 0.01) == "身强"
+
+
+def test_day_strength_中和_zone():
+    """[THRESHOLD_ZHONG_HE, THRESHOLD_SHEN_QIANG) → '中和'."""
+    assert _classify_day_strength(THRESHOLD_ZHONG_HE) == "中和"
+    assert _classify_day_strength(0.42) == "中和"   # sample median
+    assert _classify_day_strength(THRESHOLD_SHEN_QIANG - 0.01) == "中和"
+
+
+def test_day_strength_身弱_zone():
+    """[THRESHOLD_JI_RUO, THRESHOLD_ZHONG_HE) → '身弱'."""
+    assert _classify_day_strength(THRESHOLD_JI_RUO) == "身弱"
+    assert _classify_day_strength(0.25) == "身弱"
+    assert _classify_day_strength(THRESHOLD_ZHONG_HE - 0.01) == "身弱"
+
+
+def test_day_strength_极弱_below_ji_ruo():
+    """same_ratio < THRESHOLD_JI_RUO → '极弱'."""
+    assert _classify_day_strength(THRESHOLD_JI_RUO - 0.01) == "极弱"
+    assert _classify_day_strength(0.05) == "极弱"
+    assert _classify_day_strength(0.0) == "极弱"
+```
 
 - [ ] **Step 1.5: Run tests**
 
@@ -299,13 +358,21 @@ git add paipan/paipan/li_liang.py paipan/tests/test_force.py
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 feat(paipan): Plan 7.6 #4 li_liang 5-bin upgrade
 
-Add BIN_JI_QIANG_THRESHOLD (=<value>, from Task 0 sampling p95) and
-BIN_JI_RUO_THRESHOLD (=<value>, from Task 0 sampling p5). Extend
-day_strength classifier from 3 bins to 5: 极弱 / 身弱 / 中和 / 身强 / 极强.
+Refactor existing inline literals (0.55 / 0.35 / 0.15) to named
+THRESHOLD_* constants. Add THRESHOLD_JI_QIANG=0.76 (Task 0 p95) +
+THRESHOLD_JI_RUO=0.12 (Task 0 p5). Extract inline classifier to
+_classify_day_strength(same_ratio) pure helper.
 
-Task 0 sampling stats (seed=42, N=1000):
-  p5 = <value>, p95 = <value>
-  median = <value>
+Extend day_strength from 3 bins to 5:
+  [0, 0.12) 极弱 | [0.12, 0.35) 身弱 | [0.35, 0.55) 中和 |
+  [0.55, 0.76) 身强 | [0.76, 1] 极强
+
+Task 0 sampling (seed=42, N=1000, city=北京):
+  range [0.00, 0.91]; p5=0.12, median=0.42, p95=0.76 (unimodal)
+
+Note THRESHOLD_JI_RUO (0.12) < THRESHOLD_CONG_CANDIDATE (0.15) —
+极弱 盘必是 cong_candidate, semantically consistent (极弱日主 首要 从格
+候选).
 
 Activates Plan 7.3 FUYI_CASES reserved 极弱/极强 rules
 (compound 用神 '印 + 比劫（同扶）' / '官杀 + 食伤（双泄）').

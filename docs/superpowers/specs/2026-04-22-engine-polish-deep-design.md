@@ -188,6 +188,19 @@ zhi_eff = sub_results[best_idx][2]
 
 ### 4.3 #4 li_liang 5-bin + sampling pre-task
 
+> ⚠️ **FIELD NAME CORRECTION** (post-Task 0 audit, 2026-04-22):
+> Original spec assumed a signed `day_score` field. Actual engine uses
+> `same_ratio` (float ∈ [0, 1]) from `li_liang.py:190` — fraction of
+> force that's "same side" (比劫 + 印) of day master. Threshold semantics
+> are the same (percentile-driven); just values are in [0, 1] space, not
+> signed int.
+>
+> Confirmed via Task 0 audit of `paipan/paipan/li_liang.py`:
+> - Existing inline literals at line 192-199: `0.55` (身强), `0.35` (身弱), `0.15` (cong_candidate)
+> - No named constants currently; Plan 7.6 Task 1 refactors.
+> - Task 0 sampling output (seed=42, N=1000): range [0.00, 0.91], p5=0.12, p95=0.76, median=0.42.
+> - Final 5-bin thresholds: `0.12` (极弱) / `0.35` (身弱) / `0.55` (中和→身强) / `0.76` (极强).
+
 **Task 0 (pre-task): sampling script**
 
 新 `paipan/scripts/sample_day_strength.py`:
