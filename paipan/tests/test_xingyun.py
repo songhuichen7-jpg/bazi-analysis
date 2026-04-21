@@ -822,6 +822,78 @@ def test_xingyun_golden_structural(case):
         assert xy['currentDayunIndex'] is None
 
 
+def test_xingyun_cross_interaction_golden():
+    """Plan 7.7 §6 acceptance: verified real chart fires cross interaction
+    modifiers in multiple 流年 entries beyond the Plan 7.4 base score_yun path.
+    """
+    out = compute(
+        year=1990, month=9, day=18, hour=14, minute=0,
+        gender='female', city='上海',
+    )
+    xy = out['xingyun']
+    sizhu = out['sizhu']
+    mingju_gans = [g[0] for g in [sizhu['year'], sizhu['month'], sizhu['day'], sizhu['hour']] if g]
+    mingju_zhis = [g[1] for g in [sizhu['year'], sizhu['month'], sizhu['day'], sizhu['hour']] if g]
+
+    assert xy['currentDayunIndex'] == 4
+    current_dayun = next(d for d in xy['dayun'] if d['index'] == xy['currentDayunIndex'])
+    assert current_dayun['ganzhi'] == '辛巳'
+
+    cross_fires = []
+    for k, ln_list in xy['liunian'].items():
+        dy = next((d for d in xy['dayun'] if d['index'] == int(k)), None)
+        assert dy is not None
+        for ly in ln_list:
+            base = score_yun(
+                ly['ganzhi'],
+                out['yongshenDetail']['primary'],
+                mingju_gans,
+                mingju_zhis,
+            )
+            added_mechanisms = [m for m in ly['mechanisms'] if m not in base['mechanisms']]
+            if (
+                (ly['score'] != base['score'] or ly['mechanisms'] != base['mechanisms'])
+                and any('合化' in m or '六合' in m for m in added_mechanisms)
+            ):
+                cross_fires.append({
+                    'dayun': dy['ganzhi'],
+                    'year': ly['year'],
+                    'liunian': ly['ganzhi'],
+                    'score': ly['score'],
+                    'base_score': base['score'],
+                    'added_mechanisms': added_mechanisms,
+                })
+
+    assert len(cross_fires) >= 5, f"expected >=5 verified cross fires, got: {cross_fires}"
+    assert any(
+        row['dayun'] == '甲申'
+        and row['year'] == 1999
+        and row['liunian'] == '己卯'
+        and row['score'] == -4
+        and row['base_score'] == -3
+        and '干·合化反克·土' in row['added_mechanisms']
+        for row in cross_fires
+    ), cross_fires
+    assert any(
+        row['dayun'] == '辛巳'
+        and row['year'] == 2026
+        and row['liunian'] == '丙午'
+        and row['score'] == 0
+        and row['base_score'] == -1
+        and '干·合化转助·水' in row['added_mechanisms']
+        for row in cross_fires
+    ), cross_fires
+    assert any(
+        row['dayun'] == '丁丑'
+        and row['year'] == 2068
+        and row['liunian'] == '戊子'
+        and row['score'] == -2
+        and row['base_score'] == -1
+        and '支·六合化土·反克' in row['added_mechanisms']
+        for row in cross_fires
+    ), cross_fires
+
+
 GOLDEN_DYNAMIC_TRANSMUTATION_CASES = [
     {
         'label': '丑月金局_双层触发',
