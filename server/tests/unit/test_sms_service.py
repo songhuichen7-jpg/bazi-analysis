@@ -245,6 +245,14 @@ async def test_send_sms_code_does_not_charge_when_user_none(db_session):
     from sqlalchemy import text
     from app.services.sms import send_sms_code
 
+    # Other tests can commit sms_send usage into the shared worker-local test DB.
+    # Clear only this kind inside our per-test transaction so we assert the
+    # registration path's own behavior, not global suite ordering.
+    await db_session.execute(text("""
+        DELETE FROM quota_usage WHERE kind = 'sms_send'
+    """))
+    await db_session.flush()
+
     phone = "+8613800003333"
     await send_sms_code(
         db_session, phone=phone, purpose="register", ip=None,
