@@ -17,6 +17,35 @@ from paipan.ganzhi import (
     split_ganzhi,
 )
 from paipan.xingyun_data import GAN_HE_TABLE, ZHI_LIUHE_TABLE, SCORE_THRESHOLDS
+from paipan.yongshen import _detect_transmutation
+
+
+def _is_same_combo(a: dict | None, b: dict | None) -> bool:
+    """Plan 7.5b §3.3 — Compare two transmuted dicts for same trigger combo.
+
+    Returns True iff both non-None and trigger.type + zhi_list (set) match.
+    Filled in Task 2.
+    """
+    return False   # stub
+
+
+def _detect_xingyun_transmutation(
+    month_zhi: str,
+    base_mingju_zhis: list[str],
+    dayun_zhi: str,
+    liunian_zhi: str | None,
+    *,
+    rizhu_gan: str,
+    force: dict,
+    gan_he: dict,
+    original_geju_name: str,
+    baseline_transmuted: dict | None = None,
+) -> dict | None:
+    """Plan 7.5b §3.3 — 检测大运/流年 transmutation, 含 dedup logic.
+
+    Filled in Task 3.
+    """
+    return None   # stub
 
 
 def _classify_score(score: int) -> str:
@@ -306,6 +335,8 @@ def build_xingyun(
     mingju_gans: list[str],
     mingju_zhis: list[str],
     current_year: int,
+    *,
+    chart_context: dict | None = None,
 ) -> dict:
     """Batch entry. Spec §5.2.
 

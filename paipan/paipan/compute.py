@@ -219,12 +219,26 @@ def compute(
     bazi = result["sizhu"]
     mingju_gans = [bazi[k][0] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
     mingju_zhis = [bazi[k][1] for k in ['year', 'month', 'day', 'hour'] if bazi.get(k)]
+    chart_context = None
+    month_str = bazi.get("month")
+    day_str = bazi.get("day")
+    if month_str and day_str:
+        chart_context = {
+            'month_zhi': month_str[1],
+            'rizhu_gan': day_str[0],
+            'force': analysis.get("force") or {},
+            'gan_he': analysis.get("ganHe") or {},
+            'original_geju_name': (
+                (analysis.get("geJu") or {}).get("mainCandidate", {}).get("name", '') or ''
+            ),
+        }
     result["xingyun"] = build_xingyun(
         dayun=result["dayun"],
         yongshen_detail=result["yongshenDetail"],
         mingju_gans=mingju_gans,
         mingju_zhis=mingju_zhis,
         current_year=now.year,
+        chart_context=chart_context,
     )
 
     return result

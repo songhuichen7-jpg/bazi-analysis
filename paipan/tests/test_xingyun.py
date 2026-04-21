@@ -238,6 +238,38 @@ def test_mechanism_tags_byte_identical_to_plan74_strings():
     assert M.zhi_liuhe_fanke('火') == '支·六合化火·反克'
 
 
+def test_xingyun_chart_context_plumbing():
+    """Plan 7.5b §5.2: compute.py constructs chart_context and passes to build_xingyun.
+
+    Verify by patching build_xingyun and capturing the call args.
+    """
+    import importlib
+
+    compute_mod = importlib.import_module('paipan.compute')
+    captured = {}
+    original_build = compute_mod.build_xingyun
+
+    def spy(**kwargs):
+        captured.update(kwargs)
+        return original_build(**kwargs)
+
+    compute_mod.build_xingyun = spy
+    try:
+        compute_mod.compute(year=1993, month=7, day=15, hour=14, minute=30,
+                             gender='male', city='长沙')
+    finally:
+        compute_mod.build_xingyun = original_build
+
+    assert 'chart_context' in captured, 'compute.py should pass chart_context kwarg'
+    cc = captured['chart_context']
+    assert cc is not None
+    assert cc['month_zhi'] == '未'   # 1993-07-15 month柱己未 → 月支未
+    assert cc['rizhu_gan'] == '丁'    # 1993-07-15 丁酉日
+    assert 'force' in cc
+    assert 'gan_he' in cc
+    assert 'original_geju_name' in cc
+
+
 def test_build_xingyun_returns_8_dayun():
     """The standard chart should produce 8 大运 entries."""
     out = compute(year=1993, month=7, day=15, hour=14, minute=30,
