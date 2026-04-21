@@ -16,7 +16,12 @@ from paipan.ganzhi import (
     WUXING_KE,
     split_ganzhi,
 )
-from paipan.xingyun_data import GAN_HE_TABLE, ZHI_LIUHE_TABLE, SCORE_THRESHOLDS
+from paipan.xingyun_data import (
+    GAN_HE_TABLE,
+    ZHI_LIUHE_TABLE,
+    SCORE_THRESHOLDS,
+    YONGSHEN_WEIGHTS,
+)
 from paipan.yongshen import _detect_transmutation
 
 
@@ -323,7 +328,7 @@ def score_yun(
 ) -> dict:
     """Score one 大运/流年 ganzhi against 命局 用神. Spec §5.1.
 
-    Multi-element 用神: take max sub-score across elements (spec §5.3).
+    Multi-element 用神: weighted-average sub-scores across elements.
     中和 命局: return label='平', score=0, empty mechanisms (spec §3.3).
     """
     ys_wuxings = _extract_yongshen_wuxings(yongshen_primary)
@@ -340,22 +345,38 @@ def score_yun(
 
     yun_gan, yun_zhi = split_ganzhi(yun_ganzhi)
 
-    # Compute sub-score for each yongshen element; pick max
-    best = None  # (final_score, gan_eff, zhi_eff, winning_wuxing)
+    # Compute sub-score for each yongshen element.
+    sub_results = []
     for ys_wx in ys_wuxings:
         gan_d, gan_r, gan_m = _score_gan_to_yongshen(yun_gan, ys_wx, mingju_gans)
         zhi_d, zhi_r, zhi_m = _score_zhi_to_yongshen(yun_zhi, ys_wx, mingju_zhis)
         total = gan_d + zhi_d
-        candidate = (
+        sub_results.append((
             total,
             {'delta': gan_d, 'reason': gan_r, 'mech': gan_m},
             {'delta': zhi_d, 'reason': zhi_r, 'mech': zhi_m},
             ys_wx,
-        )
-        if best is None or candidate[0] > best[0]:
-            best = candidate
+        ))
 
-    final_score, gan_eff, zhi_eff, winning_wx = best
+    n = len(sub_results)
+    weights = YONGSHEN_WEIGHTS[:n]
+    if weights and sum(weights) > 0:
+        weights = [w / sum(weights) for w in weights]
+        final_score_raw = sum(w * r[0] for w, r in zip(weights, sub_results))
+        final_score = round(final_score_raw)
+    else:
+        final_score = 0
+
+    # Keep explainability tied to the max sub-score element.
+    best_idx = max(range(n), key=lambda i: sub_results[i][0]) if n > 0 else 0
+    if n > 0:
+        winning_wx = sub_results[best_idx][3]
+        gan_eff = sub_results[best_idx][1]
+        zhi_eff = sub_results[best_idx][2]
+    else:
+        winning_wx = ''
+        gan_eff = {'delta': 0, 'reason': '', 'mech': []}
+        zhi_eff = {'delta': 0, 'reason': '', 'mech': []}
 
     # Note: combine gan + zhi reason, comma-separated, ≤30 字
     parts = []

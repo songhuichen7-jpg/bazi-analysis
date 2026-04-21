@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from paipan import compute
+from paipan.xingyun_data import YONGSHEN_WEIGHTS
 from paipan.xingyun import (
     _detect_xingyun_transmutation,
     _is_same_combo,
@@ -216,6 +217,40 @@ def test_score_yun_中和_命局_returns_平():
     assert out['score'] == 0
     assert out['mechanisms'] == []
     assert '中和' in out['note']
+
+
+def test_score_yun_single_element_unchanged_by_weights():
+    """单元素用神: weights=[1.0] → 结果跟 Plan 7.4 max 一致."""
+    out = score_yun('癸亥', '甲木', [], [])
+    assert out['label'] == '大喜'
+    assert out['score'] == 4
+
+
+def test_score_yun_multi_element_weighted_avg_applied():
+    """多元素用神: weighted avg replaces max(sub_scores)."""
+    out = score_yun('庚申', '甲木 / 戊土 / 庚金', [], [])
+    assert out['label'] == '忌'
+    assert out['score'] == -2
+
+
+def test_score_yun_winningYongshenElement_still_max_not_weighted():
+    """winningYongshenElement still reports the max sub-score element."""
+    out = score_yun('庚申', '甲木 / 戊土 / 庚金', [], [])
+    assert out['winningYongshenElement'] == '庚金'
+
+
+def test_score_yun_two_element_weighted_weights_normalized():
+    """2 元素用神: [0.5, 0.3] must normalize to [0.625, 0.375]."""
+    out = score_yun('壬子', '甲木 / 丙火', [], [])
+    assert out['score'] == 1
+    assert out['label'] == '平'
+
+
+def test_score_yun_four_element_weighted_weight_truncation():
+    """4 元素用神: 第 4 元素权重为 0, 不参与最终 weighted score."""
+    out = score_yun('癸亥', '甲木 / 丙火 / 戊土 / 庚金', [], [])
+    assert out['score'] == 1
+    assert out['label'] == '平'
 
 
 def test_trim_note_short_unchanged():

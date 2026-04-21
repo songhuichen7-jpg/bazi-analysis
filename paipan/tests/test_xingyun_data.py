@@ -5,6 +5,7 @@ from paipan.xingyun_data import (
     GAN_HE_TABLE,
     ZHI_LIUHE_TABLE,
     SCORE_THRESHOLDS,
+    YONGSHEN_WEIGHTS,
 )
 from paipan.xingyun import _classify_score
 
@@ -62,3 +63,11 @@ def test_score_thresholds_classify_5_bins():
     assert _classify_score(-3) == '忌'
     assert _classify_score(-4) == '大忌'
     assert _classify_score(-5) == '大忌'
+
+
+def test_yongshen_weights_valid():
+    """Plan 7.6 §4.2: YONGSHEN_WEIGHTS = [0.5, 0.3, 0.2], sum=1.0, decreasing."""
+    assert YONGSHEN_WEIGHTS == [0.5, 0.3, 0.2]
+    assert abs(sum(YONGSHEN_WEIGHTS) - 1.0) < 1e-9
+    for i in range(1, len(YONGSHEN_WEIGHTS)):
+        assert YONGSHEN_WEIGHTS[i] <= YONGSHEN_WEIGHTS[i - 1]

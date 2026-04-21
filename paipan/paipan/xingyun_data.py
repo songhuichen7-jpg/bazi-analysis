@@ -40,3 +40,8 @@ SCORE_THRESHOLDS: dict[str, int] = {
     '忌':  -2,
     '大忌': -4,
 }
+
+# Plan 7.6 §4.2 — 多元素用神 weighted average 权重 (递减)
+# 单元素 → weights=[1.0]; 2 元素 → [0.625, 0.375]; 3 元素 → [0.5, 0.3, 0.2];
+# 4+ 元素 → 第 4 及以后权重 0 (截断保护)
+YONGSHEN_WEIGHTS: list[float] = [0.5, 0.3, 0.2]
