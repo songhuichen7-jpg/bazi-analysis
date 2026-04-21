@@ -23,10 +23,14 @@ from paipan.yongshen import _detect_transmutation
 def _is_same_combo(a: dict | None, b: dict | None) -> bool:
     """Plan 7.5b §3.3 — Compare two transmuted dicts for same trigger combo.
 
-    Returns True iff both non-None and trigger.type + zhi_list (set) match.
-    Filled in Task 2.
+    True iff both non-None AND trigger.type + zhi_list (as set) match.
+    Used for dedup: 大运 transmuted vs 命局-only baseline; 流年 vs 大运.
     """
-    return False   # stub
+    if not a or not b:
+        return False
+    if a['trigger']['type'] != b['trigger']['type']:
+        return False
+    return set(a['trigger']['zhi_list']) == set(b['trigger']['zhi_list'])
 
 
 def _detect_xingyun_transmutation(

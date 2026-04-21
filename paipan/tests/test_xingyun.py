@@ -5,6 +5,7 @@ import pytest
 
 from paipan import compute
 from paipan.xingyun import (
+    _is_same_combo,
     _trim_note,
     build_xingyun,
     _detect_ganhe,
@@ -268,6 +269,27 @@ def test_xingyun_chart_context_plumbing():
     assert 'force' in cc
     assert 'gan_he' in cc
     assert 'original_geju_name' in cc
+
+
+def test_is_same_combo_both_none_returns_false():
+    assert _is_same_combo(None, None) is False
+    assert _is_same_combo({'trigger': {}}, None) is False
+    assert _is_same_combo(None, {'trigger': {}}) is False
+
+
+def test_is_same_combo_same_type_same_zhi_returns_true():
+    a = {'trigger': {'type': 'sanHe', 'zhi_list': ['亥', '卯', '未']}}
+    b = {'trigger': {'type': 'sanHe', 'zhi_list': ['未', '亥', '卯']}}   # 顺序无关
+    assert _is_same_combo(a, b) is True
+
+
+def test_is_same_combo_different_type_or_zhi_returns_false():
+    a = {'trigger': {'type': 'sanHe', 'zhi_list': ['亥', '卯', '未']}}
+    b = {'trigger': {'type': 'sanHui', 'zhi_list': ['亥', '卯', '未']}}   # 不同 type
+    assert _is_same_combo(a, b) is False
+
+    c = {'trigger': {'type': 'sanHe', 'zhi_list': ['申', '子', '辰']}}   # 不同 zhi
+    assert _is_same_combo(a, c) is False
 
 
 def test_build_xingyun_returns_8_dayun():
