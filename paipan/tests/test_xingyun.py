@@ -197,11 +197,11 @@ def test_multi_element_yongshen_takes_max_score():
        - vs 木: 庚克木 -2, 申克木 -2 → -4
        - vs 土: 庚 not directly act on 土 (土生庚) → 用神土被泄 -1, 申 同 → -1
        - vs 金: 庚比助 +1, 申比助 +1 → +2
-       max = +2 → 喜
+       Plan 7.6 weighted: 0.5·-4 + 0.3·-2 + 0.2·2 = -2.2 → round = -2 → 忌
     """
     out = score_yun('庚申', '甲木 / 戊土 / 庚金', [], [])
-    assert out['label'] == '喜'
-    assert out['score'] >= 2
+    assert out['label'] == '忌'   # Plan 7.6: was 喜 under max, now 忌 under weighted avg
+    assert out['score'] == -2
 
 
 def test_multi_element_winning_element_recorded():

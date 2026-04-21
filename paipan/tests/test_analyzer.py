@@ -16,6 +16,9 @@ from paipan import compute
 
 
 GOLDEN = Path(__file__).parent.parent.parent / "server/tests/data/golden_analyzer_v2.json"
+# Plan 7.6 note: golden_analyzer_v2 remains the JS parity fixture except for
+# H_sanhui.dayStrength, which is now Python-authoritative 5-bin output ('极弱')
+# because li_liang's classifier intentionally supersedes the JS 3-bin value.
 CASE_IDS = ["A", "B", "C", "D", "E", "F", "G_sanhe", "H_sanhui", "I_ganhe_rizhu", "J_cong"]
 
 
