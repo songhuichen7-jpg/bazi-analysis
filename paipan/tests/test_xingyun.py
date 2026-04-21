@@ -5,6 +5,7 @@ import pytest
 
 from paipan import compute
 from paipan.xingyun import (
+    _detect_xingyun_transmutation,
     _is_same_combo,
     _trim_note,
     build_xingyun,
@@ -290,6 +291,172 @@ def test_is_same_combo_different_type_or_zhi_returns_false():
 
     c = {'trigger': {'type': 'sanHe', 'zhi_list': ['申', '子', '辰']}}   # 不同 zhi
     assert _is_same_combo(a, c) is False
+
+
+# === 大运层 detection ===
+
+def test_detect_xingyun_dayun_fires_when_dayun_zhi_completes_combo():
+    """命局 [子,寅,午,辰] (月令子) + 大运申 → 申子辰三合 + 月令子参与 → fire."""
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '午', '辰'],   # 命局 4 支, 月令子在内
+        dayun_zhi='申',
+        liunian_zhi=None,
+        rizhu_gan='丙',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+    )
+    assert result is not None
+    assert result['trigger']['type'] == 'sanHe'
+    assert result['trigger']['wuxing'] == '水'
+
+
+def test_detect_xingyun_dayun_dedups_when_combo_already_in_命局():
+    """命局 [酉,亥,卯,未] (月令亥, 已含完整亥卯未三合) + 大运丑 → 命局-only baseline 已触发 → 大运 dedup → None.
+
+    NOTE: dayun_zhi 必须是地支 (e.g. '丑' 取自 大运'癸丑' 的支位).
+    """
+    result = _detect_xingyun_transmutation(
+        month_zhi='亥',
+        base_mingju_zhis=['酉', '亥', '卯', '未'],   # 命局已自带亥卯未
+        dayun_zhi='丑',   # 癸丑大运 的 zhi 部分
+        liunian_zhi=None,
+        rizhu_gan='丁',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+    )
+    assert result is None   # 命局已自带亥卯未, 大运 dedup
+
+
+def test_detect_xingyun_dayun_no_trigger_when_dayun_zhi_irrelevant():
+    """命局 [子,寅,午,辰] + 大运未 → 未不参与任何月令子的合局 → None."""
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '午', '辰'],
+        dayun_zhi='未',
+        liunian_zhi=None,
+        rizhu_gan='丙',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+    )
+    assert result is None
+
+
+def test_detect_xingyun_dayun_sanhui_priority():
+    """命局 [子,寅,午,辰] + 大运卯 → 寅卯辰三会 (月令子不参与) + 申子辰三合 (缺申).
+    都不 fire. 所以 None.
+
+    设计另一个真触发同时多 combo 的场景比较难找。这个测试改为验证：
+    命局 [亥,子,丑,巳] (月令子, 自带亥子丑三会北方水) + 大运辰 → with-大运 [亥,子,丑,巳,辰]:
+      - 亥子丑三会水 ✓ (already in baseline)
+      - 申子辰三合 缺申
+    Baseline: 亥子丑三会水 (同上)
+    → dedup, return None
+    """
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['亥', '子', '丑', '巳'],
+        dayun_zhi='辰',
+        liunian_zhi=None,
+        rizhu_gan='壬',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+    )
+    assert result is None   # baseline 已 fire 三会, dedup
+
+
+# === 流年层 dedup ===
+
+def test_detect_xingyun_liunian_fires_when_dayun_baseline_no_combo():
+    """命局 + 大运 baseline 无合局 (dayun_transmuted=None), 流年支贡献第三支 → fire."""
+    # 命局 [子,寅,辰,亥] (月令子, 自带申子辰需申, 自带亥子丑需丑)
+    # 大运戌 → with-大运 [子,寅,辰,亥,戌]: 申子辰需申 (缺), 亥子丑需丑 (缺), 寅午戌需午 (缺), 亥子丑无完整, 月令子参与亥子丑但缺丑
+    # → 大运 transmuted = None
+    # 流年丑 → with-流年 [子,寅,辰,亥,戌,丑]: 亥子丑完整 + 月令子参与 → fire
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '辰', '亥'],
+        dayun_zhi='戌',
+        liunian_zhi='丑',
+        rizhu_gan='壬',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+        baseline_transmuted=None,   # 大运 baseline None
+    )
+    assert result is not None
+    assert result['trigger']['type'] == 'sanHui'   # 亥子丑三会
+
+
+def test_detect_xingyun_liunian_dedups_when_dayun_already_fired_same_combo():
+    """大运 transmuted = 申子辰; 流年带辰 (already in 大运) → 同 combo → dedup."""
+    fake_baseline = {
+        'trigger': {
+            'type': 'sanHe', 'wuxing': '水',
+            'zhi_list': ['申', '子', '辰'], 'main': '子',
+            'source': '三合申子辰局',
+        },
+    }
+    # 命局 [子,寅,午,丑] + 大运申 → 申子辰已 fire (大运 transmuted = fake_baseline)
+    # 流年辰 → with-流年 [子,寅,午,丑,申,辰]: 申子辰仍 fire (同 combo)
+    # → dedup, return None
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '午', '丑'],
+        dayun_zhi='申',
+        liunian_zhi='辰',
+        rizhu_gan='丙',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+        baseline_transmuted=fake_baseline,
+    )
+    assert result is None
+
+
+def test_detect_xingyun_liunian_fires_when_different_combo_than_dayun():
+    """大运 transmuted = 三合A; 流年带支触发不同三合B (月令同时在两个合局里) → fire."""
+    # 月令子 同时在 申子辰 和 亥子丑
+    # 命局 [子,申,辰,巳]: 大运甲带支 → no
+    # 实际很难构造干净, 用 mock baseline:
+    fake_baseline = {
+        'trigger': {
+            'type': 'sanHe', 'wuxing': '水',
+            'zhi_list': ['申', '子', '辰'], 'main': '子',
+            'source': '三合申子辰局',
+        },
+    }
+    # 命局 [子,寅,午,亥] + 大运丑 → 亥子丑三会 (子在其中)
+    # 流年丑同时也补全亥子丑
+    # 但大运已经触发亥子丑? wait, 大运丑 + 命局亥子 → 亥子丑完整, 月令子参与 → 大运也 fire 亥子丑
+    # 让 fake_baseline 是 申子辰; 实际 with-流年 触发 亥子丑 → 不同 combo → fire
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '午', '亥'],
+        dayun_zhi='丑',         # 大运丑
+        liunian_zhi='丑',        # 流年也丑 (mingju+dayun+liunian = [子,寅,午,亥,丑,丑])
+        rizhu_gan='丙',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+        baseline_transmuted=fake_baseline,   # 假装大运是申子辰 (实际此盘 baseline 应是亥子丑)
+    )
+    assert result is not None
+    # 流年触发的应该是亥子丑 (with-流年 result)
+    assert result['trigger']['type'] == 'sanHui'
+    assert set(result['trigger']['zhi_list']) == {'亥', '子', '丑'}
+
+
+def test_detect_xingyun_liunian_no_trigger_when_no_combo():
+    """命局 + 大运 + 流年 都不构成合局 → None."""
+    result = _detect_xingyun_transmutation(
+        month_zhi='子',
+        base_mingju_zhis=['子', '寅', '午', '辰'],
+        dayun_zhi='巳',
+        liunian_zhi='未',
+        rizhu_gan='丙',
+        force={'scores': {}}, gan_he={},
+        original_geju_name='正官格',
+        baseline_transmuted=None,
+    )
+    assert result is None
 
 
 def test_build_xingyun_returns_8_dayun():

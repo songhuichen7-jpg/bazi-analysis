@@ -45,11 +45,49 @@ def _detect_xingyun_transmutation(
     original_geju_name: str,
     baseline_transmuted: dict | None = None,
 ) -> dict | None:
-    """Plan 7.5b §3.3 — 检测大运/流年 transmutation, 含 dedup logic.
+    """Detect 大运/流年 transmutation with dedup. Spec §3.3.
 
-    Filled in Task 3.
+    Args:
+        month_zhi: 月令地支
+        base_mingju_zhis: 命局 4 支
+        dayun_zhi: 大运地支
+        liunian_zhi: 流年地支 (None for 大运 entry detection)
+        rizhu_gan/force/gan_he/original_geju_name: passed through to _detect_transmutation
+        baseline_transmuted: 大运 entry's already-computed transmuted (for 流年 dedup)
+
+    Returns transmuted dict or None.
     """
-    return None   # stub
+    if liunian_zhi is None:
+        # 大运 entry: dedup against 命局-only baseline
+        with_dayun = _detect_transmutation(
+            month_zhi,
+            base_mingju_zhis + [dayun_zhi],
+            rizhu_gan, force, gan_he,
+            original_geju_name=original_geju_name,
+        )
+        if not with_dayun:
+            return None
+        baseline = _detect_transmutation(
+            month_zhi, base_mingju_zhis,
+            rizhu_gan, force, gan_he,
+            original_geju_name=original_geju_name,
+        )
+        if _is_same_combo(with_dayun, baseline):
+            return None
+        return with_dayun
+    else:
+        # 流年 entry: dedup against 大运 transmuted
+        with_liunian = _detect_transmutation(
+            month_zhi,
+            base_mingju_zhis + [dayun_zhi, liunian_zhi],
+            rizhu_gan, force, gan_he,
+            original_geju_name=original_geju_name,
+        )
+        if not with_liunian:
+            return None
+        if _is_same_combo(with_liunian, baseline_transmuted):
+            return None
+        return with_liunian
 
 
 def _classify_score(score: int) -> str:
