@@ -42,7 +42,7 @@ paipan/
 └── tests/
     ├── test_xingyun.py         # MODIFY (+9 + update ~5 existing)
     ├── test_xingyun_data.py    # MODIFY (+1)
-    ├── test_force.py or test_li_liang.py  # MODIFY (+5)
+    ├── unit/test_force.py (or test_li_liang.py)  # MODIFY (+5)
     └── test_yongshen.py        # MODIFY (+2)
 ```
 
@@ -179,7 +179,7 @@ Record sampling output values in the subsequent Task 1 commit message for tracea
 
 **Files:**
 - Modify: `paipan/paipan/li_liang.py` (add thresholds + extend branch)
-- Modify: `paipan/tests/test_force.py` (or test_li_liang.py) — 5 boundary tests
+- Modify: `paipan/tests/unit/test_force.py` (or test_li_liang.py) — 5 boundary tests
 
 - [ ] **Step 1.1: Read current li_liang.py dayStrength block**
 
@@ -258,7 +258,7 @@ Verify:
 
 - [ ] **Step 1.4: Write 5 boundary tests**
 
-Create or append to `paipan/tests/test_force.py` (or `test_li_liang.py` if that's the existing file):
+Create or append to `paipan/tests/unit/test_force.py` (or `test_li_liang.py` if that's the existing file):
 
 The existing li_liang.py `compute_li_liang(...)` function is the classifier entry. It doesn't expose a separate classifier — the branch lives inline. For tests, we can either:
 - (a) Refactor: extract a small `_classify_day_strength(same_ratio: float) -> str` helper and unit-test it directly
@@ -333,7 +333,7 @@ def test_day_strength_极弱_below_ji_ruo():
 - [ ] **Step 1.5: Run tests**
 
 ```
-uv run --package paipan pytest -q paipan/tests/test_force.py -v -k "day_strength"
+uv run --package paipan pytest -q paipan/tests/unit/test_force.py -v -k "day_strength"
 ```
 Expected: 5 passed.
 
@@ -354,7 +354,7 @@ If you see failures in test_yongshen_*_golden or test_xingyun_*_golden, record t
 - [ ] **Step 1.7: Commit**
 
 ```bash
-git add paipan/paipan/li_liang.py paipan/tests/test_force.py
+git add paipan/paipan/li_liang.py paipan/tests/unit/test_force.py
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 feat(paipan): Plan 7.6 #4 li_liang 5-bin upgrade
 
