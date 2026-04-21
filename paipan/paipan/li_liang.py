@@ -32,12 +32,35 @@ from paipan.ganzhi import GAN_WUXING, WUXING_KE, WUXING_SHENG
 from paipan.he_ke import find_gan_he, is_gan_he
 from paipan.shi_shen import SHI_SHEN_PAIRS, get_shi_shen
 
+# Plan 7.6 §4.3 — 5-bin day_strength thresholds (keyed on same_ratio ∈ [0, 1]).
+# Existing Plan 7.3 boundaries (0.55 / 0.35 / 0.15) are now named.
+# 极强 / 极弱 boundaries come from Task 0 sampling
+# (seed=42, N=1000, paipan/scripts/sample_day_strength.py).
+THRESHOLD_JI_QIANG = 0.76
+THRESHOLD_SHEN_QIANG = 0.55
+THRESHOLD_ZHONG_HE = 0.35
+THRESHOLD_JI_RUO = 0.12
+THRESHOLD_CONG_CANDIDATE = 0.15
+
 
 def _js_round(x: float) -> int:
     """Match JS ``Math.round`` (half-away-from-zero)."""
     if x >= 0:
         return math.floor(x + 0.5)
     return -math.floor(-x + 0.5)
+
+
+def _classify_day_strength(same_ratio: float) -> str:
+    """Classify day strength from the same-side force ratio."""
+    if same_ratio >= THRESHOLD_JI_QIANG:
+        return "极强"
+    if same_ratio >= THRESHOLD_SHEN_QIANG:
+        return "身强"
+    if same_ratio >= THRESHOLD_ZHONG_HE:
+        return "中和"
+    if same_ratio >= THRESHOLD_JI_RUO:
+        return "身弱"
+    return "极弱"
 
 
 WEIGHTS: dict[str, float] = {
@@ -188,15 +211,9 @@ def analyze_force(bazi: dict) -> dict:
     )
     total_score = same_side_score + other_side_score
     same_ratio = same_side_score / total_score if total_score > 0 else 0
+    day_strength = _classify_day_strength(same_ratio)
 
-    if same_ratio >= 0.55:
-        day_strength = "身强"
-    elif same_ratio <= 0.35:
-        day_strength = "身弱"
-    else:
-        day_strength = "中和"
-
-    cong_candidate = same_ratio <= 0.15
+    cong_candidate = same_ratio <= THRESHOLD_CONG_CANDIDATE
 
     pairs: dict[str, list[dict]] = {}
     for group, members in SHI_SHEN_PAIRS.items():
