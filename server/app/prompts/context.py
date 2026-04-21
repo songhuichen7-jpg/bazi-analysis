@@ -105,6 +105,23 @@ def _render_xingyun_block(paipan: dict) -> list[str]:
             f"  {marker}{entry['startAge']}-{end_age}岁  "
             f"{entry['ganzhi']}  {glyph}{entry['label']}  {entry['note']}"
         )
+        # Plan 7.5b: dayun-level transmutation
+        transmuted = entry.get('transmuted')
+        if transmuted:
+            trig = transmuted['trigger']
+            lines.append(
+                f"      ⟳ 月令变化  {transmuted['from']} → {transmuted['to']}  {trig['source']}"
+            )
+            cand = transmuted['candidate']
+            cand_name = cand.get('name', '?')
+            cand_note = cand.get('note', '')
+            cand_src = cand.get('source', '')
+            line = f"        格局新候选：{cand_name}"
+            if cand_note:
+                line += f"（{cand_note}）"
+            if cand_src:
+                line += f"  {cand_src}"
+            lines.append(line)
 
     if cur_idx is not None:
         ln_list = xy.get('liunian', {}).get(str(cur_idx), [])
@@ -121,6 +138,23 @@ def _render_xingyun_block(paipan: dict) -> list[str]:
                         f"      {ly['year']}({ly['ganzhi']},{ly['age']}岁)  "
                         f"{glyph}{ly['label']}  {ly['note']}"
                     )
+                    # Plan 7.5b: liunian-level transmutation
+                    transmuted = ly.get('transmuted')
+                    if transmuted:
+                        trig = transmuted['trigger']
+                        lines.append(
+                            f"        ⟳ 月令变化  {transmuted['from']} → {transmuted['to']}  {trig['source']}"
+                        )
+                        cand = transmuted['candidate']
+                        cand_name = cand.get('name', '?')
+                        cand_note = cand.get('note', '')
+                        cand_src = cand.get('source', '')
+                        line = f"          格局新候选：{cand_name}"
+                        if cand_note:
+                            line += f"（{cand_note}）"
+                        if cand_src:
+                            line += f"  {cand_src}"
+                        lines.append(line)
 
     return lines
 

@@ -92,3 +92,54 @@ def test_skips_block_when_xingyun_dayun_empty_中和():
     paipan = _sample_paipan(xy)
     text = compact_chart_context(paipan)
     assert '行运（' not in text
+
+
+def test_renders_xingyun_dayun_transmuted_block():
+    """Plan 7.5b §5.3: dayun entry with transmuted renders ⟳ block."""
+    xy = _make_xingyun_with_label('喜')
+    # Inject transmuted into 大运 4 (current)
+    xy['dayun'][3]['transmuted'] = {
+        'trigger': {
+            'type': 'sanHe', 'wuxing': '木', 'main': '卯',
+            'zhi_list': ['亥', '卯', '未'], 'source': '三合亥卯未局',
+        },
+        'from': '正官格',
+        'to': '偏印格',
+        'candidate': {
+            'method': '格局', 'name': '官（官印相生）',
+            'note': '偏印得官杀生', 'source': '子平真诠·论印绶',
+        },
+        'warning': None,
+        'alternateTriggers': [],
+    }
+    paipan = _sample_paipan(xy)
+    text = compact_chart_context(paipan)
+    assert '⟳ 月令变化' in text
+    assert '正官格 → 偏印格' in text
+    assert '三合亥卯未局' in text
+    assert '格局新候选：官（官印相生）' in text
+
+
+def test_renders_xingyun_liunian_transmuted_block():
+    """Plan 7.5b §5.3: liunian entry with transmuted renders ⟳ block (deeper indent)."""
+    xy = _make_xingyun_with_label('喜')
+    cur_idx = xy['currentDayunIndex']
+    # Inject transmuted into liunian[cur_idx][2]
+    xy['liunian'][str(cur_idx)][2]['transmuted'] = {
+        'trigger': {
+            'type': 'sanHui', 'wuxing': '水', 'main': '子',
+            'zhi_list': ['亥', '子', '丑'], 'source': '三会北方',
+        },
+        'from': '正财格',
+        'to': '七杀格',
+        'candidate': {
+            'method': '格局', 'name': '食神（制杀）',
+            'note': '...', 'source': '子平真诠·论偏官',
+        },
+        'warning': '...',
+        'alternateTriggers': [],
+    }
+    paipan = _sample_paipan(xy)
+    text = compact_chart_context(paipan)
+    assert '三会北方' in text
+    assert '正财格 → 七杀格' in text
