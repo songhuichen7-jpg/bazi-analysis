@@ -208,8 +208,13 @@ def build_messages(
             parts.append(ctx)
 
     # Classical anchor (skip for chitchat)
+    # NOTE: terse=False — chat path needs full classical text (up to PER_SOURCE_MAX
+    # ≈ 2500 chars × ~3 sources within TOTAL_MAX 6000) so LLM can quote 古籍 in
+    # depth. terse=True (200-char truncation) was the Plan 6 default and made
+    # chat replies feel thin compared to sections (which always used terse=False).
+    # See investigation notes in commit message.
     if intent != "chitchat":
-        anchor = build_classical_anchor(retrieved or [], terse=True)
+        anchor = build_classical_anchor(retrieved or [], terse=False)
         if anchor:
             parts.append(anchor)
 
