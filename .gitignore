@@ -19,3 +19,7 @@ build/
 
 # git worktrees
 .claude/worktrees/
+
+# Local browser-smoke artifacts and runtime caches (entire .claire/)
+# Release-notes reference smoke screenshots there as a local-only convention
+.claire/
