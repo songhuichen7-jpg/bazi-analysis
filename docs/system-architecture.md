@@ -1,7 +1,8 @@
 # 系统架构文档
 
-> 版本：MVP (2026-04)
-> 本文根据现有代码重新整理，替换旧版本。目标是让新加入的人能在 15 分钟内理解整个系统是怎么跑起来的。
+> 版本：Plan 7.x 完整体（2026-04-22）
+> 本文反映当前主线代码，目标是新加入的人能在 30 分钟内理解整个系统。
+> 旧版本（描述 Node.js MVP）见 git history。
 
 ---
 
@@ -9,11 +10,11 @@
 
 一款面向个人用户的八字分析 Web App：
 
-- **输入**：出生年月日时 + 出生地 + 性别。
-- **输出**：结构化命盘（四柱、十神、力量、大运流年）+ 流式文字解读 + 基于命盘的多轮对话 + 梅花易数起卦。
-- **风格**：古籍有据、口吻克制、承认不确定性；命不是判决书，是一张地形图。
+- **输入**：出生年月日时 + 出生地 + 性别
+- **输出**：结构化命盘（四柱、十神力量、三法用神、行运评分、大运/流年 transmutation）+ 流式文字解读 + 基于命盘的多轮对话 + 梅花易数起卦
+- **风格**：古籍有据、口吻克制；命理引擎给 LLM 注入结构化信号 + 古籍出处，LLM 做 ZPZQ-style 二阶推理
 
-MVP 范围内**不做**：多人账号、云端持久化、付费、移动端适配、AI 画像生成。
+不在当前范围：移动端适配、AI 画像生成、付费体系。
 
 ---
 
@@ -21,28 +22,61 @@ MVP 范围内**不做**：多人账号、云端持久化、付费、移动端适
 
 ```
 bazi-analysis/
-├── frontend/              # React + Vite 前端
-├── server/                # Node 原生 HTTP 后端（port 3101）
-│   ├── server.js          # 所有路由 + SSE 逻辑
-│   ├── prompts.js         # 所有 LLM 提示词构造器
-│   ├── llm.js             # MiMo 客户端 + 分层/回退策略
-│   ├── retrieval.js       # 古籍检索
-│   ├── verdicts.js        # 总论单段流式生成
-│   ├── gua.js             # 时间起卦
-│   └── data/              # 5 部古籍片段 + verdicts 模板
-├── paipan-engine/         # 纯计算模块：真太阳时 + 干支 + 十神 + 力量 + 格局
-├── classics/              # 完整古籍原文（检索语料来源）
-├── shards/                # 按意图切分的提示词片段
-├── scripts/               # 数据预处理、索引构建
-├── docs/                  # 文档（本文）
-├── SKILL.md               # 基础分析准则（每次 LLM 调用都会带上）
-├── conversation-guide.md  # 对话口吻与排版约束
-├── classical-references.md  # 古籍锚点选择指南
-├── advanced-techniques.md   # 高级技法补充
-└── synthesizer-bug-prevention.md  # 避免常见合成性错误
+├── frontend/                # React 19 + Vite 8
+│   ├── src/
+│   │   ├── components/      # FormScreen / Shell / Chart / Chat / ...
+│   │   ├── store/           # Zustand store
+│   │   └── lib/             # api / persistence / formatting
+│   └── tests/               # 51 tests (node:test)
+├── server/                  # FastAPI + SQLAlchemy 2.0
+│   ├── app/
+│   │   ├── api/             # 路由（auth / charts / conversations / chat / gua）
+│   │   ├── core/            # config / db / auth / quotas
+│   │   ├── llm/             # MIMO client + streaming
+│   │   ├── models/          # SQLAlchemy models (User / Chart / Conversation / Message / QuotaUsage)
+│   │   ├── prompts/         # context / expert / router / loader / gua
+│   │   ├── retrieval/       # 古籍检索 (loader + service)
+│   │   ├── schemas/         # Pydantic schemas
+│   │   └── services/        # auth / chart / conversation / gua_cast / sms_service
+│   └── tests/               # 439 tests
+├── paipan/                  # 排盘 + 命理分析引擎（纯 Python）
+│   ├── paipan/
+│   │   ├── compute.py       # 主入口
+│   │   ├── ganzhi.py        # 干支基础表
+│   │   ├── cang_gan.py      # 地支藏干
+│   │   ├── shi_shen.py      # 十神
+│   │   ├── li_liang.py      # 力量评分 + dayStrength 5-bin (Plan 7.6)
+│   │   ├── ge_ju.py         # 格局识别
+│   │   ├── he_ke.py         # 干支合冲三合三会
+│   │   ├── analyzer.py      # 命局分析合成器
+│   │   ├── yongshen.py      # 用神 engine (Plan 7.3 三法 + 7.5a 静态 transmutation)
+│   │   ├── yongshen_data.py # 120 TIAOHOU + ~30 GEJU_RULES + 5 FUYI_CASES
+│   │   ├── xingyun.py       # 行运 engine (Plan 7.4 评分 + 7.5b 动态 transmutation + 7.7 cross)
+│   │   ├── xingyun_data.py  # GAN_HE / ZHI_LIUHE / weights / thresholds
+│   │   ├── mechanism_tags.py # mechanism 词汇表 (Plan 7.5a.1)
+│   │   ├── dayun.py         # 大运 + 流年起运
+│   │   ├── china_dst.py     # 中国历史夏令时
+│   │   └── ...
+│   ├── scripts/
+│   │   └── sample_day_strength.py  # Plan 7.6 sampling pre-task
+│   └── tests/               # 632 tests
+├── classics/                # 古籍真本 (穷通宝鉴/子平真诠/滴天髓/三命通会/渊海子平/周易)
+├── shards/                  # 主题 prompt 片段 (10 个)
+├── docs/
+│   ├── superpowers/         # spec / plan / 实施过程 (Plan 6 → 7.7)
+│   ├── release-notes/       # 各 Plan 发布说明
+│   ├── skills/              # 命理方法论 companion docs
+│   ├── bazi-analysis/       # 设计文档
+│   ├── system-architecture.md   # 本文
+│   └── paipan-port-inventory.md # JS→Python port 清单
+├── archive/                 # 历史 JS 实现 (paipan-engine / server-mvp)，Python 代码 reference 作为 source-of-truth
+├── SKILL.md                 # 命理方法论 (runtime 加载到 LLM prompt)
+├── conversation-guide.md    # 对话节奏 (runtime 加载)
+├── classical-references.md  # 古籍检索路径表
+└── pyproject.toml           # workspace 根 (uv)
 ```
 
-顶层没有 monorepo 工具，`frontend/`、`server/`、`paipan-engine/` 各自有独立 `package.json`，通过相对路径 `require('../paipan-engine/...')` 在 server 中引用。
+`paipan/`、`server/`、`frontend/` 是相对独立的 sub-projects；通过 `pyproject.toml` workspace 关联。Python 部分用 `uv` 管理。
 
 ---
 
@@ -50,13 +84,15 @@ bazi-analysis/
 
 | 层 | 选型 | 备注 |
 |---|---|---|
-| 前端 | React 19 + Vite 8 | 无路由库，单屏切换；Zustand 5 管状态 |
-| 状态持久化 | `localStorage` v3 schema | 多命盘 + 每命盘多对话 |
-| 后端 | Node.js 原生 `http` | 无框架，所有路由写在 `server.js` 里 |
-| LLM | MiMo API（OpenAI 协议兼容） | `mimo-v2-pro`（主）+ `mimo-v2-flash`（快/回退） |
-| 流式 | SSE（`text/event-stream`） | 自定义事件：`delta` / `done` / `error` / `model` / `intent` / `retrieval` / `gua` / `redirect` |
-| 排盘 | 纯 JS 计算 | `lunar-javascript` 生成干支，自己实现力量、格局、大运流年 |
-| 起卦 | 梅花易数·时间起卦 | 同样基于 `lunar-javascript` |
+| 前端 | React 19 + Vite 8 | 无路由库，screen 字段切屏；Zustand 5 管状态 |
+| 后端 | FastAPI + SQLAlchemy 2.0 (async) + asyncpg | Python 3.12, uvicorn `:3101` |
+| DB | PostgreSQL | 服务端持久化（Plan 6 取代 localStorage） |
+| 认证 | 手机号 + SMS 验证码 | DEV mode 在 UI surface code |
+| LLM | MIMO API（OpenAI 协议兼容） | `mimo-v2-pro` 主 + `mimo-v2-flash` 快/回退 |
+| 流式 | SSE (`text/event-stream`) | 自定义事件: `delta` / `done` / `error` / `model` / `intent` / `retrieval` / `gua` / `redirect` |
+| 命理引擎 | 纯 Python | 完整 Plan 7.x 系列：用神三法 + 行运 5-bin + transmutation 双层 |
+| 起卦 | 梅花易数·时间起卦 | 基于 lunar-python |
+| 测试 | pytest (paipan + server) + node:test (frontend) | 632 + 439 + 51 = 1122 全绿 |
 
 ---
 
@@ -65,294 +101,322 @@ bazi-analysis/
 ### 4.1 屏幕流
 
 ```
-FormScreen  ──填完出生信息──▶  POST /api/paipan  ──▶  Shell
-                                                   │
-                                                   ├── 左栏：命盘视图 / 流年视图（view switch）
-                                                   └── 右栏：聊天 + 多对话切换
+LandingScreen ─登录入口─▶  AuthScreen  ──短信验证码──▶
+FormScreen    ──填出生信息──▶  POST /api/charts/paipan  ──▶  Shell
+                                                          │
+                                                          ├── 左栏: 命盘视图 / 行运视图
+                                                          └── 右栏: Chat + 多对话 switcher
 ```
 
-只有两个"屏"：`FormScreen`（首屏输入表单）和 `Shell`（主工作区）。切屏靠 Zustand 的 `screen` 字段控制；无 React Router。
+由 Zustand 的 `screen` 字段控制（`landing` / `auth` / `input` / `loading` / `shell`）；无 React Router。
 
-### 4.2 组件清单
-
-位置：`frontend/src/components/`
+### 4.2 关键 component（`frontend/src/components/`）
 
 | 组件 | 职责 |
 |---|---|
-| `FormScreen.jsx` | 出生信息表单：日期、时辰、城市选择、性别 |
-| `Shell.jsx` | 主布局：左右双栏 + 可拖拽 resize handle；管理 `view` 切换 |
-| `Chart.jsx` | 四柱命盘主图（年月日时） |
-| `Meta.jsx` | `BirthHeader` / `MetaGrid` / `ReadingHeader` 三个小块 |
-| `Force.jsx` | 十神力量条 + `GuardList`（结构提示） |
-| `Sections.jsx` | 七个分析板块（性格、事业、财运、感情、健康、相貌、特殊格局） |
-| `VerdictsPanel.jsx` | 总论面板（单段流式） |
-| `Dayun.jsx` | 大运表 |
-| `DayunStepBody.jsx` | 单个大运展开后的流式分析 |
-| `LiunianBody.jsx` | 单个流年展开后的流式分析 |
-| `Chat.jsx` | 右栏对话，含默认 chips、CTA 气泡、卦象卡片、错误气泡 |
-| `ConversationSwitcher.jsx` | 当前命盘下的多对话下拉（新建/切换/重命名/删除） |
-| `ChartSwitcher.jsx` | 多命盘切换下拉 |
-| `Gua.jsx` / `GuaCard.jsx` | 卦象起卦与展示 |
-| `RefChip.jsx` | 古籍引用小标签 + `RichText`（内联 markdown 解析） |
-| `ErrorState.jsx` | 统一错误气泡，含可重试按钮 |
-| `Skeleton.jsx` | 加载态占位 |
+| `LandingScreen` | 首页（介绍 + 登录入口） |
+| `AuthScreen` | 手机号 + 短信验证码登录 |
+| `FormScreen` | 出生信息表单 |
+| `Shell` | 主布局：左右双栏 + resize handle + 视图切换 |
+| `Chart` | 四柱命盘主图 |
+| `Force` | 十神力量条 |
+| `Sections` | 七板块解读 |
+| `VerdictsPanel` | 总论面板（单段流式） |
+| `Dayun` / `DayunStepBody` / `LiunianBody` | 大运 / 流年展开 |
+| `Chat` | 主对话区（含 chips / CTA / 卦象卡 / 错误气泡） |
+| `ConversationSwitcher` | 当前命盘下的多对话下拉 |
+| `Gua` / `GuaCard` | 卦象起卦与展示 |
+| `UserMenu` | 左上角用户头像 + 登出 |
 
 ### 4.3 状态 (`store/useAppStore.js`)
 
-单个 Zustand store，关键片段：
-
 ```js
-// 当前命盘的字段（会随命盘切换整体替换）
-const CHART_FIELDS = [
-  'meta', 'paipan', 'force', 'guards', 'dayun',
-  'sections', 'verdicts',
-  'conversations', 'currentConversationId',  // ← 多对话
-  'gua',
-];
-
-// 命盘集合
-charts: [{ id, label, ...CHART_FIELDS, ts }, ...],
-currentChartId,
-
-// 单命盘内部的多对话
-conversations: [
-  {
-    id, label,               // label 会根据第一条用户消息自动改写
-    messages: [...],         // { role: 'user'|'assistant'|'gua'|'cta', content }
-    ts,
-  },
-  ...
-],
-currentConversationId,
+// 命盘+对话来自服务端，本地缓存以加速切换
+charts: [{ id, label, paipan, dayun, conversations: [...], ... }, ...]
+currentChartId
+currentConversationId
+user: { phone, ... } | null
+screen: 'landing'|'auth'|'input'|'loading'|'shell'
 ```
 
-**多对话的关键设计**：
-
-- 每个命盘独立持有 `conversations` 数组。切命盘 = 整组对话换掉。
-- 所有聊天 mutation（`pushChat` / `replaceLastAssistant` / `pushGuaCard` / `clearChat` …）走一个叫 `syncActive()` 的辅助函数——既写入 `chatHistory`（兼容旧代码），也写回 `conversations[current].messages`，并在首条用户消息出现时把 "默认对话"/"新对话" 自动改名成问题前几字。
-- `clearChat` 只清当前对话，不清其他对话。
-- `newConversation()` / `switchConversation()` / `deleteConversation()` / `renameConversation()` 在 store 里实现；UI 由 `ConversationSwitcher` 提供。
-- 旧数据（只有 `chatHistory` 无 `conversations` 的命盘）通过 `hydrateConversations()` 在恢复时自动迁移成单对话。
-
-### 4.4 持久化 (`lib/persistence.js` + `lib/constants.js`)
-
-```js
-export const STORAGE_KEY = 'bazi_session_v1';
-export const SESSION_VERSION = 3;
-export const MAX_CHARTS = 10;
-```
-
-- 策略：写回 `localStorage[STORAGE_KEY]`，JSON 序列化整个 store 的可持久化子集。
-- 保留最近 **10** 张命盘；超过按时间淘汰。
-- 每次 store mutation 触发（useAppStore 内部订阅）。版本不匹配会清空并弹出提示。
-
-### 4.5 API 客户端 (`lib/api.js`)
-
-- `postJSON(url, body)`：普通 JSON 请求，统一错误处理。
-- `streamSSE(url, body, handlers)`：SSE 流式调用，解析 `data: ...` 行并分发到 `onDelta` / `onDone` / `onError` / `onModel` / `onIntent` / `onRedirect` / `onRetrieval` / `onGua`。
-- 所有对 `/api/...` 的请求都经过这里。
-
-### 4.6 Markdown 解析
-
-`RefChip.jsx` 内的 `RichText` 做内联 markdown：`**bold**` / `*italic*` / `` `code` ``；行首的 `#`、`-`、`*` 等标记被剥除，避免 LLM 吐出裸 markdown 符号。
+Plan 6 之后：所有 conversation/messages 服务端持久化，前端只缓存 hot 数据。切命盘/对话调 API 拉新数据，不依赖 localStorage。
 
 ---
 
 ## 5. 后端架构
 
-### 5.1 路由表
+### 5.1 路由表（FastAPI）
 
-入口 `server/server.js`，10 个路由，全部裸 Node HTTP + 手写 router：
-
-| Method | Path | 响应 | 说明 |
-|---|---|---|---|
-| GET | `/api/health` | JSON | 探活 |
-| GET | `/api/cities` | JSON | 已知城市列表（本地 `cities.js`） |
-| POST | `/api/paipan` | JSON | 排盘入口。body: 出生信息。返回 `{ paipan, analyze, ui, meta }` |
-| POST | `/api/sections` | SSE | 七板块解读，按板块分段流式；事件包含 `section` + `delta` + `done` |
-| POST | `/api/verdicts` | SSE | **总论**。单段流式，一次到底，不再分 pick/explain |
-| POST | `/api/dayun-step` | SSE | 单个大运展开 |
-| POST | `/api/liunian` | SSE | 单个流年展开 |
-| POST | `/api/chips` | JSON | 生成聊天区默认建议问题（第一人称） |
-| POST | `/api/chat` | SSE | 主对话。含意图识别 → 占卜重定向 / 普通回答 |
-| POST | `/api/gua` | SSE | 时间起卦 + 流式解卦 |
-
-所有 LLM 路由走 SSE；返回头：`Content-Type: text/event-stream`。
-
-### 5.2 LLM 客户端 (`server/llm.js`)
-
-MiMo API 走 OpenAI 兼容协议。环境变量：
-
-| 变量 | 默认 | 说明 |
+| Method | Path | 说明 |
 |---|---|---|
-| `MIMO_API_KEY` | —（必填） | API Key |
-| `MIMO_BASE_URL` | `https://api.xiaomimimo.com/v1` | 接入点 |
-| `LLM_MODEL` | `mimo-v2-pro` | 默认主模型 |
-| `LLM_FAST_MODEL` | `mimo-v2-flash` | 快模型（chips 等轻任务） |
-| `LLM_FALLBACK_MODEL` | `mimo-v2-flash` | 主模型超时时回退 |
-| `STREAM_FIRST_DELTA_MS` | 未设 | 首个 delta 超时毫秒，到点就触发 fallback |
+| GET | `/api/health` | 探活（含 LLM 配置状态） |
+| POST | `/api/auth/sms-send` | 发送短信验证码 |
+| POST | `/api/auth/sms-verify` | 验证码登录/注册 |
+| GET | `/api/auth/me` | 当前用户 |
+| POST | `/api/auth/logout` | 登出 |
+| GET | `/api/cities` | 城市列表 |
+| POST | `/api/charts/paipan` | 排盘+持久化 |
+| GET | `/api/charts/{id}` | 拉命盘详情 |
+| GET | `/api/charts` | 用户命盘列表 |
+| DELETE | `/api/charts/{id}` | 删命盘 |
+| POST | `/api/charts/{id}/sections` (SSE) | 七板块流式解读 |
+| POST | `/api/charts/{id}/verdicts` (SSE) | 总论流式 |
+| POST | `/api/charts/{id}/dayun-step` (SSE) | 单大运展开 |
+| POST | `/api/charts/{id}/liunian` (SSE) | 单流年展开 |
+| POST | `/api/charts/{id}/chips` | 建议问题 |
+| GET | `/api/charts/{id}/conversations` | 对话列表 |
+| POST | `/api/charts/{id}/conversations` | 新建对话 |
+| PATCH | `/api/conversations/{id}` | 重命名 |
+| DELETE | `/api/conversations/{id}` | 删除 |
+| GET | `/api/conversations/{id}/messages` | 拉消息 |
+| POST | `/api/conversations/{id}/chat` (SSE) | 主对话 |
+| POST | `/api/charts/{id}/gua` (SSE) | 起卦 + 解卦 |
+| GET | `/api/quota` | 当日 quota 用量 |
 
-导出：`chat` / `chatStream` / `chatWithFallback` / `chatStreamWithFallback` / `hasKey` / `DEFAULT_MODEL` / `FAST_MODEL` / `FALLBACK_MODEL`。
+所有 LLM 路由走 SSE。
 
-**分层策略**：
+### 5.2 LLM 客户端 (`server/app/llm/`)
 
-- 重型任务（sections / verdicts / dayun-step / liunian / chat）走 `chatStreamWithFallback`：优先 pro；若首个 delta 超时，无缝切 flash。
-- 轻型任务（chips、意图分类）直接走 `FAST_MODEL`。
-- SSE 会发 `model` 事件告诉前端实际用的是哪个模型（**不再**把 "主模型反应慢" 提示渲染给用户——前端吞下该事件仅用于埋点）。
+MIMO API 走 OpenAI 兼容协议。同样是分层策略：
+- 重型任务 (sections / verdicts / dayun-step / liunian / chat) → `chat_stream_with_fallback` (pro 优先, 首 delta 超时切 flash)
+- 轻型任务 (chips / 意图分类) → 直接 `FAST_MODEL`
+- SSE 事件 `model` 告诉前端实际模型，**不渲染给用户**
 
-### 5.3 提示词 (`server/prompts.js`)
+### 5.3 提示词 (`server/app/prompts/`)
 
-单文件承载所有提示词构造器，约 1000 行。核心函数：
-
-| 函数 | 用途 |
+| 模块 | 用途 |
 |---|---|
-| `compactChartContext(ui)` | 把命盘数据压缩成 LLM 可读的紧凑上下文；**每次调用都会注入**，保证模型知道在算的是哪张盘 |
-| `buildSectionsMessages` | 七板块解读 |
-| `buildVerdictsMessages` | 总论单段（古籍锚点 → 一生的形状 → 几重张力 → 一生的课题 → 收尾） |
-| `buildDayunStepMessages` / `buildLiunianMessages` | 运程展开 |
-| `buildChatMessages` | 主对话（含意图 shard 注入） |
-| `buildIntentClassifierMessages` | LLM 意图分类器（chat / divination / meta / …） |
-| `buildChipsMessages` | 建议问题。强制**第一人称**："我七杀这么重……" / "我丁卯大运……"；不允许出现 "你"、"您"、"这张盘" |
-| `buildGuaMessages` | 梅花易数解卦 |
+| `loader.py` | runtime 加载 SKILL.md + conversation-guide.md + shards/*.md |
+| `context.py` | `compact_chart_context(paipan)` — 把命盘压缩成 LLM 紧凑上下文（含 Plan 7.3 用神块 + Plan 7.4 行运块 + Plan 7.5a/7.5b transmutation 段） |
+| `expert.py` | 主对话 + 各 section 解读 prompt 构造 |
+| `router.py` | 意图分类（chat / divination / meta / smalltalk） |
+| `anchor.py` | 古籍锚点构造 |
+| `gua.py` | 卦象解卦 prompt |
 
-**提示词资产加载顺序**：`SKILL.md`（基础准则） + `conversation-guide.md`（口吻排版） + 意图对应 shard（`shards/core.md`、`career.md`、`relationship.md` …） + 可选古籍检索结果。`classical-references.md` / `advanced-techniques.md` / `synthesizer-bug-prevention.md` 作为背景知识按需引用。
+`compact_chart_context` 是**Plan 7.x 的核心成果**——LLM 每次都看到结构化用神 + 评分 + transmutation + 古籍出处，不再依赖通用命理知识 hedge。
 
-### 5.4 意图路由（chat）
+### 5.4 古籍检索 (`server/app/retrieval/`)
 
-`POST /api/chat` 两阶段：
-
-1. **关键词兜底路由**：常见占卜触发词（"卦"、"占"、"算一下"、"该不该" + 具体事件）直接判为 `divination`。
-2. **LLM 分类器**：关键词未命中时，用 `FAST_MODEL` 跑一次轻量分类（chat / divination / meta / smalltalk 等），返回 `{ intent, reason, source }`。
-
-路由完成后：
-
-- `intent === 'divination'` → 通过 SSE `redirect` 事件告诉前端跳 `/api/gua`，并在聊天气泡位置插入 CTA 卡片（"起一卦 / 用命盘直接分析"）。
-- 其它意图 → 按 intent 选 shard，拼 `buildChatMessages`，`chatStreamWithFallback` 流出 `delta`。
-- 前端可传 `bypassDivination: true` 强制走命盘路径（"用命盘直接分析" 按钮就是这样）。
-
-### 5.5 古籍检索 (`server/retrieval.js`)
-
-- 数据源：`server/data/` 下预切好的 5 部古籍片段（子平真诠 / 滴天髓 / 穷通宝鉴 / 三命通会 / 渊海子平）。原始全文在顶层 `classics/`，切分脚本在 `scripts/`。
-- `retrieveForChart(chart, intent)`：按意图（meta / career / relationship / …）挑相关片段，返回锚点引用。被 sections / verdicts / chat 调用。
-- 失败不阻塞主流：best-effort，检索挂了也继续走 LLM，只是少了古籍锚点。
-
-### 5.6 总论单流 (`server/verdicts.js`)
-
-旧版把 verdicts 拆成 "pick" + "explain" 两次调用；现在合并：
-
-- 一次 `chatStreamWithFallback(buildVerdictsMessages(chart, retrieved))`，`max_tokens: 5000`；
-- 事件流：`model` → `delta` × N → `done`；
-- 模板（由 prompt 里的结构建议驱动）：**古籍锚点 → 一生的形状 → 几重张力 → 一生的课题 → 收尾**。
-- `verdicts-pick` / `verdicts-explain` 两个旧 builder 仍在 prompts.js 里但不再被路由调用。
-
-### 5.7 起卦 (`server/gua.js`)
-
-- 梅花易数·时间起卦：以当前时间的年月日时数转成上下两卦 + 动爻。计算用 `lunar-javascript`。
-- 流程：`computeGua(now) → 本卦/变卦/动爻 → buildGuaMessages → chatStreamWithFallback`。
-- SSE 事件序列：`gua`（带卦象数据给前端渲染卡片） → `delta` × N → `done`。
-- `birthContext`（日主 / 当前大运 / 流年）被可选注入 prompt，让解卦能"顺带看一眼命盘"。
+- `loader.py` — 加载 `classics/` 真本，per-source helper
+- `service.py` — `retrieve_for_chart(chart, intent)` 按意图选片段，返回锚点引用
+- 失败不阻塞主流：best-effort
 
 ---
 
-## 6. 排盘引擎 (`paipan-engine/`)
+## 6. 命理引擎 (`paipan/`) — Plan 7.x 完整体
 
-纯计算库。输入出生信息，输出：
+这是 Plan 7.3-7.7 的工作面，从 4 行启发式跃升为完整子系统。
 
-```js
-{
-  paipan: { year, month, day, hour },       // 每柱 { gan, zhi, ganWuxing, zhiWuxing, shiShen, zhiCangGan }
-  force: { bi, shi, cai, guan, yin, ... },  // 十神力量分数
-  guards: [...],                             // 结构提示：从格、格局、用神方向
-  dayun: [{ startYear, endYear, gz, years: [{year, gz}, ...], current? }, ...],
-  meta: {
-    rizhu, rizhuGan,
-    solarTime, trueSolarTime,
-    geJu,                                    // 格局判断
-    today: { ymd, yearGz, monthGz, dayGz, hourGz },
-    ...
-  },
-  ui: { ... },                               // 给前端/LLM 的压缩视图
-}
+### 6.1 排盘层（Plan 7.0 之前已存在）
+
+```
+compute() ──▶  {sizhu, rizhu, shishen, cangGan, naYin, dayun, lunar, ...}
 ```
 
-内部模块：
+- `compute.py` — 入口
+- `china_dst.py` + `cities.py` — 真太阳时 + 经度校正
+- `ganzhi.py` — TIAN_GAN / DI_ZHI / GAN_WUXING / ZHI_WUXING / WUXING_SHENG / WUXING_KE
+- `cang_gan.py` — 地支藏干 + 本气获取
+- `dayun.py` — 大运 8 条 + 每条 10 流年（基于 lunar-python `getYun`）
 
-| 文件 | 职责 |
-|---|---|
-| `paipan.js` | 入口 + 主流程 |
-| `solarTime.js` | 经度换算真太阳时 |
-| `chinaDst.js` | 中国历史夏令时表 |
-| `ziHourAndJieqi.js` | 子时处理 + 节气换月 |
-| `cities.js` | 已知城市经纬度 |
+### 6.2 分析层（Plan 7.1 + 7.2 完成）
 
-引擎不依赖 server/frontend；纯函数。server 通过 `require('../paipan-engine/src/paipan')` 调用。
+```
+compute() ──▶  analyzer.analyze() ──▶  {force, geJu, ganHe, zhiRelations, notes}
+```
+
+- `li_liang.py` — 十神力量评分；输出 `same_ratio` (Plan 7.6 5-bin: 极弱/身弱/中和/身强/极强)
+- `ge_ju.py` — 格局识别（四仲/四孟/四库 + 建禄月劫别名 normalize）
+- `he_ke.py` — 干合 + 六合 + 六冲 + 三合 + 三会 + 半合
+- `analyzer.py` — 合成器，最后调用 yongshen + xingyun 引擎
+
+### 6.3 用神 engine (Plan 7.3 + 7.5a 静态 transmutation)
+
+```
+build_yongshen(rizhu_gan, month_zhi, force, geju, gan_he, day_strength, mingju_zhis)
+  ──▶ {primary, primaryReason, candidates, warnings, transmuted?}
+```
+
+**三法合成**:
+- `tiaohou_yongshen()` ← 120 TIAOHOU 表（10 日干 × 12 月）from 穷通宝鉴
+- `geju_yongshen()` ← ~30 GEJU_RULES from 子平真诠（含 _GEJU_ALIASES 把 建禄/月刃 normalize）
+- `fuyi_yongshen()` ← 5 FUYI_CASES from 滴天髓（5 dayStrength 分支，Plan 7.6 后 极弱/极强 激活）
+- `compose_yongshen()` ← voting rule（调候 == 格局 → 共指; 调候 != 格局 → 调候为主+warning; 仅格局/扶抑 → 单法; 三法皆空 → 中和）
+
+**静态 transmutation (Plan 7.5a)**:
+- `_detect_transmutation()` ← 命局自带 三合/三会 + 月令参与 → 月令性质质变
+- `_compute_virtual_geju_name()` ← 五行+日主+main支阴阳 → 10 个虚拟格局名之一
+- 输出附加在 `yongshenDetail.transmuted` 字段
+
+### 6.4 行运 engine (Plan 7.4 + 7.5b 动态 transmutation + 7.7 cross interaction)
+
+```
+build_xingyun(dayun, yongshen_detail, mingju_gans, mingju_zhis, current_year, chart_context?)
+  ──▶ {dayun: [...8...], liunian: {idx: [...10...]}, currentDayunIndex, yongshenSnapshot}
+```
+
+**评分核心 (Plan 7.4)**:
+- `score_yun()` ← 大运/流年 ganzhi vs 命局用神 → 5-bin label (大喜/喜/平/忌/大忌) + score + note + mechanisms
+- `_score_gan_to_yongshen()` + `_score_zhi_to_yongshen()` ← 干 + 支 effect (基础 ±2 + 合化/六合 modifier ±1)
+- 多元素用神 weighted average (Plan 7.6)：YONGSHEN_WEIGHTS = [0.5, 0.3, 0.2]
+
+**Cross interaction (Plan 7.7)**:
+- 流年评分时 `extended_gans = mingju_gans + [大运干]` → 流年-大运 cross 合化 modifier auto-fire
+
+**动态 transmutation (Plan 7.5b)**:
+- `_detect_xingyun_transmutation()` ← 大运/流年带支 + 命局支 + 月令 凑成完整三合/三会 → 月令变
+- 大运层 dedup against 命局-only baseline；流年层 dedup against 大运 transmuted
+- 输出附加在 `xingyun.dayun[i].transmuted` 和 `xingyun.liunian[k][j].transmuted`
+
+### 6.5 数据契约
+
+`compute()` 返回的 dict shape (相关 Plan 7.x 字段)：
+
+```python
+{
+    "sizhu": {"year": "癸酉", "month": "己未", ...},
+    "rizhu": "丁",
+    "dayun": {"list": [...]},
+    "yongshen": "甲木",                  # str (chartUi.js compat, Plan 7.3)
+    "yongshenDetail": {                  # dict (Plan 7.3 三法 + 7.5a 静态)
+        "primary": "甲木",
+        "primaryReason": "以调候为主",
+        "candidates": [...3 法...],
+        "warnings": [...],
+        "transmuted": {                  # optional (Plan 7.5a 触发)
+            "trigger": {"type": "sanHe", "wuxing": "木", ...},
+            "from": "正官格", "to": "偏印格",
+            "candidate": {...}, "warning": ...,
+        },
+    },
+    "xingyun": {                          # Plan 7.4 + 7.5b + 7.7
+        "dayun": [{
+            "index": 1, "ganzhi": "戊午",
+            "label": "平", "score": -1, "note": "...", "mechanisms": [...],
+            "isCurrent": False,
+            "transmuted": None | {...},  # Plan 7.5b
+        }, ...],
+        "liunian": {"1": [{
+            "year": 1997, "ganzhi": "丁丑", "age": 5,
+            "label": "喜", "score": 2, "note": "...", "mechanisms": [...],
+            "transmuted": None | {...},  # Plan 7.5b
+        }, ...]},
+        "currentDayunIndex": 4,
+        "yongshenSnapshot": "甲木",
+    },
+}
+```
 
 ---
 
 ## 7. 关键设计决定
 
-### 7.1 多命盘 + 每命盘多对话
+### 7.1 多命盘 + 每命盘多对话 + 服务端持久化
 
-用户可能同时给家人、朋友排盘；同一张盘又可能想分别问"事业"、"姻缘"。两层分离：
+- 命盘 / 对话 / 消息全在服务端 PostgreSQL（Plan 6 之后）
+- 前端只缓存 hot 数据，切换命盘/对话调 API 拉
+- Quota 系统按用户限流（chat_message / section_regen / verdicts_regen / sms_send）
 
-- **命盘切换**由 `ChartSwitcher` 控制，会整体替换所有 `CHART_FIELDS`；
-- **对话切换**由 `ConversationSwitcher` 控制，只换 `conversations[currentConversationId].messages`；
-- 每张命盘至少有一个对话（删完最后一个会自动新建）；
-- 切换对话后会重新调 `/api/chips` 基于该对话历史刷新建议问题。
+### 7.2 引擎分层 + LLM 二阶推理
 
-### 7.2 总论单段流式
+引擎做的事：
+- 给 LLM 注入**结构化信号**（5-bin label / mechanism tags / 古籍出处）
+- 不做最终判断（"这十年好不好" / "用神能不能化得成"）— 这是 LLM 基于 ZPZQ 风格的二阶推理
 
-早期分两次调用容易出现"挑的要点"和"展开的正文"口径不一致。现在单次流式一次性铺完，prompt 里用结构建议（古籍锚点 / 一生的形状 / 几重张力 / 一生的课题 / 收尾）代替硬编码章节，模型可按实际情况增删标题。
+引擎不做的事：
+- 不做 LLM-style 自由发挥
+- 不做古籍以外的"现代命理流派"
 
-### 7.3 回退模型对用户不可见
+### 7.3 Plan 7.3 candidates 长度固定 3
 
-之前流年面板会弹出"主模型反应慢，已切到 ...flash"——这对用户没价值只制造焦虑。现在前端只收 `model` 事件埋点，不渲染任何提示。若需排查，后端日志里能看到。
+- `yongshenDetail.candidates` 永远 3 条（调候/格局/扶抑），即便某法无结论也产 placeholder
+- 前端 / LLM prompt 可以 stable 读 candidates[0]/[1]/[2]
+- transmutation 是 optional 附加字段不挤入 candidates
 
-### 7.4 Chips 强制第一人称
+### 7.4 命局用神是 contract anchor
 
-用户更愿意点"像自己会问的话"的问题。prompt 硬性约束："你在为一位命主准备他想问命理师的 4 个问题"、"第一人称：用'我'指代命主自己；不要用'你'、'您'、'这张盘'这种第三方口吻"，并给出示范。
+- Plan 7.3 算出的 `yongshenDetail.primary` 是稳定锚点
+- Plan 7.4 行运评分 measure against this primary
+- Plan 7.5b 动态 transmutation 不重算 primary，只附加 transmuted 字段
+- 这种"anchor 不动 + 附加 layer"模式贯穿 Plan 7.x
 
-### 7.5 命盘上下文每次注入
+### 7.5 mechanism tag 词汇表中心化
 
-每次 LLM 调用（除纯分类器外）都在 system 里 inline 一份 `compactChartContext(ui)`。不依赖"上次对话里提过"——保证即便切对话、切模型、跨越上下文窗口，模型仍然知道要分析的是哪张盘。
+`mechanism_tags.py` (Plan 7.5a.1) 定义 10 常量 + 4 builder：
+- 改 tag 文案只改这一文件
+- byte-for-byte 输出稳定（所有 score 测试不破）
+- LLM prompt 可以基于 tag 字符串做 grep（虽然现在没用，留 future hook）
 
-### 7.6 内联 Markdown 而非块级
+### 7.6 Verification-first golden case 选材
 
-LLM 偶尔会吐出 `##` 标题和 `- ` 列表符号；在对话气泡里这些显得生硬。前端只解析**内联**加粗/斜体/行内代码，行首符号剥掉。如果真的需要结构化输出（总论、运程展开），由 prompt 的分段指引驱动视觉分隔。
+Plan 7.5a/7.5b/7.6 的 golden case 都强制 codex 先**实测验证** birth_input 真触发预期事件，再写 assertion。spec 写作时的"应该 work 的 case"经常跟真实 distribution 不符。
 
-### 7.7 后端不用框架
+### 7.7 验证物料 = 古籍 source 引文 + browser smoke screenshots
 
-单文件 `server.js` 手写 router 的好处：部署简单（`node server.js`）、无中间件黑盒、改起来快。代价是所有路由写在一起——等超过 20 个路由再考虑拆。
+每个 Plan 的 release notes 都引 LLM chat 输出 + 截图为证。质量不是 self-claim，是可观测的。
 
 ---
 
 ## 8. 运行与开发
 
+### 8.1 启动
+
 ```bash
-# 后端
+# 后端 (FastAPI on :3101)
 cd server
-cp .env.example .env   # 填入 MIMO_API_KEY
-npm install
-node server.js         # http://localhost:3101
+cp .env.example .env   # 填入 MIMO_API_KEY + DB_URL
+uv run --package server --with 'uvicorn[standard]' python -m uvicorn app.main:app --port 3101 --host 127.0.0.1
 
 # 前端
 cd frontend
 npm install
-npm run dev            # http://localhost:5173，vite 代理 /api → 3101
+npm run dev   # http://localhost:5173, vite proxy /api → :3101
 ```
 
-健康检查：`curl http://localhost:3101/api/health`。
+健康检查：`curl http://localhost:3101/api/health` 应返回 `{healthy:true, llm:{hasKey:true, model:"mimo-v2-pro"}}`
+
+### 8.2 测试
+
+```bash
+uv run --package paipan pytest -n auto -q paipan/tests/    # 632 paipan
+uv run --package server pytest -n auto -q server/tests/    # 439 server
+cd frontend && node --test tests/*.mjs                      # 51 frontend
+```
+
+### 8.3 工程方法学
+
+每个 Plan 走同一流水线（Plan 7.x 系列证明可重复）：
+1. Brainstorming skill — scope 决策一次 1 question
+2. Spec 文档 → `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+3. Writing-plans skill → `docs/superpowers/plans/YYYY-MM-DD-<topic>.md`
+4. Codex 外部执行 (verification-first for golden cases)
+5. Review (sanity math 预测 + byte-perfect 比对)
+6. Inline plan 修正 (codex catch 我的 typo 时 commit 单独修)
+7. Push to main per task
 
 ---
 
-## 9. 下一步（非本 MVP 范围）
+## 9. Plan 7.x 历史里程碑
 
-留给未来版本的候选：
+| Plan | 日期 | 主题 |
+|---|---|---|
+| 7.3 | 2026-04-20 | 用神 engine v1（三法合成） |
+| 7.4 | 2026-04-20 | 行运 engine（5-bin 评分） |
+| 7.5a | 2026-04-21 | 静态用神变化（命局合局触发） |
+| 7.5a.1 | 2026-04-21 | engine polish quick wins |
+| 7.5b | 2026-04-21 | 动态用神变化（大运/流年触发） |
+| 7.5c | 2026-04-22 | ch10 ② 透藏 audit (cancelled — no real gap) |
+| 7.6 | 2026-04-22 | engine polish deep（5-bin 极弱/极强 + weighted avg + adjacency） |
+| 7.7 | 2026-04-22 | 大运/流年 cross interaction |
 
-- 用户账号与云端同步（目前只靠 localStorage）；
-- 分享功能（把一张命盘 + 对话导出为只读链接）；
-- 移动端适配（当前左右双栏在窄屏下会挤）；
-- 更细的检索（从片段级升到句级，配合 embedding）；
-- 自定义提示词（允许用户上传自己的流派偏好）。
+测试增量：486 → 632 paipan (+146), 426 → 439 server (+13)。
 
-以上都**不在当前 MVP 讨论范围内**，写在这里只是做方向记录。
+详细见 `docs/release-notes/`。
+
+---
+
+## 10. Pre-Plan-7.x 历史
+
+排盘引擎和后端最初是 Node.js MVP（`archive/paipan-engine/` 和 `archive/server-mvp/`），Plan 7.1 开始 port 到 Python 并扩展。Python 引擎模块的 docstring 都标注 "Port of archive/server-mvp/X.js" 作为源 reference。Plan 7.x 之后引擎已远超原 JS 实现的范围（用神 / 行运 / transmutation / cross interaction 都是 Plan 7.x 新加）。
+
+`archive/` 内容**不删**——是 Python port 的 source-of-truth 历史。
