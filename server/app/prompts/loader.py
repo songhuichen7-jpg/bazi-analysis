@@ -1,4 +1,4 @@
-"""SKILL.md / conversation-guide.md / shards/*.md loaders, lazily cached.
+"""docs/skills/SKILL.md / docs/skills/conversation-guide.md / shards/*.md loaders, lazily cached.
 
 Path resolution:
   - If BAZI_REPO_ROOT env is set, use that.
@@ -29,8 +29,8 @@ def _repo_root() -> Path:
 
 @lru_cache(maxsize=1)
 def load_skill() -> str:
-    """Read SKILL.md (methodology); empty string if missing."""
-    p = _repo_root() / "SKILL.md"
+    """Read docs/skills/SKILL.md (methodology); empty string if missing."""
+    p = _repo_root() / "docs" / "skills" / "SKILL.md"
     try:
         return p.read_text(encoding="utf-8")
     except OSError:
@@ -39,8 +39,8 @@ def load_skill() -> str:
 
 @lru_cache(maxsize=1)
 def load_guide() -> str:
-    """Read conversation-guide.md; empty string if missing."""
-    p = _repo_root() / "conversation-guide.md"
+    """Read docs/skills/conversation-guide.md; empty string if missing."""
+    p = _repo_root() / "docs" / "skills" / "conversation-guide.md"
     try:
         return p.read_text(encoding="utf-8")
     except OSError:

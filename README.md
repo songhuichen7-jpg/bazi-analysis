@@ -71,9 +71,10 @@ PORT=3101
 
 ## 文档
 
-- [`SKILL.md`](SKILL.md) — 命理方法论（runtime 加载到 LLM prompt）
-- [`conversation-guide.md`](conversation-guide.md) — 对话节奏（runtime 加载）
-- [`classical-references.md`](classical-references.md) — 古籍检索路径表
+- [`docs/skills/SKILL.md`](docs/skills/SKILL.md) — 命理方法论（runtime 加载到 LLM prompt）
+- [`docs/skills/conversation-guide.md`](docs/skills/conversation-guide.md) — 对话节奏（runtime 加载）
+- [`docs/skills/classical-references.md`](docs/skills/classical-references.md) — 古籍检索路径表
+- [`docs/skills/`](docs/skills/) — 命理 skill companion docs（含 advanced-techniques / synthesizer-bug-prevention）
 - [`docs/system-architecture.md`](docs/system-architecture.md) — 系统架构
 - [`docs/release-notes/`](docs/release-notes/) — 各 Plan 发布说明
 - [`docs/superpowers/`](docs/superpowers/) — spec / plan 实施过程

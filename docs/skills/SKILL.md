@@ -9,8 +9,8 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 
 **支持文件**（同目录，按需 Read）：
 - `classical-references.md` — 古籍位置、何时引、怎么引（做分析前必读）
-- `docs/skills/synthesizer-bug-prevention.md` — 8 个实战 bug + 内部 checklist（力量擂台后、白话翻译前内部跑）
-- `docs/skills/advanced-techniques.md` — 歌曲匹配、六合化气、五行类象、大运起运（可选）
+- `synthesizer-bug-prevention.md` — 8 个实战 bug + 内部 checklist（力量擂台后、白话翻译前内部跑）
+- `advanced-techniques.md` — 歌曲匹配、六合化气、五行类象、大运起运（可选）
 - `conversation-guide.md` — 用户引导、诗意断词、心灵慰藉、对话节奏（每次对话必读）
 
 **术语速查**（避免不熟悉命理的读者卡壳）：
@@ -71,7 +71,7 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 3. **§2 定格局** — 月令三类规则 → 格局名 → 成败判断 → 调候补充
 4. **§4 力量擂台** — 各十神透干/得令/根/合克 → 日主强弱 → 合/克/生形态
 5. **§5–§7 动态分析** — 身弱方向 / 弱信号识别 / 天干合 / 宫与星 / 合而不化
-6. **白话翻译前** — 内部跑 `docs/skills/synthesizer-bug-prevention.md` checklist
+6. **白话翻译前** — 内部跑 `synthesizer-bug-prevention.md` checklist
 7. **输出** — 聊天风格（§0），不是审计报告
 
 ---
@@ -86,7 +86,7 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 |---|---|
 | **用户给出未排过的出生日期/时辰** | **必须联网查询**至少 **2 个独立排盘源**（如专业排盘网站、八字App、命理工具），交叉核验四柱一致 |
 | **两个源给出的四柱不一致** | 必须查清楚原因（节气时刻、真太阳时、时区、早晚子时），**不能任选一个往下走** |
-| **出生时辰在时辰交界 ±30 分钟内** | 必须做真太阳时校正（见 `docs/skills/advanced-techniques.md`）；若校正后跨时辰，**两套盘都要算**，让命主回测确定 |
+| **出生时辰在时辰交界 ±30 分钟内** | 必须做真太阳时校正（见 `advanced-techniques.md`）；若校正后跨时辰，**两套盘都要算**，让命主回测确定 |
 | **出生日在节气交接日** | 必须查询该年节气的**精确时刻**（小时/分钟），不能只看日期 |
 | **涉及 1912 年前或海外出生** | 额外核对历法（农历/公历）、时区、夏令时 |
 
@@ -199,7 +199,7 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 | 根的数量和质量（地支藏干） | 高 |
 | 是否被克/合/冲 | 中 |
 
-**铁律**：任何"X 十神 → Y 行为"的推理，必须先比较 X 与其他十神的相对力量。力量擂台后还必须跑"日主与各十神的合/克/生"分析（`docs/skills/synthesizer-bug-prevention.md` 类型 F）。量决定大小，合/克/生决定形态。
+**铁律**：任何"X 十神 → Y 行为"的推理，必须先比较 X 与其他十神的相对力量。力量擂台后还必须跑"日主与各十神的合/克/生"分析（`synthesizer-bug-prevention.md` 类型 F）。量决定大小，合/克/生决定形态。
 
 **任铁樵警告**（滴天髓·月令章）："得月令者未必旺，失月令者未必弱"——地支通根数量和质量同样重要，不能死板以月令论旺衰。
 
@@ -246,7 +246,7 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 | **差异化表现** | 面对"合"的对象 vs 其他人→行为完全不同 |
 | **化气效应** | 合化成功→日主 identity 根本变化 |
 
-分析正缘/关系动态时，**必须检查日主与正财/偏财之间是否有合**。详细化气分析见 `docs/skills/advanced-techniques.md`。
+分析正缘/关系动态时，**必须检查日主与正财/偏财之间是否有合**。详细化气分析见 `advanced-techniques.md`。
 
 ---
 
@@ -308,7 +308,7 @@ description: Use for BaZi (八字/四柱) birth chart analysis — ten-gods (十
 
 ---
 
-## 内部检查（完整内容 → `docs/skills/synthesizer-bug-prevention.md`）
+## 内部检查（完整内容 → `synthesizer-bug-prevention.md`）
 
 做完力量擂台、翻译成白话前，内部跑以下 checklist（不写在输出里）：
 

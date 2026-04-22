@@ -65,14 +65,11 @@ bazi-analysis/
 ├── docs/
 │   ├── superpowers/         # spec / plan / 实施过程 (Plan 6 → 7.7)
 │   ├── release-notes/       # 各 Plan 发布说明
-│   ├── skills/              # 命理方法论 companion docs
-│   ├── bazi-analysis/       # 设计文档
+│   ├── skills/              # 命理方法论 (SKILL.md / conversation-guide.md / classical-references.md / advanced-techniques.md / synthesizer-bug-prevention.md) — runtime 加载 + LLM 引用
+│   ├── bazi-analysis/       # 早期 anthropic-skill packaging 历史 import (含独立 SKILL.md / classics 索引)
 │   ├── system-architecture.md   # 本文
 │   └── paipan-port-inventory.md # JS→Python port 清单
 ├── archive/                 # 历史 JS 实现 (paipan-engine / server-mvp)，Python 代码 reference 作为 source-of-truth
-├── SKILL.md                 # 命理方法论 (runtime 加载到 LLM prompt)
-├── conversation-guide.md    # 对话节奏 (runtime 加载)
-├── classical-references.md  # 古籍检索路径表
 └── pyproject.toml           # workspace 根 (uv)
 ```
 
@@ -186,7 +183,7 @@ MIMO API 走 OpenAI 兼容协议。同样是分层策略：
 
 | 模块 | 用途 |
 |---|---|
-| `loader.py` | runtime 加载 SKILL.md + conversation-guide.md + shards/*.md |
+| `loader.py` | runtime 加载 docs/skills/SKILL.md + docs/skills/conversation-guide.md + shards/*.md |
 | `context.py` | `compact_chart_context(paipan)` — 把命盘压缩成 LLM 紧凑上下文（含 Plan 7.3 用神块 + Plan 7.4 行运块 + Plan 7.5a/7.5b transmutation 段） |
 | `expert.py` | 主对话 + 各 section 解读 prompt 构造 |
 | `router.py` | 意图分类（chat / divination / meta / smalltalk） |
