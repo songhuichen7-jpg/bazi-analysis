@@ -1,0 +1,222 @@
+{
+  "01": {
+    "id": "01",
+    "day_stem": "甲",
+    "state": "绽放",
+    "cosmic_name": "春笋",
+    "base_name": "参天木命",
+    "one_liner": "越压越往上长",
+    "personality_tag": "参天型",
+    "theme_color": "#2D6A4F",
+    "illustration": "01-chunsun.png"
+  },
+  "02": {
+    "id": "02",
+    "day_stem": "甲",
+    "state": "蓄力",
+    "cosmic_name": "橡子",
+    "base_name": "春苗木命",
+    "one_liner": "别催，在攒大招",
+    "personality_tag": "扎根型",
+    "theme_color": "#1B4332",
+    "illustration": "02-xiangzi.png"
+  },
+  "03": {
+    "id": "03",
+    "day_stem": "乙",
+    "state": "绽放",
+    "cosmic_name": "萨摩耶",
+    "base_name": "老藤木命",
+    "one_liner": "看着随和，底线焊死",
+    "personality_tag": "绕指型",
+    "theme_color": "#52B788",
+    "illustration": "03-samoye.png"
+  },
+  "04": {
+    "id": "04",
+    "day_stem": "乙",
+    "state": "蓄力",
+    "cosmic_name": "含羞草",
+    "base_name": "藤蔓木命",
+    "one_liner": "碰一下就缩，但根还在",
+    "personality_tag": "攀藤型",
+    "theme_color": "#2D7D53",
+    "illustration": "04-hanxiucao.png"
+  },
+  "05": {
+    "id": "05",
+    "day_stem": "丙",
+    "state": "绽放",
+    "cosmic_name": "火烈鸟",
+    "base_name": "烈日火命",
+    "one_liner": "自带聚光灯",
+    "personality_tag": "自燃型",
+    "theme_color": "#F5A623",
+    "illustration": "05-huolieniao.png"
+  },
+  "06": {
+    "id": "06",
+    "day_stem": "丙",
+    "state": "蓄力",
+    "cosmic_name": "热可可",
+    "base_name": "暖阳火命",
+    "one_liner": "不烫手，但离不开",
+    "personality_tag": "蓄光型",
+    "theme_color": "#C47D0E",
+    "illustration": "06-rekeke.png"
+  },
+  "07": {
+    "id": "07",
+    "day_stem": "丁",
+    "state": "绽放",
+    "cosmic_name": "萤火虫",
+    "base_name": "熔炉火命",
+    "one_liner": "自己发光，不蹭别人的",
+    "personality_tag": "熔铸型",
+    "theme_color": "#4A9BE8",
+    "illustration": "07-yinghuochong.png"
+  },
+  "08": {
+    "id": "08",
+    "day_stem": "丁",
+    "state": "蓄力",
+    "cosmic_name": "小夜灯",
+    "base_name": "烛光火命",
+    "one_liner": "光不大，但一直亮着",
+    "personality_tag": "守焰型",
+    "theme_color": "#2B6CB0",
+    "illustration": "08-xiaoyedeng.png"
+  },
+  "09": {
+    "id": "09",
+    "day_stem": "戊",
+    "state": "绽放",
+    "cosmic_name": "大象",
+    "base_name": "城墙土命",
+    "one_liner": "认准了就不挪窝",
+    "personality_tag": "砥柱型",
+    "theme_color": "#A0785A",
+    "illustration": "09-daxiang.png"
+  },
+  "10": {
+    "id": "10",
+    "day_stem": "戊",
+    "state": "蓄力",
+    "cosmic_name": "松鼠",
+    "base_name": "春土命",
+    "one_liner": "先存够再说",
+    "personality_tag": "蓄土型",
+    "theme_color": "#7A5438",
+    "illustration": "10-songshu.png"
+  },
+  "11": {
+    "id": "11",
+    "day_stem": "己",
+    "state": "绽放",
+    "cosmic_name": "多肉",
+    "base_name": "沃田土命",
+    "one_liner": "慢慢长，急不来的",
+    "personality_tag": "慢养型",
+    "theme_color": "#D4A574",
+    "illustration": "11-duorou.png"
+  },
+  "12": {
+    "id": "12",
+    "day_stem": "己",
+    "state": "蓄力",
+    "cosmic_name": "树懒",
+    "base_name": "冬田土命",
+    "one_liner": "不是懒，是在充电",
+    "personality_tag": "冬藏型",
+    "theme_color": "#A67C4E",
+    "illustration": "12-shulan.png"
+  },
+  "13": {
+    "id": "13",
+    "day_stem": "庚",
+    "state": "绽放",
+    "cosmic_name": "刺猬",
+    "base_name": "利刃金命",
+    "one_liner": "不挑活，上手就干",
+    "personality_tag": "开刃型",
+    "theme_color": "#4A7BA8",
+    "illustration": "13-ciwei.png"
+  },
+  "14": {
+    "id": "14",
+    "day_stem": "庚",
+    "state": "蓄力",
+    "cosmic_name": "河豚",
+    "base_name": "璞铁金命",
+    "one_liner": "别惹我，会膨胀的",
+    "personality_tag": "淬火型",
+    "theme_color": "#2C5282",
+    "illustration": "14-hetun.png"
+  },
+  "15": {
+    "id": "15",
+    "day_stem": "辛",
+    "state": "绽放",
+    "cosmic_name": "琉璃",
+    "base_name": "宝石金命",
+    "one_liner": "光对了就发光",
+    "personality_tag": "折光型",
+    "theme_color": "#9B7AC4",
+    "illustration": "15-liuli.png"
+  },
+  "16": {
+    "id": "16",
+    "day_stem": "辛",
+    "state": "蓄力",
+    "cosmic_name": "猫",
+    "base_name": "璞玉金命",
+    "one_liner": "不是冷，是在挑人",
+    "personality_tag": "璞玉型",
+    "theme_color": "#6B4E99",
+    "illustration": "16-mao.png"
+  },
+  "17": {
+    "id": "17",
+    "day_stem": "壬",
+    "state": "绽放",
+    "cosmic_name": "水獭",
+    "base_name": "江河水命",
+    "one_liner": "会玩才是正经事",
+    "personality_tag": "劈浪型",
+    "theme_color": "#1A759F",
+    "illustration": "17-shuita.png"
+  },
+  "18": {
+    "id": "18",
+    "day_stem": "壬",
+    "state": "蓄力",
+    "cosmic_name": "章鱼",
+    "base_name": "溪流水命",
+    "one_liner": "看不透我很正常",
+    "personality_tag": "伏渊型",
+    "theme_color": "#0D4F72",
+    "illustration": "18-zhangyu.png"
+  },
+  "19": {
+    "id": "19",
+    "day_stem": "癸",
+    "state": "绽放",
+    "cosmic_name": "水母",
+    "base_name": "雨露水命",
+    "one_liner": "随波不逐流",
+    "personality_tag": "滴穿型",
+    "theme_color": "#4AC4C0",
+    "illustration": "19-shuimu.png"
+  },
+  "20": {
+    "id": "20",
+    "day_stem": "癸",
+    "state": "蓄力",
+    "cosmic_name": "蒲公英",
+    "base_name": "晨雾水命",
+    "one_liner": "等风来就出发",
+    "personality_tag": "雾隐型",
+    "theme_color": "#2A8F8C",
+    "illustration": "20-pugongying.png"
+  }
+}
