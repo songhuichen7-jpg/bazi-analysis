@@ -1,33 +1,77 @@
 // frontend/src/components/card/CardScreen.jsx
 import { useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useCardStore } from '../../store/useCardStore.js';
 import { Card } from './Card.jsx';
 import { CardActions } from './CardActions.jsx';
 import { CardSkeleton } from './CardSkeleton.jsx';
 import { UpgradeCTA } from './UpgradeCTA.jsx';
+import { saveCardAsImage } from '../../lib/saveImage.js';
+import { configureWxShare } from '../../lib/wxShare.js';
+import { track } from '../../lib/analytics.js';
 
 export function CardScreen() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const { card, preview, loading, error, loadPreview } = useCardStore();
   const cardRef = useRef(null);
 
-  // If arrived via share link without an in-memory card, load preview
   useEffect(() => {
     if (!card && slug) loadPreview(slug);
   }, [slug, card, loadPreview]);
 
+  useEffect(() => {
+    if (!card) return;
+    track('card_view', {
+      type_id: card.type_id,
+      share_slug: card.share_slug,
+      from: searchParams.get('from') || 'direct',
+    });
+    configureWxShare(card, {
+      onShare: (channel) => track('card_share', {
+        type_id: card.type_id,
+        channel,
+        share_slug: card.share_slug,
+      }),
+    }).catch(() => { /* silent */ });
+  }, [card, searchParams]);
+
   if (loading) return <CardSkeleton />;
   if (error) return <div className="form-error" role="alert">{error}</div>;
 
-  // Full card: user just submitted their own birth data
   if (card) {
+    const handleSave = async () => {
+      if (!cardRef.current) return;
+      await saveCardAsImage(cardRef.current, {
+        typeId: card.type_id,
+        cosmicName: card.cosmic_name,
+        onTrack: () => track('card_save', {
+          type_id: card.type_id,
+          share_slug: card.share_slug,
+        }),
+      });
+    };
+
+    const handleShare = () => {
+      if (/MicroMessenger/i.test(navigator.userAgent)) {
+        alert('点击右上角「...」选择分享到朋友圈或好友');
+      } else {
+        navigator.clipboard.writeText(window.location.href);
+        alert('链接已复制');
+        track('card_share', {
+          type_id: card.type_id,
+          channel: 'clipboard',
+          share_slug: card.share_slug,
+        });
+      }
+    };
+
     return (
       <main className="card-screen">
         <Card ref={cardRef} card={card} />
         <CardActions
-          onSave={() => { /* Wired in Task 31 */ }}
-          onShare={() => { /* Wired in Task 31 */ }}
+          onSave={handleSave}
+          onShare={handleShare}
           onInvitePair={() => alert('合盘功能即将开放')}
         />
         <UpgradeCTA typeId={card.type_id} />
@@ -35,7 +79,6 @@ export function CardScreen() {
     );
   }
 
-  // Share-link preview: partial card, CTA to try own
   if (preview) {
     return (
       <main className="card-preview">
