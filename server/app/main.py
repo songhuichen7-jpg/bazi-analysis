@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
+from app.api.card import router as card_router
 from app.api.charts import router as charts_router
 from app.api.conversations import charts_router as conversations_charts_router
 from app.api.conversations import router as conversations_router
@@ -28,6 +29,10 @@ async def lifespan(app: FastAPI):
     # smoke) can override via monkeypatch before import.
     from app.core.crypto import load_kek
     app.state.kek = load_kek()
+
+    from app.services.card.loader import load_all
+    load_all()
+
     yield
     from app.core.db import dispose_engine
     await dispose_engine()
@@ -42,6 +47,7 @@ app = FastAPI(
 )
 
 app.include_router(auth_router)
+app.include_router(card_router)
 app.include_router(sessions_router)
 app.include_router(charts_router)
 app.include_router(conversations_charts_router)
