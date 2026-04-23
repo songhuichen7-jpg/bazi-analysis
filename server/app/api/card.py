@@ -2,13 +2,17 @@
 generation for share-link preview + analytics."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.models.card_share import CardShare
 from app.schemas.card import CardRequest, CardResponse
-from app.services.card.loader import load_all
+from app.services.card.loader import TYPES, load_all
 from app.services.card.payload import build_card_payload
 from app.services.card.slug import birth_hash
 
@@ -41,3 +45,36 @@ async def post_card(
     # get_db auto-commits on success — no explicit db.commit() needed here.
 
     return payload
+
+
+class CardPreview(BaseModel):
+    slug: str
+    cosmic_name: str
+    suffix: str
+    illustration_url: str
+    nickname: Optional[str]
+
+
+@router.get("/card/{slug}", response_model=CardPreview)
+async def get_card_preview(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+) -> CardPreview:
+    row = (await db.execute(
+        select(CardShare).where(CardShare.slug == slug)
+    )).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="card not found")
+
+    info = TYPES[row.type_id]
+
+    # Bump share_count (auto-committed by get_db dependency on return)
+    row.share_count += 1
+
+    return CardPreview(
+        slug=row.slug,
+        cosmic_name=row.cosmic_name,
+        suffix=row.suffix,
+        illustration_url=f"/static/cards/illustrations/{info['illustration']}",
+        nickname=row.nickname,
+    )
