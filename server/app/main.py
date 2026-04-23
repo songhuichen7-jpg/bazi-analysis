@@ -6,8 +6,10 @@ Business routes come in later plans.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
@@ -47,6 +49,13 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/api/docs" if settings.env == "dev" else None,
     redoc_url=None,
+)
+
+_CARDS_DATA_DIR = Path(__file__).parent / "data" / "cards"
+app.mount(
+    "/static/cards",
+    StaticFiles(directory=str(_CARDS_DATA_DIR)),
+    name="card_static",
 )
 
 app.include_router(admin_router)
