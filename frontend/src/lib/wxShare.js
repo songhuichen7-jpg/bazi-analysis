@@ -21,6 +21,25 @@ export function buildShareConfig(kind, card, origin) {
   };
 }
 
+export async function copyShareLink(url, {
+  clipboard = (typeof navigator !== 'undefined' ? navigator.clipboard : null),
+  notify = (message) => alert(message),
+} = {}) {
+  if (!clipboard || typeof clipboard.writeText !== 'function') {
+    notify('复制失败，请手动复制浏览器地址栏链接');
+    return false;
+  }
+
+  try {
+    await clipboard.writeText(url);
+    notify('链接已复制');
+    return true;
+  } catch {
+    notify('复制失败，请手动复制浏览器地址栏链接');
+    return false;
+  }
+}
+
 export async function configureWxShare(card, { onShare } = {}) {
   if (!isWeChatBrowser()) return;
 

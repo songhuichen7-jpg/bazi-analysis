@@ -30,3 +30,21 @@ test('buildShareConfig timeline has distinct title', () => {
   assert.match(cfg.title, /点开看你是什么/);
   assert.match(cfg.link, /from=share_timeline/);
 });
+
+test('copyShareLink reports clipboard failures without throwing', async () => {
+  const mod = await import('../src/lib/wxShare.js');
+  assert.equal(typeof mod.copyShareLink, 'function');
+
+  const notices = [];
+  const copied = await mod.copyShareLink('https://example.test/card/c_abc', {
+    clipboard: {
+      writeText: async () => {
+        throw new Error('Document is not focused');
+      },
+    },
+    notify: (message) => notices.push(message),
+  });
+
+  assert.equal(copied, false);
+  assert.deepEqual(notices, ['复制失败，请手动复制浏览器地址栏链接']);
+});

@@ -7,7 +7,7 @@ import { CardActions } from './CardActions.jsx';
 import { CardSkeleton } from './CardSkeleton.jsx';
 import { UpgradeCTA } from './UpgradeCTA.jsx';
 import { saveCardAsImage } from '../../lib/saveImage.js';
-import { configureWxShare } from '../../lib/wxShare.js';
+import { configureWxShare, copyShareLink, isWeChatBrowser } from '../../lib/wxShare.js';
 import { track } from '../../lib/analytics.js';
 
 export function CardScreen() {
@@ -52,13 +52,17 @@ export function CardScreen() {
       });
     };
 
-    const handleShare = () => {
-      if (/MicroMessenger/i.test(navigator.userAgent)) {
+    const handleShare = async () => {
+      if (isWeChatBrowser()) {
         alert('点击右上角「...」选择分享到朋友圈或好友');
       } else {
-        navigator.clipboard.writeText(window.location.href);
-        alert('链接已复制');
-        track('card_share', {
+        const copied = await copyShareLink(window.location.href, {
+          clipboard: navigator.clipboard,
+          notify: window.alert.bind(window),
+        });
+        if (!copied) return;
+
+        await track('card_share', {
           type_id: card.type_id,
           channel: 'clipboard',
           share_slug: card.share_slug,
