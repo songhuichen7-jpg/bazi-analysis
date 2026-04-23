@@ -46,5 +46,8 @@ class Settings(BaseSettings):
 
     bazi_repo_root: str = ""                     # 空字符串 = 运行时推断
 
+    # Plan 8 (share card MVP): admin analytics endpoint
+    admin_token: str = ""  # empty disables admin endpoint entirely
+
 
 settings = Settings()

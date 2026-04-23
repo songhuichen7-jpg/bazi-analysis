@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.card import router as card_router
 from app.api.charts import router as charts_router
@@ -47,6 +48,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(card_router)
 app.include_router(sessions_router)
