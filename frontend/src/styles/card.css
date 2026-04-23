@@ -116,3 +116,33 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Save overlay (iOS long-press) */
+.save-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+.save-overlay-inner {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 90vw;
+  text-align: center;
+}
+.save-overlay-inner img {
+  max-width: 100%;
+  max-height: 70vh;
+}
+.save-overlay-inner .close {
+  margin-top: 12px;
+  padding: 8px 20px;
+  border: 1.5px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
