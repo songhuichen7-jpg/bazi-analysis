@@ -49,5 +49,9 @@ class Settings(BaseSettings):
     # Plan 8 (share card MVP): admin analytics endpoint
     admin_token: str = ""  # empty disables admin endpoint entirely
 
+    # Plan 8 (share card MVP): WeChat JS-SDK
+    wx_app_id: str = ""
+    wx_app_secret: str = ""
+
 
 settings = Settings()

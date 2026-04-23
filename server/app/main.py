@@ -19,6 +19,7 @@ from app.api.quota import router as quota_router
 from app.api.sessions import router as sessions_router
 from app.api.public import router as public_router
 from app.api.tracking import router as tracking_router
+from app.api.wx import router as wx_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -58,6 +59,7 @@ app.include_router(conversations_router)
 app.include_router(quota_router)
 app.include_router(public_router)
 app.include_router(tracking_router)
+app.include_router(wx_router)
 
 
 @app.get("/api/health")
