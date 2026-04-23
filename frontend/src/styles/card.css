@@ -1,0 +1,118 @@
+/* frontend/src/styles/card.css */
+
+/* Card itself (html2canvas target) */
+.card {
+  width: 540px;
+  height: 720px;
+  padding: 32px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #fafafa);
+  border-top: 6px solid var(--theme, #2D6A4F);
+  font-family: "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.card header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #666;
+}
+
+.card .illustration {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+.card .illustration img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+}
+
+.card .cosmic-name {
+  font-size: 56px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--theme);
+  margin: 0;
+}
+
+.card .suffix {
+  font-size: 18px;
+  text-align: center;
+  color: #888;
+  margin: 4px 0 16px;
+}
+
+.card .one-liner {
+  font-size: 20px;
+  text-align: center;
+  margin: 0 0 24px;
+  color: #333;
+}
+
+.card .subtags {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+}
+.card .subtags li {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  border: 1.5px solid var(--theme);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--theme);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.card .golden-line {
+  font-size: 18px;
+  color: #444;
+  font-style: italic;
+  text-align: center;
+  margin: 12px 0;
+  padding: 0 16px;
+}
+
+.card footer {
+  margin-top: auto;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.card[data-state="蓄力"] {
+  background: linear-gradient(180deg, #fafafa, #f0f0f0);
+}
+
+/* Card skeleton (loading shimmer) */
+.card-skeleton {
+  width: 540px;
+  height: 720px;
+  padding: 32px;
+  margin: 20px auto;
+  border-radius: 16px;
+  background: #fafafa;
+}
+.card-skeleton .shimmer {
+  background: linear-gradient(90deg, #eee 0%, #f5f5f5 50%, #eee 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.card-skeleton .shimmer-name { height: 56px; }
+.card-skeleton .shimmer-tags { height: 44px; }
+.card-skeleton .shimmer-line { height: 24px; width: 80%; margin-inline: auto; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
