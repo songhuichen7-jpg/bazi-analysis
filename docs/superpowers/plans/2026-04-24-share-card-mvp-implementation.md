@@ -193,23 +193,21 @@ git commit -m "feat(cards): extract 20-type master data from PM/specs/02"
 {
   "食神": {
     "name": "食神",
-    "suffix": "天生享乐家",
+    "suffixes": {
+      "绽放": "天生享乐家",
+      "蓄力": "灵感深潜者"
+    },
     "golden_lines": {
       "绽放": "我不卷，但我什么都不缺",
-      "蓄力": "慢慢来，快乐不赶时间"
+      "蓄力": "脑子里攒了十条朋友圈，卡在不敢发"
     }
   },
   "伤官": { ... },
-  "正财": { ... },
-  "偏财": { ... },
-  "正官": { ... },
-  "七杀": { ... },
-  "正印": { ... },
-  "偏印": { ... },
-  "比肩": { ... },
-  "劫财": { ... }
+  ... (10 十神 total)
 }
 ```
+
+**Each 十神 has BOTH `suffixes` and `golden_lines` as objects with 绽放/蓄力 keys.** 20 suffix values + 20 golden_line values total. Both indexed by `state` at runtime.
 
 **key 使用中文十神名，必须与 `paipan/shi_shen.py` 的 `ALL_SHI_SHEN` 列表完全对齐**：
 `["比肩", "劫财", "食神", "伤官", "正财", "偏财", "正官", "七杀", "正印", "偏印"]`
@@ -368,8 +366,12 @@ def main() -> None:
     for ss, info in formations.items():
         if info.get("name") != ss:
             fail(f"formations.json[{ss}]: name mismatch")
-        if not info.get("suffix"):
-            fail(f"formations.json[{ss}]: missing suffix")
+        sf = info.get("suffixes", {})
+        if set(sf.keys()) != STATES:
+            fail(f"formations.json[{ss}]: suffixes keys must be {STATES}")
+        for s, label in sf.items():
+            if not label or not isinstance(label, str):
+                fail(f"formations.json[{ss}].suffixes[{s}]: empty")
         gl = info.get("golden_lines", {})
         if set(gl.keys()) != STATES:
             fail(f"formations.json[{ss}]: golden_lines keys must be {STATES}")
@@ -624,7 +626,8 @@ def test_formations_has_ten_shishen():
     load_all()
     assert len(FORMATIONS) == 10
     assert "食神" in FORMATIONS
-    assert "suffix" in FORMATIONS["食神"]
+    assert "suffixes" in FORMATIONS["食神"]
+    assert set(FORMATIONS["食神"]["suffixes"].keys()) == {"绽放", "蓄力"}
     assert "绽放" in FORMATIONS["食神"]["golden_lines"]
 
 
@@ -1164,7 +1167,7 @@ def build_card_payload(birth: BirthInput, nickname: str | None) -> CardResponse:
         day_stem=day_stem,
         one_liner=info["one_liner"],
         ge_ju=shi_shen,
-        suffix=formation["suffix"],
+        suffix=formation["suffixes"][state],
         subtags=list(subtags),
         golden_line=formation["golden_lines"][state],
         theme_color=info["theme_color"],

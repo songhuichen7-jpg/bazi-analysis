@@ -109,10 +109,13 @@ server/app/data/cards/
 {
   "食神": {
     "name": "食神",
-    "suffix": "天生享乐家",
+    "suffixes": {
+      "绽放": "天生享乐家",
+      "蓄力": "灵感深潜者"
+    },
     "golden_lines": {
       "绽放": "我不卷，但我什么都不缺",
-      "蓄力": "慢慢来，快乐不赶时间"
+      "蓄力": "脑子里攒了十条朋友圈，卡在不敢发"
     }
   },
   "伤官": { "...": "..." }
@@ -120,7 +123,8 @@ server/app/data/cards/
 ```
 
 - key 是中文十神名（对齐 `paipan/ge_ju.py` 返回值）
-- 金句按 state 分两条
+- **每个十神有 2 个 suffix + 2 条 golden_line**，都按 state 分（绽放/蓄力）。合计 20 suffix + 20 金句。
+- 渲染时查 `FORMATIONS[ge_ju]["suffixes"][state]` 和 `FORMATIONS[ge_ju]["golden_lines"][state]`
 
 ### `subtags.json` — 200 组子标签矩阵
 
@@ -281,9 +285,9 @@ def build_card(birth: BirthInput, nickname: str | None) -> CardPayload:
     type_id = lookup_type(day_stem, state)   # types.json
     type_info = TYPES[type_id]
 
-    # 5. 查十神后缀 + 金句
+    # 5. 查十神后缀 + 金句（都按 state 分）
     formation = FORMATIONS[ge_ju_result.shi_shen]
-    suffix = formation["suffix"]
+    suffix = formation["suffixes"][state]
     golden_line = formation["golden_lines"][state]
 
     # 6. 查子标签
