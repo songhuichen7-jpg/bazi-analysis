@@ -1,0 +1,33 @@
+// frontend/tests/birth-form.test.mjs
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { validateBirthInput } from '../src/components/card/BirthForm.jsx';
+
+test('valid birth passes', () => {
+  assert.equal(validateBirthInput({ year: '1998', month: '07', day: '15' }).ok, true);
+});
+
+test('missing year fails', () => {
+  const r = validateBirthInput({ year: '', month: '07', day: '15' });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /年份|完整/);
+});
+
+test('year out of range fails', () => {
+  const r = validateBirthInput({ year: '1800', month: '01', day: '01' });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /1900/);
+});
+
+test('invalid day for month fails', () => {
+  const r = validateBirthInput({ year: '2001', month: '02', day: '30' });
+  assert.equal(r.ok, false);
+});
+
+test('leap year Feb 29 passes', () => {
+  assert.equal(validateBirthInput({ year: '2000', month: '02', day: '29' }).ok, true);
+});
+
+test('non-leap year Feb 29 fails', () => {
+  assert.equal(validateBirthInput({ year: '2001', month: '02', day: '29' }).ok, false);
+});
