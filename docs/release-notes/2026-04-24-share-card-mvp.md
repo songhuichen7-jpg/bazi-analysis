@@ -27,6 +27,7 @@
 - `server/app/data/cards/formations.json` — 10 十神, 20 suffixes (state-aware), 20 golden lines
 - `server/app/data/cards/subtags.json` — 200 × 3 = 600 tag strings
 - `server/app/data/cards/state_thresholds.json` — 5-档 → 绽放/蓄力 mapping
+- `server/app/data/cards/illustrations/` — 20 generated 360×360 PNG illustrations
 - `server/scripts/validate_cards_data.py` — data integrity gatekeeper
 
 ### Frontend
@@ -44,7 +45,6 @@
 ## Known limitations
 
 - No SSR; WeChat is the only rich-preview share target
-- Placeholder illustrations (20 theme-color PNGs) until AI illustration track completes
 - WeChat features require 公众号 备案 + JS 安全域名 configuration (non-engineering, user推进)
 - Domain `chabazi.com` is a placeholder; replace before launch
 
