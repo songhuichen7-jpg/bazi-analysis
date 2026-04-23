@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:3101' },
+    proxy: {
+      '/api': 'http://localhost:3101',
+      '/static/cards': 'http://localhost:3101',
+    },
   },
   build: {
     outDir: 'dist',

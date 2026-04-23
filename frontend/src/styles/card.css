@@ -173,12 +173,21 @@
   display: flex;
   gap: 12px;
 }
-.birth-form .date-row input {
+.birth-form .date-row input,
+.birth-form > input[type="text"],
+.birth-form > input[type="time"],
+.birth-form .time-block input[type="time"] {
   flex: 1;
   padding: 12px;
   font-size: 16px;
   border: 1.5px solid #ddd;
   border-radius: 8px;
+  background: white;
+  box-sizing: border-box;
+  width: 100%;
+}
+.birth-form .date-row input {
+  flex: 1;
 }
 .birth-form .toggle-time {
   background: none;
