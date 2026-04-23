@@ -380,21 +380,21 @@
   .force-row:hover { background: #f3f3f3; }
   .guard-list li:hover { background: var(--bg); }
 
-  /* Card (rich content in chat) */
-  .card { border: 1px solid var(--line); background: var(--bg); padding: 16px; margin: 8px 0; }
-  .card.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .card .lab { font-size: 10px; letter-spacing: .25em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
-  .card.dark .lab { color: rgba(255,255,255,.6); }
-  .card .big { font-family: "Songti SC", serif; font-size: 17px; line-height: 1.5; margin-bottom: 8px; }
-  .card .small { font-size: 12px; line-height: 1.7; color: var(--mute); }
-  .card.dark .small { color: rgba(255,255,255,.7); }
+  /* Card (rich content in chat — scoped to .msg-ai so it doesn't collide with .share-card) */
+  .msg-ai .card { border: 1px solid var(--line); background: var(--bg); padding: 16px; margin: 8px 0; }
+  .msg-ai .card.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .msg-ai .card .lab { font-size: 10px; letter-spacing: .25em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+  .msg-ai .card.dark .lab { color: rgba(255,255,255,.6); }
+  .msg-ai .card .big { font-family: "Songti SC", serif; font-size: 17px; line-height: 1.5; margin-bottom: 8px; }
+  .msg-ai .card .small { font-size: 12px; line-height: 1.7; color: var(--mute); }
+  .msg-ai .card.dark .small { color: rgba(255,255,255,.7); }
 
   .hex-mini { display: flex; gap: 16px; align-items: center; }
   .hex-col { width: 70px; flex: none; }
   .hex-line { height: 5px; margin: 4px 0; position: relative; background: var(--ink); }
   .hex-line.yin::after { content: ""; position: absolute; top: 0; left: 45%; width: 10%; height: 100%; background: var(--bg); }
-  .card.dark .hex-line { background: #fff; }
-  .card.dark .hex-line.yin::after { background: var(--ink); }
+  .msg-ai .card.dark .hex-line { background: #fff; }
+  .msg-ai .card.dark .hex-line.yin::after { background: var(--ink); }
   .hex-line.changing { background: #888; }
 
   .action-row { display: flex; gap: 12px; margin: 6px 0; }
