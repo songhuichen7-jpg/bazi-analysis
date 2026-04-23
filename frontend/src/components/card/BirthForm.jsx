@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useCardStore } from '../../store/useCardStore.js';
 import { TimeSegmentPicker } from './TimeSegmentPicker.jsx';
 import { validateBirthInput } from './birthValidation.js';
+import { track } from '../../lib/analytics.js';
 
 export { validateBirthInput };  // re-export
 
@@ -17,6 +18,7 @@ export function BirthForm({ onSubmit }) {
     const check = validateBirthInput(birth);
     if (!check.ok) { setFormError(check.error); return; }
     setFormError(null);
+    track('form_submit', {});
     onSubmit();
   }
 
