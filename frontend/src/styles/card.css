@@ -1,7 +1,7 @@
 /* frontend/src/styles/card.css */
 
 /* Card itself (html2canvas target) */
-.card {
+.share-card {
   width: 540px;
   height: 720px;
   padding: 32px;
@@ -14,25 +14,25 @@
   position: relative;
 }
 
-.card header {
+.share-card header {
   display: flex;
   justify-content: space-between;
   font-size: 14px;
   color: #666;
 }
 
-.card .illustration {
+.share-card .illustration {
   display: flex;
   justify-content: center;
   margin: 24px 0;
 }
-.card .illustration img {
+.share-card .illustration img {
   width: 180px;
   height: 180px;
   object-fit: contain;
 }
 
-.card .cosmic-name {
+.share-card .cosmic-name {
   font-size: 56px;
   font-weight: 700;
   text-align: center;
@@ -40,21 +40,21 @@
   margin: 0;
 }
 
-.card .suffix {
+.share-card .suffix {
   font-size: 18px;
   text-align: center;
   color: #888;
   margin: 4px 0 16px;
 }
 
-.card .one-liner {
+.share-card .one-liner {
   font-size: 20px;
   text-align: center;
   margin: 0 0 24px;
   color: #333;
 }
 
-.card .subtags {
+.share-card .subtags {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -62,7 +62,7 @@
   padding: 0;
   margin: 0 0 28px;
 }
-.card .subtags li {
+.share-card .subtags li {
   flex: 1;
   padding: 10px 8px;
   text-align: center;
@@ -73,7 +73,7 @@
   background: rgba(255, 255, 255, 0.6);
 }
 
-.card .golden-line {
+.share-card .golden-line {
   font-size: 18px;
   color: #444;
   font-style: italic;
@@ -82,14 +82,14 @@
   padding: 0 16px;
 }
 
-.card footer {
+.share-card footer {
   margin-top: auto;
   text-align: center;
   font-size: 12px;
   color: #999;
 }
 
-.card[data-state="蓄力"] {
+.share-card[data-state="蓄力"] {
   background: linear-gradient(180deg, #fafafa, #f0f0f0);
 }
 

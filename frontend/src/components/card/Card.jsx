@@ -7,7 +7,7 @@ export const Card = forwardRef(function Card({ card }, ref) {
   return (
     <article
       ref={ref}
-      className="card"
+      className="share-card"
       data-state={card.state}
       data-type-id={card.type_id}
       style={{ '--theme': card.theme_color }}
