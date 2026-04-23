@@ -1,7 +1,7 @@
 // frontend/tests/time-segment-picker.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TIME_SEGMENTS } from '../src/components/card/TimeSegmentPicker.jsx';
+import { TIME_SEGMENTS } from '../src/components/card/timeSegments.js';
 
 test('exports 6 time segments in correct order', () => {
   assert.equal(TIME_SEGMENTS.length, 6);

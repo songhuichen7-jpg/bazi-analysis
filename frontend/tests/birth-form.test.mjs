@@ -1,7 +1,7 @@
 // frontend/tests/birth-form.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateBirthInput } from '../src/components/card/BirthForm.jsx';
+import { validateBirthInput } from '../src/components/card/birthValidation.js';
 
 test('valid birth passes', () => {
   assert.equal(validateBirthInput({ year: '1998', month: '07', day: '15' }).ok, true);
