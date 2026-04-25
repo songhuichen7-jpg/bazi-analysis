@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import secrets
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,12 @@ from app.services.sms import verify_sms_code
 class AuthResult:
     user: User
     raw_token: str   # caller sets it as Set-Cookie
+
+
+def _guest_phone_candidate() -> str:
+    # 11 digits keeps us inside the existing phone column budget while staying
+    # obviously synthetic for dev-only guest accounts.
+    return f"99{secrets.randbelow(10**9):09d}"
 
 
 async def register(
@@ -137,6 +144,41 @@ async def login(
         # Account was crypto-shredded (phone should have been cleared too,
         # so this branch is theoretical, but belt-and-suspenders).
         raise AccountShreddedError()
+
+    _, raw_token = await create_session(db, user.id, user_agent=user_agent, ip=ip)
+    return AuthResult(user=user, raw_token=raw_token)
+
+
+async def login_guest(
+    db: AsyncSession,
+    *,
+    user_agent: str | None,
+    ip: str | None,
+    kek: bytes,
+) -> AuthResult:
+    dek = generate_dek()
+    dek_ciphertext = encrypt_dek(dek, kek)
+
+    phone = None
+    for _ in range(8):
+        candidate = _guest_phone_candidate()
+        existing = await db.execute(select(User.id).where(User.phone == candidate))
+        if existing.scalar_one_or_none() is None:
+            phone = candidate
+            break
+    if phone is None:
+        raise RuntimeError("failed to allocate guest phone")
+
+    user = User(
+        phone=phone,
+        phone_last4=phone[-4:],
+        nickname="游客",
+        dek_ciphertext=dek_ciphertext,
+        dek_key_version=1,
+        agreed_to_terms_at=datetime.now(tz=timezone.utc),
+    )
+    db.add(user)
+    await db.flush()
 
     _, raw_token = await create_session(db, user.id, user_agent=user_agent, ip=ip)
     return AuthResult(user=user, raw_token=raw_token)

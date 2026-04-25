@@ -7,6 +7,7 @@ from __future__ import annotations
 from app.prompts.anchor import build_classical_anchor
 from app.prompts.context import compact_chart_context
 from app.prompts.loader import load_guide, load_skill
+from app.prompts.style import BAZI_OUTPUT_STYLE_PRESET, CLASSICAL_QUOTE_POLICY
 
 # NOTE: prompts.js:44-51
 _FALLBACK_STYLE = '''
@@ -20,9 +21,12 @@ _FALLBACK_STYLE = '''
 
 _RUNTIME_CONSTRAINT = '''【运行时约束 — 最高优先级】
 你没有工具调用能力。不要输出 **Read**、**Glob**、```...```、"让我先查一下古籍" 这类过程性内容。
-古籍的要点已经内化在你训练数据里——直接引用原文即可，不要表演"去查"的动作。
-命盘上下文已在本请求给全，不要再"去读"什么文件。
+命盘上下文和可用古籍锚点已在本请求给全，不要再"去读"什么文件。
 直接输出给用户看的那段话本身，别写你的思考过程、草稿、自我校对。
+
+''' + BAZI_OUTPUT_STYLE_PRESET + '''
+
+''' + CLASSICAL_QUOTE_POLICY + '''
 
 【输出格式】
 - 纯文本 + 基础 Markdown（## 小标题、**加粗**、> 引用可用）
@@ -35,9 +39,9 @@ _TASK_BLOCK = '''【本轮任务 — 古籍判词·整体断词】
 结构建议（不是死板模板，节奏随内容走）：
 
 一、古籍锚点（1–2 段）
-挑 1–2 处最切合此盘的古籍原文——《滴天髓》《穷通宝鉴》《子平真诠》《神峰通考》《三命通会》《渊海子平》等都可自由引用。
-每段这样写：
-  - 小标题给出书名 · 篇目（例：**《滴天髓》· 天干论 · 庚金**）
+若本请求提供了古籍原文锚点，挑 1–2 处最切合此盘的原文引用；若没有锚点，跳过引用格式，改用白话讲"古法会先看哪里"，不要硬引原文。
+有锚点时每段这样写：
+  - 小标题给出书名 · 篇目（以锚点标注为准；缺篇目就只写书名）
   - 用 > 引用符摘原文一两句
   - 紧接白话（一句话说清意思）
   - 再对照你的盘：用 ✓ 或 · 列 2–4 条具体对应（干支、十神分数、大运流年都可）
@@ -58,7 +62,7 @@ _TASK_BLOCK = '''【本轮任务 — 古籍判词·整体断词】
 - 判断必须 tie 到命盘里具体的干支/十神/分数/大运，不要泛泛
 - 术语必须配白话
 - 不要报告腔（"综上所述"、"总的来说"），要聊天+讲书的感觉
-- 古籍原文用「」或 > 引用符框住，后面立刻接白话，再接"你的盘上..."
+- 引用古籍原文时用「」或 > 引用符框住，后面立刻接白话，再接"你的盘上..."；没有锚点时就别写原文引用段
 - 不要在正文里写任何 XML 标签（如 <classical>），不要写 "pair_mismatch" 这类内部标识'''
 
 

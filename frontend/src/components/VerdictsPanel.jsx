@@ -43,12 +43,9 @@ export default function VerdictsPanel() {
       ) : null}
 
       {isWaiting ? (
-        <SkeletonProgress
-          label="正在查找古籍…"
-          subLabel="大约 10-20 秒"
-          linesCount={3}
-          offset={1}
-        />
+        <div className="verdicts-pending-note" role="status">
+          正在研读古籍判词，完成后会自动出现在这里。你可以先看命盘，或者直接开始提问。
+        </div>
       ) : null}
 
       {body ? (

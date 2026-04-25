@@ -142,6 +142,31 @@ def test_build_messages_includes_intent_guide():
     assert "【本轮：时机/大运流年】" in msgs[0]["content"]
 
 
+def test_build_messages_includes_docs_bazi_output_style():
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN, history=[],
+        user_message="今年我适合换工作吗",
+        intent="career", retrieved=[],
+    )
+    sys = msgs[0]["content"]
+    assert "【输出风格预设 — 对齐 docs/bazi-analysis §0】" in sys
+    assert "像一个懂命理的朋友在聊天" in sys
+    assert "内部 checklist" in sys
+    assert "不要把结论都包成 A/B/C 标签" in sys
+
+
+def test_build_messages_does_not_invite_free_classical_quotes():
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN, history=[],
+        user_message="古籍怎么看这盘",
+        intent="career", retrieved=[],
+    )
+    sys = msgs[0]["content"]
+    assert "只引用本请求提供的古籍原文锚点" in sys
+    assert "训练数据中的任何原文都可自由引用" not in sys
+    assert "直接引用即可" not in sys
+
+
 def test_fallback_style_present():
     assert isinstance(FALLBACK_STYLE, str)
     assert len(FALLBACK_STYLE) > 50

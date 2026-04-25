@@ -27,6 +27,14 @@ function blankVerdicts() {
   };
 }
 
+function blankClassics() {
+  return {
+    status: 'idle',
+    items: [],
+    lastError: null,
+  };
+}
+
 function hydrateVerdicts(verdicts) {
   if (!verdicts) return blankVerdicts();
   const body = typeof verdicts.body === 'string' ? verdicts.body : '';
@@ -34,6 +42,16 @@ function hydrateVerdicts(verdicts) {
     status: verdicts.status || (body ? 'done' : 'idle'),
     body,
     lastError: verdicts.lastError || null,
+  };
+}
+
+function hydrateClassics(classics) {
+  if (!classics) return blankClassics();
+  const items = Array.isArray(classics.items) ? classics.items : [];
+  return {
+    status: classics.status || (items.length ? 'done' : 'idle'),
+    items,
+    lastError: classics.lastError || null,
   };
 }
 
@@ -50,6 +68,7 @@ function chartStateFromEntry(entry, extra = {}) {
     dayunCache: entry?.dayunCache || {},
     liunianCache: entry?.liunianCache || {},
     verdicts: hydrateVerdicts(entry?.verdicts),
+    classics: hydrateClassics(entry?.classics),
     screen: 'shell',
     dayunOpenIdx: null,
     liunianOpenKey: null,
@@ -102,6 +121,23 @@ function updateChartVerdicts(state, chartId, updater) {
   return next;
 }
 
+function updateChartClassics(state, chartId, updater) {
+  const current = chartId === state.currentId
+    ? hydrateClassics(state.classics)
+    : hydrateClassics(state.charts[chartId]?.classics);
+  const nextClassics = updater(current);
+  const next = {};
+
+  if (chartId === state.currentId) next.classics = nextClassics;
+  if (chartId && state.charts[chartId]) {
+    next.charts = {
+      ...state.charts,
+      [chartId]: { ...state.charts[chartId], classics: nextClassics },
+    };
+  }
+  return next;
+}
+
 const conversationBootstrapPromises = new Map();
 
 const BLANK_CHART = {
@@ -114,6 +150,7 @@ const BLANK_CHART = {
   gua: { current: null, history: [] },   // ephemeral, not persisted
   dayunCache: {}, liunianCache: {},
   verdicts: blankVerdicts(),
+  classics: blankClassics(),
 };
 
 function makeBlankChart() { return { ...BLANK_CHART }; }
@@ -134,6 +171,7 @@ function snapshotChart(s, extra = {}) {
     sections: s.sections,
     dayunCache: s.dayunCache, liunianCache: s.liunianCache,
     verdicts: s.verdicts,
+    classics: s.classics,
     ...extra,
   };
 }
@@ -155,7 +193,7 @@ const initialState = {
   sectionsLoading: false, sectionsError: null,
   formError: null, loadingStage: 0,
   appNotice: null,
-  llmEnabled: false,
+  llmEnabled: true,
   skipConversationHydration: false,
 };
 
@@ -221,6 +259,32 @@ export const useAppStore = create((set, get) => ({
   setSectionsLoading: (b) => set({ sectionsLoading: b }),
   setSectionsError:   (e) => set({ sectionsError: e }),
   setSections:        (sections) => set({ sections, sectionsError: null }),
+
+  loadClassics: async (chartId) => {
+    if (!chartId) return;
+    set((s) => updateChartClassics(s, chartId, () => ({
+      status: 'loading',
+      items: [],
+      lastError: null,
+    })));
+
+    try {
+      const { fetchClassics } = await import('../lib/api.js');
+      const data = await fetchClassics(chartId);
+      set((s) => updateChartClassics(s, chartId, () => ({
+        status: 'done',
+        items: Array.isArray(data?.items) ? data.items : [],
+        lastError: null,
+      })));
+    } catch (e) {
+      const message = e.message || String(e);
+      set((s) => updateChartClassics(s, chartId, (current) => ({
+        ...current,
+        status: 'error',
+        lastError: message,
+      })));
+    }
+  },
 
   loadVerdicts: async (chartId) => {
     if (!chartId) return;
@@ -391,12 +455,53 @@ export const useAppStore = create((set, get) => ({
   },
 
   newConversationOnServer: async (chartId, label) => {
-    const { createConversation } = await import('../lib/api.js');
-    const conv = await createConversation(chartId, label);
-    const list = [...(get().conversations || []), conv];
-    try { sessionStorage.setItem('currentConversationId:' + chartId, conv.id); } catch { /* SSR/private mode */ }
-    set({ conversations: list, currentConversationId: conv.id, chatHistory: [] });
-    return conv;
+    const previous = {
+      conversations: get().conversations || [],
+      currentConversationId: get().currentConversationId,
+      chatHistory: get().chatHistory,
+    };
+    const tempId = `temp-conv-${Date.now()}`;
+    const now = new Date().toISOString();
+    const optimisticConv = {
+      id: tempId,
+      chart_id: chartId,
+      label,
+      position: previous.conversations.length,
+      created_at: now,
+      updated_at: now,
+      last_message_at: null,
+      message_count: 0,
+      deleted_at: null,
+      optimistic: true,
+    };
+
+    set({
+      conversations: [...previous.conversations, optimisticConv],
+      currentConversationId: tempId,
+      chatHistory: [],
+    });
+
+    try {
+      const { createConversation } = await import('../lib/api.js');
+      const conv = await createConversation(chartId, label);
+      try { sessionStorage.setItem('currentConversationId:' + chartId, conv.id); } catch { /* SSR/private mode */ }
+      set((s) => ({
+        conversations: (s.conversations || []).map((item) => item.id === tempId ? conv : item),
+        currentConversationId: s.currentConversationId === tempId ? conv.id : s.currentConversationId,
+      }));
+      return conv;
+    } catch (e) {
+      set((s) => {
+        const conversations = (s.conversations || []).filter((item) => item.id !== tempId);
+        if (s.currentConversationId !== tempId) return { conversations };
+        return {
+          conversations: previous.conversations,
+          currentConversationId: previous.currentConversationId,
+          chatHistory: previous.chatHistory,
+        };
+      });
+      throw e;
+    }
   },
 
   renameConversationOnServer: async (convId, label) => {
@@ -468,6 +573,7 @@ export const useAppStore = create((set, get) => ({
         dayunCache: previous.dayunCache || {},
         liunianCache: previous.liunianCache || {},
         verdicts: previous.verdicts || blankVerdicts(),
+        classics: previous.classics || blankClassics(),
       };
       charts[nextId] = entry;
       return {
@@ -612,6 +718,7 @@ export const useAppStore = create((set, get) => ({
         gua: { current: null, history: [] },
         dayunCache: t.dayunCache||{}, liunianCache: t.liunianCache||{},
         verdicts: hydrateVerdicts(t.verdicts),
+        classics: hydrateClassics(t.classics),
         dayunOpenIdx: null, liunianOpenKey: null,
       });
     }

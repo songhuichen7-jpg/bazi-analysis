@@ -29,3 +29,23 @@ def test_extract_qiongtong_section_by_day_gan_month_zhi():
     content = "# 穷通宝鉴\n## 庚金\n### 三秋庚金\n金逢巳月，坐下长生..."
     out = extract_qiongtong_section(content, "庚", "巳")
     assert out is None or (isinstance(out, str) and "庚" in out)
+
+
+def test_extract_qiongtong_section_detail_returns_clean_heading_and_scope():
+    from app.retrieval.loader import _extract_qiongtong_section_detail
+
+    content = "\n".join([
+        "# 穷通宝鉴",
+        "### 三秋甲木",
+        "七月甲木，丁火为尊。",
+        "",
+        "八月甲木，木衰金旺。",
+    ])
+
+    out = _extract_qiongtong_section_detail(content, "甲", "申")
+
+    assert out == {
+        "text": "七月甲木，丁火为尊。",
+        "scope": "七月甲木",
+        "heading": "三秋甲木",
+    }

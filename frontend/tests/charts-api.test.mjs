@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { listCharts, createChart, deleteChart } from '../src/lib/api.js';
+import { listCharts, createChart, deleteChart, fetchClassics } from '../src/lib/api.js';
 
 function stubFetch(impl) {
   globalThis.fetch = impl;
@@ -79,6 +79,32 @@ test('deleteChart DELETEs /api/charts/:id with credentials', async () => {
     assert.equal(captured.url, '/api/charts/chart-123');
     assert.equal(captured.opts.method, 'DELETE');
     assert.equal(captured.opts.credentials, 'include');
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('fetchClassics GETs /api/charts/:id/classics with credentials', async () => {
+  let captured;
+  stubFetch(async (url, opts) => {
+    captured = { url, opts };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ source: '穷通宝鉴', scope: '甲木 · 寅月', chars: 12, text: '原文节选' }] }),
+    };
+  });
+
+  try {
+    const result = await fetchClassics('chart-123');
+    assert.equal(captured.url, '/api/charts/chart-123/classics');
+    assert.equal(captured.opts.credentials, 'include');
+    assert.deepEqual(result.items[0], {
+      source: '穷通宝鉴',
+      scope: '甲木 · 寅月',
+      chars: 12,
+      text: '原文节选',
+    });
   } finally {
     restoreFetch();
   }

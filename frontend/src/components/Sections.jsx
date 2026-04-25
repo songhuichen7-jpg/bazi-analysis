@@ -42,6 +42,7 @@ export default function Sections() {
   const setSectionsLoading = useAppStore(s => s.setSectionsLoading);
   const setSectionsError = useAppStore(s => s.setSectionsError);
   const currentId = useAppStore(s => s.currentId);
+  const llmEnabled = useAppStore(s => s.llmEnabled);
 
   const nextStep = Math.min(sections.length + 1, SECTION_TOTAL_STEPS);
 
@@ -61,7 +62,22 @@ export default function Sections() {
     }
   }
 
-  if (!loading && !error && !sections.length) return null;
+  if (!llmEnabled && !sections.length) return null;
+
+  if (!loading && !error && !sections.length) {
+    return (
+      <div id="sections" className="reading-cta-card fade-in">
+        <div className="section-num" style={{ marginBottom: 10 }}>命 盘 解 读</div>
+        <div className="reading-cta-title serif">先看命盘，有需要再展开完整解读</div>
+        <p className="reading-cta-copy">
+          这里会生成五段更完整的文字分析。它不是首屏必读内容，所以默认按需生成。
+        </p>
+        <button className="btn-inline" onClick={() => void retrySections()}>
+          生成命盘解读
+        </button>
+      </div>
+    );
+  }
 
   if (error) {
     const uiError = friendlyError(error, 'sections');

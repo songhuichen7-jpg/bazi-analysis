@@ -86,6 +86,12 @@ def _extract_qiongtong_section_detail(content: str, day_gan: str, month_zhi: str
     season = conf["season"]
     wx = GAN_WUXING.get(day_gan, "")
 
+    def clean_heading(raw: str) -> str:
+        return re.sub(r"^#{1,6}\s*", "", raw).strip()
+
+    def strip_first_heading(paragraph: str) -> str:
+        return re.sub(r"^#{1,6}\s*.*\n?", "", paragraph, count=1).strip()
+
     lines = content.split("\n")
 
     # NOTE: retrieval.js:53-57 — find ### <season><dayGan><wx> heading
@@ -107,14 +113,14 @@ def _extract_qiongtong_section_detail(content: str, day_gan: str, month_zhi: str
             break
         out.append(lines[i])
     season_block = "\n".join(out).strip()
-    season_heading = lines[start_idx].strip()
+    season_heading = clean_heading(lines[start_idx].strip())
 
     # NOTE: retrieval.js:70-76 — find month-specific paragraph within season block
     num_char = num.replace("月", "")
     paras = re.split(r"\n\s*\n", season_block)
 
     def para_matches(p: str) -> bool:
-        body = re.sub(r"^#+\s.*\n?", "", p)
+        body = strip_first_heading(p)
         pattern = r"(^|[^一二三四五六七八九十])" + re.escape(num_char) + r"[一二三四五六七八九十]{0,2}月" + re.escape(day_gan + wx) + r"[，,]"
         return bool(re.search(pattern, body)) or (num + day_gan + wx) in body
 
@@ -122,8 +128,8 @@ def _extract_qiongtong_section_detail(content: str, day_gan: str, month_zhi: str
 
     # NOTE: retrieval.js:78-82
     if hit:
-        text = season_heading + "\n\n" + "\n\n".join(hit)
-        return {"text": text, "scope": "month", "heading": season_heading + " / " + num + day_gan + wx}
+        text = "\n\n".join(strip_first_heading(p) for p in hit).strip()
+        return {"text": text, "scope": num + day_gan + wx, "heading": season_heading}
     return {"text": season_block, "scope": "season", "heading": season_heading}
 
 

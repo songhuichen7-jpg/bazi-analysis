@@ -52,10 +52,16 @@ def _patch_client(monkeypatch, fake: _FakeClient):
     monkeypatch.setattr(c, "_client", fake)
 
 
+def _patch_primary_fallback_models(monkeypatch):
+    from app.llm import client as c
+    monkeypatch.setattr(c.settings, "llm_model", "deepseek-v4-pro")
+    monkeypatch.setattr(c.settings, "llm_fallback_model", "deepseek-v4-flash")
+
+
 @pytest.mark.asyncio
 async def test_chat_stream_happy_primary(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
-    fake = _FakeClient({"mimo-v2-pro": lambda: _mk_stream(["Hello ", "world"], tokens=30)})
+    fake = _FakeClient({"deepseek-v4-flash": lambda: _mk_stream(["Hello ", "world"], tokens=30)})
     _patch_client(monkeypatch, fake)
 
     events = []
@@ -67,7 +73,7 @@ async def test_chat_stream_happy_primary(monkeypatch):
 
     types = [e["type"] for e in events]
     assert types == ["model", "delta", "delta", "done"]
-    assert events[0]["modelUsed"] == "mimo-v2-pro"
+    assert events[0]["modelUsed"] == "deepseek-v4-flash"
     assert "".join(e["text"] for e in events if e["type"] == "delta") == "Hello world"
     assert events[-1]["full"] == "Hello world"
     assert events[-1]["tokens_used"] == 30
@@ -76,10 +82,11 @@ async def test_chat_stream_happy_primary(monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_stream_primary_error_falls_back(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
+    _patch_primary_fallback_models(monkeypatch)
     # Primary yields one delta then raises mid-stream (at i==1)
     fake = _FakeClient({
-        "mimo-v2-pro": lambda: _mk_stream(["first", "second"], raise_mid=RuntimeError("boom")),
-        "mimo-v2-flash": lambda: _mk_stream(["flash ok"], tokens=15),
+        "deepseek-v4-pro": lambda: _mk_stream(["first", "second"], raise_mid=RuntimeError("boom")),
+        "deepseek-v4-flash": lambda: _mk_stream(["flash ok"], tokens=15),
     })
     _patch_client(monkeypatch, fake)
 
@@ -92,9 +99,9 @@ async def test_chat_stream_primary_error_falls_back(monkeypatch):
 
     types = [e["type"] for e in events]
     assert types.count("model") == 2
-    assert events[0]["modelUsed"] == "mimo-v2-pro"
+    assert events[0]["modelUsed"] == "deepseek-v4-pro"
     second_model = [e for e in events if e["type"] == "model"][1]
-    assert second_model["modelUsed"] == "mimo-v2-flash"
+    assert second_model["modelUsed"] == "deepseek-v4-flash"
     assert events[-1]["full"] == "flash ok"
 
 
@@ -102,9 +109,10 @@ async def test_chat_stream_primary_error_falls_back(monkeypatch):
 async def test_chat_stream_both_fail_raises_upstream(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
     from app.services.exceptions import UpstreamLLMError
+    _patch_primary_fallback_models(monkeypatch)
     fake = _FakeClient({
-        "mimo-v2-pro": lambda: _mk_stream([], raise_mid=RuntimeError("primary down")),
-        "mimo-v2-flash": lambda: _mk_stream([], raise_mid=RuntimeError("fallback down")),
+        "deepseek-v4-pro": lambda: _mk_stream([], raise_mid=RuntimeError("primary down")),
+        "deepseek-v4-flash": lambda: _mk_stream([], raise_mid=RuntimeError("fallback down")),
     })
     _patch_client(monkeypatch, fake)
 
@@ -120,6 +128,7 @@ async def test_chat_stream_both_fail_raises_upstream(monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_stream_first_delta_timeout_triggers_fallback(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
+    _patch_primary_fallback_models(monkeypatch)
 
     async def _slow_primary():
         await asyncio.sleep(0.1)
@@ -130,8 +139,8 @@ async def test_chat_stream_first_delta_timeout_triggers_fallback(monkeypatch):
         )
 
     fake = _FakeClient({
-        "mimo-v2-pro": _slow_primary,
-        "mimo-v2-flash": lambda: _mk_stream(["on time"], tokens=5),
+        "deepseek-v4-pro": _slow_primary,
+        "deepseek-v4-flash": lambda: _mk_stream(["on time"], tokens=5),
     })
     _patch_client(monkeypatch, fake)
 
@@ -145,15 +154,16 @@ async def test_chat_stream_first_delta_timeout_triggers_fallback(monkeypatch):
 
     assert events[-1]["full"] == "on time"
     models = [e["modelUsed"] for e in events if e["type"] == "model"]
-    assert "mimo-v2-flash" in models
+    assert "deepseek-v4-flash" in models
 
 
 @pytest.mark.asyncio
 async def test_chat_stream_empty_primary_triggers_fallback(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
+    _patch_primary_fallback_models(monkeypatch)
     fake = _FakeClient({
-        "mimo-v2-pro": lambda: _mk_stream([], tokens=0),
-        "mimo-v2-flash": lambda: _mk_stream(["backup"], tokens=3),
+        "deepseek-v4-pro": lambda: _mk_stream([], tokens=0),
+        "deepseek-v4-flash": lambda: _mk_stream(["backup"], tokens=3),
     })
     _patch_client(monkeypatch, fake)
 
@@ -170,7 +180,7 @@ async def test_chat_stream_empty_primary_triggers_fallback(monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_stream_tier_fast_uses_fast_model(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
-    fake = _FakeClient({"mimo-v2-flash": lambda: _mk_stream(["fast"], tokens=2)})
+    fake = _FakeClient({"deepseek-v4-flash": lambda: _mk_stream(["fast"], tokens=2)})
     _patch_client(monkeypatch, fake)
 
     events = []
@@ -179,7 +189,7 @@ async def test_chat_stream_tier_fast_uses_fast_model(monkeypatch):
         tier="fast", temperature=0.9, max_tokens=200,
     ):
         events.append(ev)
-    assert events[0]["modelUsed"] == "mimo-v2-flash"
+    assert events[0]["modelUsed"] == "deepseek-v4-flash"
 
 
 def test_client_has_max_retries_zero():

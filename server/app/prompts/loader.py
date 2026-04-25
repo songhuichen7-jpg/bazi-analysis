@@ -1,4 +1,4 @@
-"""docs/skills/SKILL.md / docs/skills/conversation-guide.md / shards/*.md loaders, lazily cached.
+"""docs/bazi-analysis skill / guide / shards/*.md loaders, lazily cached.
 
 Path resolution:
   - If BAZI_REPO_ROOT env is set, use that.
@@ -15,6 +15,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+_SKILL_DIR_CANDIDATES = ("bazi-analysis", "skills")
+
 
 def _repo_root() -> Path:
     env = os.environ.get("BAZI_REPO_ROOT", "").strip()
@@ -29,22 +31,25 @@ def _repo_root() -> Path:
 
 @lru_cache(maxsize=1)
 def load_skill() -> str:
-    """Read docs/skills/SKILL.md (methodology); empty string if missing."""
-    p = _repo_root() / "docs" / "skills" / "SKILL.md"
-    try:
-        return p.read_text(encoding="utf-8")
-    except OSError:
-        return ""
+    """Read docs/bazi-analysis/SKILL.md; fall back to docs/skills/SKILL.md."""
+    return _load_skill_file("SKILL.md")
 
 
 @lru_cache(maxsize=1)
 def load_guide() -> str:
-    """Read docs/skills/conversation-guide.md; empty string if missing."""
-    p = _repo_root() / "docs" / "skills" / "conversation-guide.md"
-    try:
-        return p.read_text(encoding="utf-8")
-    except OSError:
-        return ""
+    """Read docs/bazi-analysis/conversation-guide.md; fall back to docs/skills."""
+    return _load_skill_file("conversation-guide.md")
+
+
+def _load_skill_file(filename: str) -> str:
+    docs_root = _repo_root() / "docs"
+    for dirname in _SKILL_DIR_CANDIDATES:
+        p = docs_root / dirname / filename
+        try:
+            return p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return ""
 
 
 @lru_cache(maxsize=None)

@@ -8,6 +8,7 @@ class ConfigResponse(BaseModel):
     require_invite: bool
     engine_version: str
     max_charts_per_user: int
+    guest_login_enabled: bool
 
 
 class CityItem(BaseModel):

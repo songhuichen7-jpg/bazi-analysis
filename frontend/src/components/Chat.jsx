@@ -7,9 +7,9 @@ import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import ConversationSwitcher from './ConversationSwitcher';
-import { buildGenerationStatus, getWelcomeMessageState } from '../lib/chatStatus';
-
-const DEFAULT_CHIPS = ['七杀格意味着什么', '我在纠结要不要离职创业', '酉辰六合会怎样', '我适合什么伴侣'];
+import { buildGenerationStatus } from '../lib/chatStatus';
+import { buildChatWorkspace, mergePromptChips } from '../lib/chatWorkspace';
+import { applyChatProgressEvent, createChatProgress } from '../lib/chatProgress';
 
 function TypingDots() {
   return (
@@ -68,6 +68,29 @@ function CtaBubble({ question, manual, onCast, onAnalyze, disabled }) {
   );
 }
 
+function TraceReceipt({ receipt }) {
+  return (
+    <div className={'chat-receipt ' + receipt.key}>
+      <span className="chat-receipt-dot" aria-hidden="true" />
+      <div className="chat-receipt-text">{receipt.text}</div>
+    </div>
+  );
+}
+
+function ChatReceipts({ trace }) {
+  if (!trace?.receipts?.length) return null;
+  return (
+    <div className="chat-receipts">
+      {trace.receipts.map((receipt) => <TraceReceipt key={`${receipt.key}-${receipt.text}`} receipt={receipt} />)}
+    </div>
+  );
+}
+
+function isAbortError(error) {
+  if (!error) return false;
+  return error.name === 'AbortError' || /aborted|abort/i.test(String(error.message || error));
+}
+
 export default function Chat() {
   const history = useAppStore(s => s.chatHistory);
   const pushChat = useAppStore(s => s.pushChat);
@@ -83,28 +106,33 @@ export default function Chat() {
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
   const meta = useAppStore(s => s.meta);
-  const verdicts = useAppStore(s => s.verdicts);
-  const sections = useAppStore(s => s.sections);
-  const sectionsLoading = useAppStore(s => s.sectionsLoading);
-  const dayunStreaming = useAppStore(s => s.dayunStreaming);
-  const liunianStreaming = useAppStore(s => s.liunianStreaming);
+  const force = useAppStore(s => s.force);
+  const guards = useAppStore(s => s.guards);
+  const dayun = useAppStore(s => s.dayun);
   const dayunOpenIdx = useAppStore(s => s.dayunOpenIdx);
   const liunianOpenKey = useAppStore(s => s.liunianOpenKey);
-  const dayunCache = useAppStore(s => s.dayunCache);
-  const liunianCache = useAppStore(s => s.liunianCache);
+  const verdicts = useAppStore(s => s.verdicts);
   const currentConversationId = useAppStore(s => s.currentConversationId);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
 
   const [input, setInput] = useState('');
   const [chatError, setChatError] = useState(null);
-  const [chips, setChips] = useState(DEFAULT_CHIPS);
+  const [chips, setChips] = useState([]);
+  const [chatTrace, setChatTrace] = useState(null);
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
+  const streamAbortRef = useRef(null);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [history]);
+
+  useEffect(() => {
+    if (!inputRef.current) return;
+    inputRef.current.style.height = '0px';
+    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 140)}px`;
+  }, [input]);
 
   async function refreshChips() {
     const state = useAppStore.getState();
@@ -125,8 +153,13 @@ export default function Chat() {
       historyLength: history.length,
       refreshChips,
     });
-    if (!bootstrapped) setChips(DEFAULT_CHIPS);
+    if (!bootstrapped) setChips([]);
   }, [history.length, meta, currentConversationId]);
+
+  useEffect(() => {
+    setChatTrace(null);
+    streamAbortRef.current = null;
+  }, [currentConversationId]);
 
   async function ensureConversationId() {
     const state = useAppStore.getState();
@@ -137,10 +170,36 @@ export default function Chat() {
     });
   }
 
+  function beginTrace() {
+    setChatTrace(createChatProgress({ contextLabel: workspace.contextLabel }));
+  }
+
+  function updateTrace(event) {
+    setChatTrace((current) => applyChatProgressEvent(current, event));
+  }
+
+  function bindStreamController() {
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    return controller;
+  }
+
+  function releaseStreamController(controller) {
+    if (streamAbortRef.current === controller) {
+      streamAbortRef.current = null;
+    }
+  }
+
+  function stopStreaming() {
+    if (!streamAbortRef.current) return;
+    streamAbortRef.current.abort();
+    updateTrace({ type: 'abort' });
+  }
+
   async function send(text, options = {}) {
     const retry = options.retry === true;
     const q = String(text ?? inputRef.current?.value ?? input).trim();
-    if (!q || chatStreaming) return;
+    if (!q || chatStreaming || guaStreaming) return;
     const sendStartedAt = Date.now();
     console.log(`[chat] send:start retry=${retry} at=${sendStartedAt}`);
     setChatError(null);
@@ -174,38 +233,65 @@ export default function Chat() {
     }
 
     setChatStreaming(true);
+    beginTrace();
+    const controller = bindStreamController();
     try {
       console.log(`[chat] stream:start conv=${convId} dt=${Date.now() - sendStartedAt}ms`);
       await streamMessage(convId, { message: q, bypass_divination: false }, {
-        onDelta: (_t, running) => replaceLastAssistant(running),
+        signal: controller.signal,
+        onDelta: (_t, running) => {
+          replaceLastAssistant(running);
+          updateTrace({ type: 'delta' });
+        },
         onIntent: (intent, reason, source) =>
-          console.log(`[chat] intent=${intent} reason=${reason} source=${source}`),
+        {
+          console.log(`[chat] intent=${intent} reason=${reason} source=${source}`);
+          updateTrace({ type: 'intent', intent, reason, source });
+        },
         onRedirect: (to, redirQ) => {
+          setChatTrace(null);
           if (to === 'gua') replacePlaceholderWithCta(redirQ || q, false);
         },
-        onModel: (m) => console.log('[chat] modelUsed=' + m),
-        onRetrieval: (src) => console.log('[chat] retrieval=' + src),
+        onModel: (m) => {
+          console.log('[chat] modelUsed=' + m);
+          updateTrace({ type: 'model', modelUsed: m });
+        },
+        onRetrieval: (src) => {
+          console.log('[chat] retrieval=' + src);
+          updateTrace({ type: 'retrieval', source: src });
+        },
+        onDone: (full) => {
+          if (full) replaceLastAssistant(full);
+          updateTrace({ type: 'done' });
+        },
       });
     } catch (e) {
+      if (isAbortError(e)) {
+        updateTrace({ type: 'abort' });
+        return;
+      }
       console.error('[chat] failed:', e);
       const uiError = friendlyError(e, 'chat');
       replaceLastAssistant(uiError.title);
       setChatError({ error: e, question: q });
     } finally {
+      releaseStreamController(controller);
       finalizeChatTurn({ setChatStreaming, refreshChips });
     }
   }
 
   async function castGuaInline(question) {
-    if (!question?.trim() || guaStreaming) return;
+    if (!question?.trim() || guaStreaming || chatStreaming) return;
     const convId = await ensureConversationId();
     if (!convId) return;
     setGuaStreaming(true);
+    const controller = bindStreamController();
 
     let guaData = null;
     let runningBody = '';
     try {
       const final = await streamGua(convId, { question: question.trim() }, {
+        signal: controller.signal,
         onGua: (g) => {
           guaData = g;
           pushGuaCard({ ...g, question: question.trim(), body: '' });
@@ -222,57 +308,98 @@ export default function Chat() {
       // Note: gua history is now server-backed (each gua becomes a role='gua' message);
       // we no longer call pushGuaHistory.
     } catch (e) {
+      if (isAbortError(e)) {
+        updateLastGuaCard(runningBody || '（已停止输出）', true);
+        return;
+      }
       console.error('[gua inline] failed:', e);
       updateLastGuaCard('（起卦失败：' + (e.message || String(e)) + '）', true);
     } finally {
+      releaseStreamController(controller);
       setGuaStreaming(false);
     }
   }
 
   async function analyzeDirectly(question) {
-    if (!question?.trim() || chatStreaming) return;
+    if (!question?.trim() || chatStreaming || guaStreaming) return;
     setChatError(null);
     replaceLastCtaWithAssistant();
     setChatStreaming(true);
+    beginTrace();
     const convId = await ensureConversationId();
-    if (!convId) { setChatStreaming(false); return; }
+    if (!convId) {
+      setChatTrace(null);
+      setChatStreaming(false);
+      return;
+    }
+    const controller = bindStreamController();
     try {
       await streamMessage(convId, { message: question, bypass_divination: true }, {
-        onDelta: (_t, running) => replaceLastAssistant(running),
-        onModel: (m) => console.log('[chat] analyze model=' + m),
-        onRetrieval: (src) => console.log('[chat] retrieval=' + src),
+        signal: controller.signal,
+        onDelta: (_t, running) => {
+          replaceLastAssistant(running);
+          updateTrace({ type: 'delta' });
+        },
+        onIntent: (intent, reason, source) => {
+          console.log(`[chat] analyze intent=${intent} reason=${reason} source=${source}`);
+          updateTrace({ type: 'intent', intent, reason, source });
+        },
+        onModel: (m) => {
+          console.log('[chat] analyze model=' + m);
+          updateTrace({ type: 'model', modelUsed: m });
+        },
+        onRetrieval: (src) => {
+          console.log('[chat] retrieval=' + src);
+          updateTrace({ type: 'retrieval', source: src });
+        },
+        onDone: (full) => {
+          if (full) replaceLastAssistant(full);
+          updateTrace({ type: 'done' });
+        },
       });
     } catch (e) {
+      if (isAbortError(e)) {
+        updateTrace({ type: 'abort' });
+        return;
+      }
       console.error('[analyze] failed:', e);
       const uiError = friendlyError(e, 'chat');
       replaceLastAssistant(uiError.title);
       setChatError({ error: e, question });
     } finally {
+      releaseStreamController(controller);
       setChatStreaming(false);
     }
   }
 
   function onKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (chatStreaming || guaStreaming) stopStreaming();
+      else send();
+    }
   }
 
-  const generationStatus = buildGenerationStatus({
+  const generationStatus = buildGenerationStatus({ verdicts });
+  const workspace = buildChatWorkspace({
+    meta,
+    force,
+    guards,
+    dayun,
+    dayunOpenIdx,
+    liunianOpenKey,
     verdicts,
-    sections,
-    sectionsLoading,
-    dayunStreaming,
-    dayunStarted: dayunOpenIdx != null || Object.keys(dayunCache || {}).length > 0,
-    liunianStreaming,
-    liunianStarted: liunianOpenKey != null || Object.keys(liunianCache || {}).length > 0,
   });
-  const welcomeMessage = getWelcomeMessageState({ verdicts, sectionsLoading });
+  const composerChips = mergePromptChips(workspace.starterQuestions, chips, 4);
+  const busy = chatStreaming || guaStreaming;
+  const traceVisible = !!chatTrace?.receipts?.length && (busy || chatTrace.phase === 'stopped');
 
   return (
     <div className="right-pane">
       <div className="chat-topbar">
         <div className="section-num">对 话</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ConversationSwitcher disabled={chatStreaming || guaStreaming} />
+          <ConversationSwitcher disabled={busy} />
           <button
             className="muted"
             style={{ fontSize: 11 }}
@@ -280,26 +407,40 @@ export default function Chat() {
               const chartId = useAppStore.getState().currentId;
               if (!chartId) return;
               const count = (useAppStore.getState().conversations || []).length;
-              if (confirm('开一个新对话？')) {
-                await newConversationOnServer(chartId, `对话 ${count + 1}`);
-              }
+              await newConversationOnServer(chartId, `对话 ${count + 1}`);
             }}
-            disabled={chatStreaming || guaStreaming}
+            disabled={busy}
             title="新建对话"
-          >清空</button>
+          >新对话</button>
         </div>
       </div>
 
       <div className="chat-body" ref={bodyRef}>
         {history.length === 0 && (
-          <div className="msg msg-ai">
-            {welcomeMessage.lead}<br/>
-            {welcomeMessage.showDefaultGuidance ? (
-              <>
-                <span className="muted" style={{ fontSize: 12 }}>· 直接点左侧命盘里的<b>任意字</b>——我会立即解释</span><br/>
-                <span className="muted" style={{ fontSize: 12 }}>· 告诉我一个你当下的选择困境，我会进入结构化分析</span>
-              </>
-            ) : null}
+          <div className="chat-welcome fade-in">
+            <div className="chat-welcome-head">
+              <div className="chat-welcome-title serif">{workspace.title}</div>
+              {workspace.badges.length ? (
+                <div className="chat-guide-badges">
+                  {workspace.badges.map((badge) => (
+                    <span className="chat-guide-badge" key={badge}>{badge}</span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="chat-guide-grid">
+              {workspace.starterQuestions.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  className="chat-guide-btn"
+                  onClick={() => send(question)}
+                  disabled={busy}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {history.map((m, i) => {
@@ -328,7 +469,7 @@ export default function Chat() {
                   manual={manual}
                   onCast={(q) => castGuaInline(q)}
                   onAnalyze={(q) => analyzeDirectly(q)}
-                  disabled={guaStreaming || chatStreaming}
+                  disabled={busy}
                 />
               </div>
             );
@@ -350,7 +491,14 @@ export default function Chat() {
           }
           return (
             <div className="msg msg-ai" key={i}>
-{m.content ? <RichText text={m.content} /> : <TypingDots />}
+              <div className={'msg-ai-card' + (!m.content && !(isLast && traceVisible) ? ' loading' : '')}>
+                {isLast && traceVisible ? (
+                  <ChatReceipts trace={chatTrace} />
+                ) : null}
+                <div className="msg-ai-body">
+                  {m.content ? <RichText text={m.content} /> : (isLast && traceVisible ? null : <TypingDots />)}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -360,21 +508,33 @@ export default function Chat() {
         {generationStatus.visible ? (
           <div className="chat-status-note muted" role="status">{generationStatus.text}</div>
         ) : null}
-        <div className="chat-chips">
-          {chips.map(c => (
-            <button key={c} className="chip" onClick={() => send(c)} disabled={chatStreaming}>{c}</button>
-          ))}
-        </div>
+        {workspace.contextLabel ? (
+          <div className="chat-context-pill">{workspace.contextLabel}</div>
+        ) : null}
+        {history.length > 0 ? (
+          <div className="chat-chips">
+            {composerChips.map((chip) => (
+              <button key={chip} className="chip" onClick={() => send(chip)} disabled={busy}>{chip}</button>
+            ))}
+          </div>
+        ) : null}
         <div className="chat-input">
-          <input
+          <textarea
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            placeholder="你想知道什么？"
-            disabled={chatStreaming}
+            rows={1}
+            placeholder={busy ? '生成中，按停止可中断当前输出' : (workspace.contextLabel ? '继续追问这一点…' : '把你最在意的问题直接告诉我')}
+            disabled={busy}
           />
-          <button className="btn-primary" onClick={() => send()} disabled={chatStreaming}>发送</button>
+          <button
+            className="btn-primary chat-send-btn"
+            onClick={busy ? stopStreaming : () => send()}
+            disabled={busy ? false : !String(input).trim()}
+          >
+            {busy ? '停止' : '发送'}
+          </button>
         </div>
       </div>
     </div>

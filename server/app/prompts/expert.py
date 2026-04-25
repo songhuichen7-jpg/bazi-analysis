@@ -10,6 +10,7 @@ from typing import Any, Optional
 from app.prompts.anchor import build_classical_anchor
 from app.prompts.context import compact_chart_context
 from app.prompts.loader import load_shard
+from app.prompts.style import BAZI_OUTPUT_STYLE_PRESET, CLASSICAL_QUOTE_POLICY
 
 
 # NOTE: prompts.js:44-51 — fallback style when no shard exists for an intent
@@ -166,18 +167,18 @@ def pick_chart_slice(paipan: dict, intent: str) -> Optional[dict]:
 
 def _runtime_constraints() -> str:
     """NOTE: prompts.js:608-617 — anti-tool-leak hard override."""
-    return (
+    return '\n\n'.join([
         '【运行时约束 — 最高优先级】\n'
         '面向用户的聊天界面，无工具调用能力。不要输出 **Read**、**Glob**、```...```、'
         '"让我先查一下古籍" 这类过程性描述。\n'
-        '古籍/方法论内容已内化在训练里，直接引用即可。\n'
-        '\n'
+        '命盘上下文和可用古籍锚点已在本请求给出；直接输出给用户看的回答，不写思考过程、草稿或自我校对。',
+        BAZI_OUTPUT_STYLE_PRESET,
+        CLASSICAL_QUOTE_POLICY,
         '【输出格式】纯文本或极简 Markdown。\n'
         '- 回复长度随内容走，写透为止，不要自行截断\n'
-        '- 每个判断必须落到命盘里具体的干支/十神/分数，不要悬空下结论\n'
-        '- 古籍引用不限于下文提供的判词——《滴天髓》《穷通宝鉴》《子平真诠》《神峰通考》'
-        '里你训练数据中的任何原文都可自由引用；以「」包裹原文，立刻接白话，再接命盘对应'
-    )
+        '- 关键判断要落到命盘里具体的干支/十神/分数，不要悬空下结论\n'
+        '- 引用古籍时用「」包裹原文，立刻接白话，再接命盘对应；没有锚点时不硬引原文',
+    ])
 
 
 def build_messages(

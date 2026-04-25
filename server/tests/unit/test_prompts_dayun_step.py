@@ -12,6 +12,9 @@ def test_build_dayun_step_messages_happy():
     assert any(m["role"] == "system" for m in msgs)
     joined = " ".join(m["content"] for m in msgs)
     assert "甲申" in joined
+    assert "【输出风格预设 — 对齐 docs/bazi-analysis §0】" in joined
+    assert "只引用本请求提供的古籍原文锚点" in joined
+    assert "直接引用即可" not in joined
 
 
 def test_build_dayun_step_messages_out_of_range_raises():

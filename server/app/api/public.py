@@ -26,6 +26,7 @@ async def get_config() -> ConfigResponse:
         require_invite=settings.require_invite,
         engine_version=paipan.VERSION,
         max_charts_per_user=MAX_CHARTS_PER_USER,
+        guest_login_enabled=(settings.env == "dev"),
     )
 
 

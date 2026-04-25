@@ -4,14 +4,16 @@ import { streamLiunian } from '../lib/api';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
+import { buildLiunianPanel } from '../lib/timingPanels';
 
 export default function LiunianBody({ dayunIdx, yearIdx }) {
-  const key = dayunIdx + '-' + yearIdx;
-  const cached = useAppStore(s => s.liunianCache[key]);
-  const setCache = useAppStore(s => s.setLiunianCache);
-  const deleteCache = useAppStore(s => s.deleteLiunianCache);
-  const setStreaming = useAppStore(s => s.setLiunianStreaming);
-  const currentId = useAppStore(s => s.currentId);
+  const key = `${dayunIdx}-${yearIdx}`;
+  const cached = useAppStore((s) => s.liunianCache[key]);
+  const setCache = useAppStore((s) => s.setLiunianCache);
+  const deleteCache = useAppStore((s) => s.deleteLiunianCache);
+  const setStreaming = useAppStore((s) => s.setLiunianStreaming);
+  const currentId = useAppStore((s) => s.currentId);
+  const dayun = useAppStore((s) => s.dayun);
 
   const [text, setText] = useState(cached || '');
   const [error, setError] = useState(null);
@@ -21,17 +23,17 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
   useEffect(() => {
     setText(cached || '');
     setError(null);
-    const t = setTimeout(() => {
-      document.getElementById('liunian-body-' + key)?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    const timer = setTimeout(() => {
+      document.getElementById(`liunian-body-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 20);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [key, cached]);
 
   useEffect(() => {
     if (cached) return;
     if (startedFor.current === key) return;
     startedFor.current = key;
-    startStream();
+    void startStream();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, cached]);
 
@@ -42,9 +44,8 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
     setText('');
     try {
       const full = await streamLiunian(currentId, { dayun_index: dayunIdx, year_index: yearIdx }, {
-        onDelta: (_t, running) => setText(running),
-        onModel: (m) => console.log('[liunian] modelUsed=' + m),
-        onRetrieval: (src) => console.log('[liunian] retrieval=' + src),
+        onModel: (model) => console.log('[liunian] modelUsed=' + model),
+        onRetrieval: (source) => console.log('[liunian] retrieval=' + source),
       });
       if (!full.trim()) throw new Error('empty response');
       setCache(key, full);
@@ -64,14 +65,16 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
     void startStream();
   }
 
+  const year = dayun?.[dayunIdx]?.years?.[yearIdx] || null;
+  const panel = buildLiunianPanel(year, text);
+
   return (
-    <div
-      id={'liunian-body-' + key}
-      style={{
-        marginTop:12, padding:'12px 14px', borderLeft:'2px solid #888',
-        background:'#fff', fontSize:13, lineHeight:1.9, whiteSpace:'pre-wrap',
-      }}
-    >
+    <section id={`liunian-body-${key}`} className="timing-panel timing-subpanel">
+      <div className="timing-panel-head">
+        <div className="timing-panel-kicker">{panel.kicker}</div>
+        <div className="timing-panel-title serif">{panel.title}</div>
+      </div>
+
       {error ? (
         <ErrorState
           title={uiError.title}
@@ -79,11 +82,25 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
           retryable={uiError.retryable}
           onRetry={uiError.retryable ? onRetry : undefined}
         />
+      ) : !text ? (
+        <div className="skeleton-progress timing-loading" role="status" aria-live="polite">
+          <div className="skeleton-progress-label">正在细看这一年</div>
+          <div className="skeleton-progress-sublabel">会给你看这一年的主压力、机会点和需要留心的地方。</div>
+          <div className="skeleton-lines">
+            <div className="skeleton-line skeleton-pulse" style={{ width: '86%' }} />
+            <div className="skeleton-line skeleton-pulse" style={{ width: '79%' }} />
+            <div className="skeleton-line skeleton-pulse" style={{ width: '68%' }} />
+          </div>
+        </div>
       ) : (
-        <>
-          {text ? <RichText text={text} /> : '生成中…'}
-        </>
+        <div className="timing-body">
+          {panel.paragraphs.map((paragraph, paragraphIndex) => (
+            <p className="timing-paragraph" key={paragraphIndex}>
+              <RichText text={paragraph} />
+            </p>
+          ))}
+        </div>
       )}
-    </div>
+    </section>
   );
 }

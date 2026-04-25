@@ -154,3 +154,79 @@ test('newConversationOnServer appends + selects + clears history', async () => {
     _restoreFetch();
   }
 });
+
+test('newConversationOnServer switches immediately before the server response resolves', async () => {
+  _sessionStorageShim();
+  let resolveFetch;
+  _stubFetch(async () => new Promise((resolve) => {
+    resolveFetch = () => resolve({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'cN', label: '对话 2', chart_id: 'chart-1', position: 1 }),
+    });
+  }));
+
+  try {
+    useAppStore.setState({
+      conversations: [{ id: 'c1', label: '对话 1', chart_id: 'chart-1', position: 0 }],
+      currentConversationId: 'c1',
+      chatHistory: [{ role: 'user', content: 'old' }],
+      currentId: 'chart-1',
+    });
+
+    const pending = useAppStore.getState().newConversationOnServer('chart-1', '对话 2');
+    const optimistic = useAppStore.getState();
+
+    assert.equal(optimistic.chatHistory.length, 0);
+    assert.equal(optimistic.conversations.length, 2);
+    assert.equal(optimistic.conversations[1].label, '对话 2');
+    assert.notEqual(optimistic.currentConversationId, 'c1');
+    assert.match(String(optimistic.currentConversationId), /^temp-conv-/);
+
+    for (let attempt = 0; attempt < 5 && typeof resolveFetch !== 'function'; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    assert.equal(typeof resolveFetch, 'function');
+    resolveFetch();
+    await pending;
+
+    const settled = useAppStore.getState();
+    assert.equal(settled.currentConversationId, 'cN');
+    assert.equal(settled.conversations[1].id, 'cN');
+  } finally {
+    _restoreFetch();
+  }
+});
+
+test('loadClassics populates classical excerpts for the active chart', async () => {
+  _stubFetch(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      items: [
+        { source: '穷通宝鉴', scope: '甲木 · 寅月', chars: 24, text: '原文节选一' },
+        { source: '子平真诠', scope: '论用神', chars: 18, text: '原文节选二' },
+      ],
+    }),
+  }));
+
+  try {
+    useAppStore.setState({
+      currentId: 'chart-1',
+      charts: {
+        'chart-1': { id: 'chart-1', classics: { status: 'idle', items: [], lastError: null } },
+      },
+    });
+    await useAppStore.getState().loadClassics('chart-1');
+    const state = useAppStore.getState();
+    assert.equal(state.classics.status, 'done');
+    assert.equal(state.classics.items.length, 2);
+    assert.equal(state.charts['chart-1'].classics.items[0].source, '穷通宝鉴');
+  } finally {
+    _restoreFetch();
+  }
+});
+
+test('store starts with optimistic llmEnabled to avoid false fallback before health probe resolves', () => {
+  assert.equal(useAppStore.getInitialState().llmEnabled, true);
+});

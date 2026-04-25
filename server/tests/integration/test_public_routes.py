@@ -9,8 +9,9 @@ async def test_config_shape(client):
     r = await client.get("/api/config")
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"require_invite", "engine_version", "max_charts_per_user"}
+    assert set(body.keys()) == {"require_invite", "engine_version", "max_charts_per_user", "guest_login_enabled"}
     assert isinstance(body["require_invite"], bool)
+    assert body["guest_login_enabled"] is True
     assert body["max_charts_per_user"] == 15
     import paipan
     assert body["engine_version"] == paipan.VERSION

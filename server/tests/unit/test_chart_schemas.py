@@ -66,7 +66,12 @@ def test_cache_slot_defaults():
 
 def test_config_response_shape():
     from app.schemas.config import ConfigResponse
-    c = ConfigResponse(require_invite=True, engine_version="0.1.0", max_charts_per_user=15)
+    c = ConfigResponse(
+        require_invite=True,
+        engine_version="0.1.0",
+        max_charts_per_user=15,
+        guest_login_enabled=False,
+    )
     assert c.require_invite is True
     assert c.max_charts_per_user == 15
 

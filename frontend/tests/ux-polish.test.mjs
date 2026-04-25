@@ -32,28 +32,55 @@ test('buildChartVisibility hides engine fields that are absent and drops danglin
   });
 });
 
-test('buildGenerationStatus reports streaming verdicts and sections without blocking chat', () => {
+test('buildChartVisibility suppresses internal guard hints even when engine data exists', () => {
+  const result = buildChartVisibility({
+    meta: {
+      rizhu: '甲戌',
+      dayStrength: '身弱',
+      geju: '食神格',
+      yongshen: '木',
+    },
+    force: [{ name: '比肩', val: 4.4 }],
+    guards: [{ type: 'liuhe', note: '子丑 六合 化 土' }],
+  });
+
+  assert.equal(result.showForce, true);
+  assert.equal(result.showGuards, false);
+});
+
+test('buildGenerationStatus only surfaces background verdict generation in chat', () => {
   const result = buildGenerationStatus({
     verdicts: { status: 'streaming', body: '正在生成中' },
-    sections: [],
-    sectionsLoading: true,
+    dayunStreaming: true,
+    liunianStreaming: true,
   });
 
   assert.deepEqual(result, {
     visible: true,
-    text: '后台还在生成：判词 ⏳ · 五段 ⏳ · 大运待开 · 流年待开',
+    text: '后台还在生成：古籍判词 ⏳',
   });
 });
 
-test('getWelcomeMessageState prepends an in-flight hint while background reading is still generating', () => {
+test('buildGenerationStatus stays hidden for timing-page generation alone', () => {
+  const result = buildGenerationStatus({
+    dayunStreaming: true,
+    liunianStreaming: true,
+  });
+
+  assert.deepEqual(result, {
+    visible: false,
+    text: '',
+  });
+});
+
+test('getWelcomeMessageState prepends an in-flight hint while classical verdicts are still generating', () => {
   const result = getWelcomeMessageState({
     verdicts: { status: 'streaming' },
-    sectionsLoading: true,
   });
 
   assert.equal(
     result.lead,
-    '我正在为你生成命盘的初读和判词...你现在就可以提问，我会先答你的，背景内容会在后台陆续到位。',
+    '我正在为你研读古籍判词。你现在就可以先提问，我会继续在后台把依据补齐。',
   );
   assert.equal(result.showDefaultGuidance, true);
 });
@@ -90,4 +117,13 @@ test('avatar trigger stays chrome-free so only the circular avatar is visible', 
   assert.match(css, /\.user-menu-trigger\s*\{[^}]*border:\s*none;/s);
   assert.match(css, /\.user-menu-trigger\s*\{[^}]*background:\s*transparent;/s);
   assert.match(css, /\.user-menu-trigger\s*\{[^}]*box-shadow:\s*none;/s);
+});
+
+test('assistant replies stay visually plain instead of sitting inside a bordered card', () => {
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.msg-ai-card\s*\{[^}]*padding:\s*0;/s);
+  assert.match(css, /\.msg-ai-card\s*\{[^}]*border:\s*none;/s);
+  assert.match(css, /\.msg-ai-card\s*\{[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.msg-ai-card\s*\{[^}]*box-shadow:\s*none;/s);
 });

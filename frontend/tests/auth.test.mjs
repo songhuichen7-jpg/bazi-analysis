@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sendSmsCode, register, login, me } from '../src/lib/api.js';
+import { sendSmsCode, register, login, guestLogin, me } from '../src/lib/api.js';
 import { useAppStore } from '../src/store/useAppStore.js';
 
 function stubFetch(impl) {
@@ -81,6 +81,29 @@ test('login returns user and store setUser keeps it', async () => {
     const result = await login({ phone: '13800138001', code: '654321' });
     useAppStore.getState().setUser(result.user);
     assert.deepEqual(useAppStore.getState().user, user);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('guestLogin POSTs to guest auth endpoint with credentials', async () => {
+  const user = { id: 'u-guest', phone_last4: '9527', nickname: '游客' };
+  let captured;
+  stubFetch(async (url, opts) => {
+    captured = { url, opts };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ user }),
+    };
+  });
+
+  try {
+    const result = await guestLogin();
+    assert.equal(captured.url, '/api/auth/guest');
+    assert.equal(captured.opts.method, 'POST');
+    assert.equal(captured.opts.credentials, 'include');
+    assert.deepEqual(result.user, user);
   } finally {
     restoreFetch();
   }

@@ -14,6 +14,7 @@ def test_load_skill_returns_content():
     txt = load_skill()
     assert isinstance(txt, str) and len(txt) > 1000
     assert "bazi" in txt.lower() or "八字" in txt
+    assert "behavioral-translation.md" in txt
 
 
 def test_load_guide_returns_content():

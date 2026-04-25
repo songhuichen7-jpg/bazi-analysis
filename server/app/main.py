@@ -1,7 +1,7 @@
 """FastAPI entry point — foundation layer.
 
-Only route: GET /api/health. Lifespan loads KEK (fails loudly on sentinel).
-Business routes come in later plans.
+GET /api/health exposes basic process status plus a small LLM capability hint
+used by the frontend during bootstrap.
 """
 from __future__ import annotations
 
@@ -52,4 +52,12 @@ app.include_router(public_router)
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok", "version": settings.version, "env": settings.env}
+    return {
+        "status": "ok",
+        "version": settings.version,
+        "env": settings.env,
+        "llm": {
+            "hasKey": bool(settings.llm_api_key),
+            "model": settings.llm_model,
+        },
+    }

@@ -1,16 +1,15 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import Chart from './Chart';
-import Force, { GuardList } from './Force';
-import { BirthHeader, MetaGrid, ReadingHeader } from './Meta';
-import Sections from './Sections';
-import VerdictsPanel from './VerdictsPanel';
+import Force from './Force';
+import { BirthHeader, MetaGrid } from './Meta';
 import Dayun from './Dayun';
 import Chat from './Chat';
 import { clearSession } from '../lib/persistence';
 import ChartSwitcher from './ChartSwitcher';
 import { buildChartVisibility } from '../lib/chartVisibility';
 import { getShellTopbarClassName } from '../lib/shellChrome';
+import ClassicsPanel from './ClassicsPanel';
 
 const MIN_RIGHT = 320;
 const MAX_RIGHT = 780;
@@ -41,6 +40,12 @@ export default function Shell() {
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, [rightWidth]);
+
+  useEffect(() => {
+    if (view !== 'chart' && view !== 'timing') {
+      setView('chart');
+    }
+  }, [view, setView]);
 
   useEffect(() => {
     function onMouseMove(e) {
@@ -93,23 +98,15 @@ export default function Shell() {
               <BirthHeader />
               <Chart />
               <MetaGrid />
-              {visibility.showForce || visibility.showGuards ? <div className="divider" /> : null}
+              {visibility.showForce ? <div className="divider" /> : null}
               {visibility.showForce ? (
                 <div>
                   <div className="section-num" style={{ marginBottom:18 }}>十神力量</div>
                   <Force />
                 </div>
               ) : null}
-              {visibility.showGuards ? (
-                <div className="guard-box">
-                  <div className="section-num" style={{ marginBottom:12 }}>结构提示</div>
-                  <GuardList />
-                </div>
-              ) : null}
               <div className="divider" />
-              <ReadingHeader />
-              <Sections />
-              <VerdictsPanel />
+              <ClassicsPanel />
               <div className="quote-mark">命 不 是 判 决 书 · 是 一 张 地 形 图</div>
             </div>
           </div>

@@ -31,8 +31,8 @@ export default function ConversationSwitcher({ disabled }) {
     e?.stopPropagation?.();
     if (!currentChartId) return;
     const count = conversations.length;
-    await newConversationOnServer(currentChartId, `对话 ${count + 1}`);
     setOpen(false);
+    await newConversationOnServer(currentChartId, `对话 ${count + 1}`);
   }
 
   async function onSwitch(id) {

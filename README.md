@@ -35,12 +35,12 @@ npm run start        # http://localhost:3101
 ## 环境变量（`server/.env`）
 
 ```
-# 小米 MiMo（2026-04 从 OpenRouter 迁移）
-MIMO_API_KEY=...                           # https://platform.xiaomimimo.com
-MIMO_BASE_URL=https://api.xiaomimimo.com/v1
-LLM_MODEL=mimo-v2-pro                     # 主模型
-LLM_FAST_MODEL=mimo-v2-flash              # 快模型（router/liunian）
-LLM_FALLBACK_MODEL=mimo-v2-flash          # 失败兜底
+# DeepSeek（OpenAI-compatible API）
+DEEPSEEK_API_KEY=...                      # https://platform.deepseek.com
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-v4-flash               # 主模型
+LLM_FAST_MODEL=deepseek-v4-flash          # 快模型（router/liunian）
+LLM_FALLBACK_MODEL=deepseek-v4-flash      # 失败兜底
 PORT=3101
 ```
 

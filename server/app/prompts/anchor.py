@@ -16,7 +16,7 @@ def build_classical_anchor(
     if not retrieved:
         return ""
     lines: list[str] = []
-    lines.append("--- 古籍原文锚点（优先用这些原文引用，其次再靠模型记忆）---")
+    lines.append("--- 古籍原文锚点（只引用这些原文；不够时化用思路，不凭记忆补原文）---")
     for hit in retrieved:
         src = hit.get("source", "?")
         scope = hit.get("scope", "full")

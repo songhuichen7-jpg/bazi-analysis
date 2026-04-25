@@ -12,3 +12,5 @@ async def test_health_returns_ok(async_client):
     assert body["status"] == "ok"
     assert body["env"] == "test"
     assert "version" in body
+    assert body["llm"]["hasKey"] is False
+    assert body["llm"]["model"]

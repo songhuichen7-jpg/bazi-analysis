@@ -36,3 +36,17 @@ async def test_retrieve_for_chart_unknown_kind_empty():
     from app.retrieval.service import retrieve_for_chart
     hits = await retrieve_for_chart(sample_chart(), "zzz_unknown_kind")
     assert hits == []
+
+
+@pytest.mark.asyncio
+async def test_retrieve_for_chart_meta_formats_qiongtong_hit_for_display():
+    from app.retrieval.service import retrieve_for_chart
+
+    hits = await retrieve_for_chart(sample_chart(), "meta")
+
+    assert hits
+    first = hits[0]
+    assert first["source"] == "穷通宝鉴 · 三夏庚金"
+    assert first["scope"] == "四月庚金"
+    assert "###" not in first["text"]
+    assert first["text"].startswith("四月庚金，")

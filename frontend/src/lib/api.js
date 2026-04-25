@@ -8,6 +8,7 @@ export async function streamSSE(url, body, handlers = {}) {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: body == null ? undefined : JSON.stringify(body),
+    signal: handlers.signal,
   });
   if (!resp.ok || !resp.body) {
     throw await _errorFromResponse(resp);
@@ -140,6 +141,10 @@ export async function login({ phone, code }) {
   return _postJSON('/api/auth/login', { phone, code });
 }
 
+export async function guestLogin() {
+  return _postJSON('/api/auth/guest', null);
+}
+
 export async function logout() {
   return _postJSON('/api/auth/logout', null);
 }
@@ -157,6 +162,10 @@ export async function listCharts() {
 
 export async function getChart(chartId) {
   return _getJSON(`/api/charts/${chartId}`);
+}
+
+export async function fetchClassics(chartId) {
+  return _getJSON(`/api/charts/${chartId}/classics`);
 }
 
 export async function deleteChart(chartId) {

@@ -22,6 +22,7 @@ from app.prompts import (
 from app.schemas.chart import (
     BirthInput,
     CacheSlot,
+    ChartClassicsResponse,
     ChartCreateRequest,
     ChartDetail,
     ChartLabelUpdateRequest,
@@ -30,6 +31,7 @@ from app.schemas.chart import (
     ChartResponse,
 )
 from app.schemas.llm import LiunianBody, SectionBody
+from app.retrieval import service as retrieval_service
 from app.services import chart as chart_service
 from app.services import chart_chips as chart_chips_service
 from app.services import chart_llm as chart_llm_service
@@ -114,6 +116,21 @@ async def get_chart_endpoint(
     except ServiceError as e:
         raise _http_error(e)
     return await _chart_to_response(chart, db=db)
+
+
+@router.get("/{chart_id}/classics", response_model=ChartClassicsResponse)
+async def get_chart_classics_endpoint(
+    chart_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> ChartClassicsResponse:
+    try:
+        chart = await chart_service.get_chart(db, user, chart_id)
+    except ServiceError as e:
+        raise _http_error(e)
+
+    items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
+    return ChartClassicsResponse(items=items)
 
 
 @router.patch("/{chart_id}", response_model=ChartResponse)

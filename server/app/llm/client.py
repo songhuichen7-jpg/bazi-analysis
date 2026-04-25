@@ -1,4 +1,4 @@
-"""MiMo LLM client — AsyncOpenAI wrapper with fallback + first-delta timeout.
+"""OpenAI-compatible LLM client — AsyncOpenAI wrapper with fallback + first-delta timeout.
 
 Port of archive/server-mvp/llm.js. Uses openai-python SDK for transport;
 fallback + timeout semantics are our concern (SDK retry is disabled).
@@ -27,10 +27,10 @@ _log = logging.getLogger(__name__)
 
 # NOTE: max_retries=0 — fallback semantics require we control retry ourselves.
 # api_key falls back to a dummy value so module import doesn't crash in test envs
-# where MIMO_API_KEY isn't set (integration tests monkeypatch _client directly).
+# where the LLM API key isn't set (integration tests monkeypatch _client directly).
 _client = AsyncOpenAI(
-    api_key=settings.mimo_api_key or "dummy-for-test",
-    base_url=settings.mimo_base_url,
+    api_key=settings.llm_api_key or "dummy-for-test",
+    base_url=settings.llm_base_url,
     max_retries=0,
 )
 

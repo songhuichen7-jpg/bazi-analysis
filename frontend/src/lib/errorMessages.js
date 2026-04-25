@@ -39,6 +39,10 @@ function isAuth(lower) {
     'invalid api key',
     'unauthorized',
     'forbidden',
+    'deepseek_api_key missing',
+    'deepseek_api_key not configured',
+    'llm_api_key missing',
+    'llm_api_key not configured',
     'mimo_api_key missing',
     'mimo_api_key not configured',
   ]);

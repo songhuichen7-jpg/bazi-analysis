@@ -23,7 +23,7 @@ export function buildChartVisibility({ meta, force, guards } = {}) {
     showGeju: !!geju,
     showYongshen: !!yongshen,
     showForce: Array.isArray(force) && force.length > 0,
-    showGuards: Array.isArray(guards) && guards.length > 0,
+    showGuards: false,
     dayMasterText: [dayMaster, dayStrength].filter(Boolean).join(' · ') || dayMaster,
     readingHeadline,
     readingSummary,

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { fetchConfig } from '../lib/api';
+import { fetchConfig, guestLogin } from '../lib/api';
 import { setAuthSessionHint } from '../lib/authSessionHint.js';
-import { writeAuthPhoneHint } from '../lib/authPhoneHint.js';
+import { clearAuthPhoneHint, writeAuthPhoneHint } from '../lib/authPhoneHint.js';
 import SmsSendForm from './SmsSendForm';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
+import { friendlyError } from '../lib/errorMessages.js';
 
 export default function AuthScreen() {
   const setUser = useAppStore(s => s.setUser);
@@ -14,10 +15,16 @@ export default function AuthScreen() {
   const [mode, setMode] = useState('register');
   const [phone, setPhone] = useState('');
   const [requireInvite, setRequireInvite] = useState(false);
+  const [guestLoginEnabled, setGuestLoginEnabled] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [guestError, setGuestError] = useState('');
 
   useEffect(() => {
     fetchConfig()
-      .then((config) => setRequireInvite(!!config.require_invite))
+      .then((config) => {
+        setRequireInvite(!!config.require_invite);
+        setGuestLoginEnabled(!!config.guest_login_enabled);
+      })
       .catch(() => {});
   }, []);
 
@@ -27,6 +34,23 @@ export default function AuthScreen() {
     writeAuthPhoneHint(normalizedPhone);
     setUser(normalizedPhone ? { ...user, phone: normalizedPhone } : user);
     setScreen('input');
+  }
+
+  async function onGuestLogin() {
+    if (guestLoading) return;
+    setGuestError('');
+    setGuestLoading(true);
+    try {
+      const result = await guestLogin();
+      setAuthSessionHint();
+      clearAuthPhoneHint();
+      setUser(result.user || null);
+      setScreen('input');
+    } catch (error) {
+      setGuestError(friendlyError(error, 'auth').title);
+    } finally {
+      setGuestLoading(false);
+    }
   }
 
   return (
@@ -43,15 +67,27 @@ export default function AuthScreen() {
             <button
               className={'auth-toggle-btn' + (mode === 'register' ? ' active' : '')}
               onClick={() => setMode('register')}
+              disabled={guestLoading}
             >
               注册
             </button>
             <button
               className={'auth-toggle-btn' + (mode === 'login' ? ' active' : '')}
               onClick={() => setMode('login')}
+              disabled={guestLoading}
             >
               登录
             </button>
+            {guestLoginEnabled ? (
+              <button
+                className="auth-toggle-btn"
+                onClick={() => void onGuestLogin()}
+                disabled={guestLoading}
+                title="开发测试用"
+              >
+                {guestLoading ? '游客登录中…' : '游客登录'}
+              </button>
+            ) : null}
           </div>
 
           <div className="auth-panel">
@@ -75,6 +111,10 @@ export default function AuthScreen() {
                 onSuccess={onAuthSuccess}
               />
             )}
+
+            {guestError ? (
+              <div className="auth-inline-error">{guestError}</div>
+            ) : null}
           </div>
         </div>
       </div>

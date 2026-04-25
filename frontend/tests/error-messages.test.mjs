@@ -48,6 +48,11 @@ test('friendlyError classifies common user-facing failure types', () => {
   );
 
   assert.deepEqual(
+    friendlyError(new Error('deepseek_api_key not configured'), 'chat'),
+    { title: '服务暂时不可用', detail: 'deepseek_api_key not configured', retryable: false }
+  );
+
+  assert.deepEqual(
     friendlyError(new Error('HTTP 429'), 'chat'),
     { title: '现在使用的人有点多', detail: 'HTTP 429', retryable: true }
   );

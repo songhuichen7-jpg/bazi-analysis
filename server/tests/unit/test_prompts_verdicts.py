@@ -35,3 +35,13 @@ def test_build_verdicts_messages_with_retrieval():
     msgs = build_messages(sample_chart(), retrieved=retrieved)
     sys = "\n".join(m["content"] for m in msgs if m["role"] == "system")
     assert "滴天髓" in sys or "庚金带杀" in sys
+
+
+def test_build_verdicts_messages_aligns_docs_bazi_style_and_quote_policy():
+    from app.prompts.verdicts import build_messages
+    msgs = build_messages(sample_chart(), retrieved=[])
+    sys = "\n".join(m["content"] for m in msgs if m["role"] == "system")
+    assert "【输出风格预设 — 对齐 docs/bazi-analysis §0】" in sys
+    assert "只引用本请求提供的古籍原文锚点" in sys
+    assert "可自由引用" not in sys
+    assert "直接引用原文即可" not in sys

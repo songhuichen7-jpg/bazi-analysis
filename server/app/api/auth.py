@@ -141,6 +141,25 @@ async def login_endpoint(
     return {"user": _user_response(result.user).model_dump(mode="json")}
 
 
+@router.post("/guest")
+async def guest_login_endpoint(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if settings.env != "dev":
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Not found"})
+
+    result = await auth_service.login_guest(
+        db,
+        user_agent=request.headers.get("user-agent"),
+        ip=request.client.host if request.client else None,
+        kek=request.app.state.kek,
+    )
+    _set_session_cookie(response, result.raw_token)
+    return {"user": _user_response(result.user).model_dump(mode="json")}
+
+
 @router.post("/logout")
 async def logout_endpoint(
     request: Request,

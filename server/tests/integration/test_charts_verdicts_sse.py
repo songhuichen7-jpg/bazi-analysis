@@ -149,6 +149,9 @@ async def test_verdicts_fallback_takes_over_on_primary_error(client, monkeypatch
     """Primary errors at create() → fallback fires and completes the stream."""
     cookie, _ = await register_user(client, f"+86138{uuid.uuid4().int % 10**8:08d}")
     cid = await _make(client, cookie)
+    from app.llm import client as llm_client
+    monkeypatch.setattr(llm_client.settings, "llm_model", "deepseek-v4-pro")
+    monkeypatch.setattr(llm_client.settings, "llm_fallback_model", "deepseek-v4-flash")
     patch_llm_client(monkeypatch,
                       {"mimo-v2-pro":[], "mimo-v2-flash":["fallback content"]},
                       raise_on_model={"mimo-v2-pro"})
@@ -156,7 +159,7 @@ async def test_verdicts_fallback_takes_over_on_primary_error(client, monkeypatch
     events = await consume_sse(client, f"/api/charts/{cid}/verdicts",
                                 cookies={"session": cookie}, json_body={})
     models = [e["modelUsed"] for e in events if e["type"] == "model"]
-    assert "mimo-v2-flash" in models
+    assert "deepseek-v4-flash" in models
     assert events[-1]["full"] == "fallback content"
 
 

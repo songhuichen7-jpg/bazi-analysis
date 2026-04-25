@@ -8,6 +8,7 @@ import re
 
 from app.prompts.anchor import build_classical_anchor
 from app.prompts.context import compact_chart_context
+from app.prompts.style import BAZI_OUTPUT_STYLE_PRESET, CLASSICAL_QUOTE_POLICY
 
 # Valid section keys for the per-section route model.
 Section = str
@@ -69,6 +70,8 @@ def build_messages(
     retrieved = retrieved or []
     system_parts: list[str] = []
 
+    system_parts.append(BAZI_OUTPUT_STYLE_PRESET)
+    system_parts.append(CLASSICAL_QUOTE_POLICY)
     system_parts.append(_STYLE_BLOCK)
 
     ctx = compact_chart_context(chart)

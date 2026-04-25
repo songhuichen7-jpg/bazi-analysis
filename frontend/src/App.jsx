@@ -18,6 +18,8 @@ export default function App() {
   const meta = useAppStore(s => s.meta);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const loadMessages = useAppStore(s => s.loadMessages);
+  const loadClassics = useAppStore(s => s.loadClassics);
+  const classics = useAppStore(s => s.classics);
 
   useEffect(() => {
     fetchHealth().then(j => {
@@ -42,6 +44,9 @@ export default function App() {
   useEffect(() => {
     if (!currentId || !meta) return;
     (async () => {
+      if (classics?.status === 'idle' && !(classics?.items || []).length) {
+        void loadClassics(currentId);
+      }
       const result = await ensureConversation(currentId);
       if (useAppStore.getState().skipConversationHydration) {
         useAppStore.setState({ skipConversationHydration: false });
@@ -51,7 +56,7 @@ export default function App() {
         await loadMessages(result.conversationId);
       }
     })().catch(e => console.error('[App] load conversations failed', e));
-  }, [currentId, meta, ensureConversation, loadMessages]);
+  }, [classics, currentId, meta, ensureConversation, loadClassics, loadMessages]);
 
   let content = null;
   if (screen === 'auth') content = <AuthScreen />;

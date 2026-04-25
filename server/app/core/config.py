@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import PostgresDsn
+from pydantic import AliasChoices, Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,15 +36,31 @@ class Settings(BaseSettings):
     aliyun_sms_secret: str | None = None
     aliyun_sms_template: str | None = None
 
-    # Plan 5 LLM config
-    mimo_api_key: str = ""                       # dev/test 留空 OK（集成测试 mock client）
-    mimo_base_url: str = "https://api.xiaomimimo.com/v1"
-    llm_model: str = "mimo-v2-pro"
-    llm_fast_model: str = "mimo-v2-flash"
-    llm_fallback_model: str = "mimo-v2-flash"
+    # Plan 5 LLM config. DeepSeek uses the OpenAI-compatible API.
+    llm_api_key: str = Field(
+        "",
+        validation_alias=AliasChoices("LLM_API_KEY", "DEEPSEEK_API_KEY", "MIMO_API_KEY"),
+    )
+    llm_base_url: str = Field(
+        "https://api.deepseek.com",
+        validation_alias=AliasChoices("LLM_BASE_URL", "DEEPSEEK_BASE_URL", "MIMO_BASE_URL"),
+    )
+    llm_model: str = "deepseek-v4-flash"
+    llm_fast_model: str = "deepseek-v4-flash"
+    llm_fallback_model: str = "deepseek-v4-flash"
     llm_stream_first_delta_ms: int = 0           # 0 = 禁用；B 阶段生产调 8000
 
     bazi_repo_root: str = ""                     # 空字符串 = 运行时推断
+
+    @property
+    def mimo_api_key(self) -> str:
+        """Backward-compatible alias for older call sites and docs."""
+        return self.llm_api_key
+
+    @property
+    def mimo_base_url(self) -> str:
+        """Backward-compatible alias for older call sites and docs."""
+        return self.llm_base_url
 
 
 settings = Settings()

@@ -83,3 +83,14 @@ class ChartResponse(BaseModel):
 
 class ChartListResponse(BaseModel):
     items: list[ChartListItem]
+
+
+class ClassicalExcerpt(BaseModel):
+    source: str
+    scope: str
+    chars: int
+    text: str
+
+
+class ChartClassicsResponse(BaseModel):
+    items: list[ClassicalExcerpt] = Field(default_factory=list)

@@ -5,6 +5,7 @@ NOTE: prompts.js:709-758
 from __future__ import annotations
 
 from app.prompts.anchor import build_classical_anchor
+from app.prompts.style import BAZI_OUTPUT_STYLE_PRESET, CLASSICAL_QUOTE_POLICY
 
 # NOTE: prompts.js:587-595 (INTENT_GUIDE.liunian)
 _INTENT_GUIDE_LIUNIAN = (
@@ -18,12 +19,14 @@ _INTENT_GUIDE_LIUNIAN = (
     '- 第一个字必须是具体干支或结论，不要"好的"、"这一年"这种套话开头。'
 )
 
-_RUNTIME_HEADER = (
+_RUNTIME_HEADER = '\n\n'.join([
     '【运行时约束 — 最高优先级】\n'
     '面向用户的聊天界面，无工具调用能力。不要输出 **Read**、**Glob**、'
     '"让我先查一下古籍" 这类过程性描述。\n'
-    '古籍/方法论内容已内化，直接引用即可。'
-)
+    '命盘上下文和可用古籍锚点已在本请求给出；直接输出给用户看的回答。',
+    BAZI_OUTPUT_STYLE_PRESET,
+    CLASSICAL_QUOTE_POLICY,
+])
 
 _FORMAT_BLOCK = (
     '【输出格式】\n'

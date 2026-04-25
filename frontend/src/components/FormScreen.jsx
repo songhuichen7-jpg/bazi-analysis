@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAppStore, generateChartLabel } from '../store/useAppStore';
-import { fetchCities, createChart, fetchSections } from '../lib/api';
+import { fetchCities, createChart } from '../lib/api';
 import { MAX_CHARTS } from '../lib/constants';
 import { friendlyError } from '../lib/errorMessages';
 
-const LOADING_STAGES = ['真太阳时校正','四柱排定','藏干展开','力量擂台','格局识别','生成解读'];
+const LOADING_STAGES = ['真太阳时校正','四柱排定','藏干展开','力量擂台','格局识别'];
 
 export default function FormScreen() {
   const birthInfo   = useAppStore(s => s.birthInfo);
@@ -75,18 +75,11 @@ export default function FormScreen() {
       await new Promise(r => setTimeout(r, 250));
       openChartFromResponse(data, { skipConversationHydration: true });
       await ensureConversation(data.chart.id);
+      setSections([]);
+      setSectionsError(null);
+      setSectionsLoading(false);
 
-      // fire sections in background
       if (llmEnabled) {
-        setSectionsLoading(true);
-        setSections([]);
-        void fetchSections(data.chart.id)
-          .then(resp => {
-            if (resp.sections?.length) setSections(resp.sections);
-            else setSectionsError(resp.error || 'unknown');
-          })
-          .catch(e => setSectionsError(e.message || String(e)))
-          .finally(() => setSectionsLoading(false));
         void loadVerdicts(data.chart.id);
       }
     } catch (e) {
@@ -164,8 +157,7 @@ export default function FormScreen() {
           <div style={{ marginTop:16, padding:'10px 12px', borderLeft:'3px solid #000', background:'#f7f5f2', fontSize:13, color:'#333' }}>{formError}</div>
         )}
 
-        <div style={{ marginTop:48, display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
-          <div className="muted" style={{ fontSize:11, maxWidth:260, lineHeight:1.7 }}>我们只做排盘计算，不保存你的生辰数据。</div>
+        <div style={{ marginTop:48, display:'flex', alignItems:'center', justifyContent:'flex-end', gap:16, flexWrap:'wrap' }}>
           <button className="btn-primary" onClick={onSubmit}>生成命盘 →</button>
         </div>
       </div>
@@ -202,7 +194,6 @@ export function LandingScreen() {
           <h1 className="serif">一个<span className="muted">理性的</span>命理工具</h1>
           <p>不讲玄学。用子平真诠 + 现代结构化方法，把你的八字翻译成一份可以读、可以聊、可以对照的自我说明书。</p>
           <button className="btn-primary" onClick={() => void enterFromLanding()}>开始排盘 →</button>
-          <div className="muted" style={{ fontSize:11, marginTop:80, letterSpacing:'.2em', lineHeight:1.8 }}>v0.1 · 原型 · 模型输出为示例</div>
         </div>
       </div>
     </div>

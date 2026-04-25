@@ -24,7 +24,7 @@ async def test_chips_happy(client, monkeypatch):
     events = await consume_sse(client, f"/api/charts/{cid}/chips",
                                 cookies={"session": cookie}, json_body={})
     model_evts = [e for e in events if e["type"] == "model"]
-    assert any(m["modelUsed"] == "mimo-v2-flash" for m in model_evts)
+    assert any(m["modelUsed"] == "deepseek-v4-flash" for m in model_evts)
     assert events[-1]["type"] == "done"
 
 

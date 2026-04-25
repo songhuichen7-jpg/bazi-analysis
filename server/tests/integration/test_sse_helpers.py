@@ -12,7 +12,24 @@ def patch_llm_client(monkeypatch, prescribed: dict[str, list[str]],
     prescribed: {model_name: [delta1, delta2, ...]}.  Missing model → raises.
     raise_on_model: these model names raise to force fallback.
     """
-    raise_on_model = raise_on_model or set()
+    raise_on_model = set(raise_on_model or set())
+
+    from app.llm import client as c
+
+    # Keep older tests focused on behavior rather than provider naming. The app
+    # now defaults to DeepSeek, while many fixtures still describe the old MiMo
+    # primary/fast slots.
+    model_aliases = {
+        "mimo-v2-pro": c.settings.llm_model,
+        "mimo-v2-flash": c.settings.llm_fast_model,
+    }
+    prescribed = dict(prescribed)
+    for legacy, current in model_aliases.items():
+        if legacy in prescribed and current not in prescribed:
+            prescribed[current] = prescribed[legacy]
+    for legacy, current in model_aliases.items():
+        if legacy in raise_on_model:
+            raise_on_model.add(current)
 
     class _Chunk:
         def __init__(self, c):
@@ -43,7 +60,6 @@ def patch_llm_client(monkeypatch, prescribed: dict[str, list[str]],
             yield _Final()
         return _gen()
 
-    from app.llm import client as c
     monkeypatch.setattr(c._client.chat.completions, "create", _create)
 
 
