@@ -93,7 +93,7 @@ export default function FormScreen() {
   return (
     <div className="screen active">
       <div className="form-wrap fade-in">
-        <div className="back-link" onClick={() => setScreen('landing')}>← 返回</div>
+        <button type="button" className="back-link" onClick={() => setScreen('landing')}>← 返回</button>
         <div className="section-num" style={{ marginBottom: 16 }}>Step 01</div>
         <h2 className="serif">生辰</h2>
 
@@ -194,6 +194,25 @@ export function LandingScreen() {
           <h1 className="serif">一个<span className="muted">理性的</span>命理工具</h1>
           <p>不讲玄学。用子平真诠 + 现代结构化方法，把你的八字翻译成一份可以读、可以聊、可以对照的自我说明书。</p>
           <button className="btn-primary" onClick={() => void enterFromLanding()}>开始排盘 →</button>
+          <div className="landing-product-peek" aria-label="产品预览">
+            <div className="landing-peek-chart">
+              <span className="landing-peek-kicker">命盘档案</span>
+              <div className="landing-peek-pillars">
+                <strong>丁</strong>
+                <strong>酉</strong>
+                <strong>食神格</strong>
+              </div>
+              <div className="landing-peek-lines">
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+            <div className="landing-peek-chat">
+              <span className="landing-peek-kicker">对话</span>
+              <p>可以继续问：这盘的核心矛盾是什么？接下来两年重点看什么？</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

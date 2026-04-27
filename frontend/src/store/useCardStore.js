@@ -13,7 +13,27 @@ const initialState = {
   error: null,
   card: null,
   preview: null,
+  sourceChartId: null,
 };
+
+function birthInfoToCardBirth(birthInfo = {}) {
+  const [year, month, day] = String(birthInfo.date || '').split('-').map(Number);
+  let hour = -1;
+  let minute = 0;
+  if (!birthInfo.hourUnknown && birthInfo.time) {
+    const parts = String(birthInfo.time).split(':').map(Number);
+    hour = Number.isFinite(parts[0]) ? parts[0] : -1;
+    minute = Number.isFinite(parts[1]) ? parts[1] : 0;
+  }
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    ...(birthInfo.city ? { city: birthInfo.city } : {}),
+  };
+}
 
 export const useCardStore = create((set, get) => ({
   ...initialState,
@@ -49,7 +69,7 @@ export const useCardStore = create((set, get) => ({
         nickname: nickname || null,
       };
       const card = await postCardImpl(payload);
-      set({ card, loading: false });
+      set({ card, loading: false, sourceChartId: null });
       return card;
     } catch (err) {
       set({ error: err.message || 'unknown error', loading: false });
@@ -64,6 +84,27 @@ export const useCardStore = create((set, get) => ({
       set({ preview, loading: false });
     } catch (err) {
       set({ error: err.message, loading: false });
+    }
+  },
+
+  async generateFromBirthInfo({
+    chartId,
+    birthInfo,
+    nickname,
+    postCardImpl = realPostCard,
+  } = {}) {
+    set({ loading: true, error: null });
+    try {
+      const payload = {
+        birth: birthInfoToCardBirth(birthInfo),
+        nickname: nickname || null,
+      };
+      const card = await postCardImpl(payload);
+      set({ card, loading: false, sourceChartId: chartId || null });
+      return card;
+    } catch (err) {
+      set({ error: err.message || 'unknown error', loading: false });
+      return null;
     }
   },
 

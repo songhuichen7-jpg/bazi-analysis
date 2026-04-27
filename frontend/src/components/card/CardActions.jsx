@@ -1,12 +1,14 @@
 // frontend/src/components/card/CardActions.jsx
-export function CardActions({ onSave, onShare, onInvitePair }) {
+export function CardActions({ onSave, onShare, onInvitePair, disabled = false }) {
   return (
     <div className="card-actions">
-      <button type="button" className="action-save" onClick={onSave}>
-        💾 保存到相册
+      <button type="button" className="action-save" disabled={disabled} onClick={onSave}>
+        <span>01</span>
+        导出图片
       </button>
-      <button type="button" className="action-share" onClick={onShare}>
-        🔗 分享
+      <button type="button" className="action-share" disabled={disabled} onClick={onShare}>
+        <span>02</span>
+        复制链接
       </button>
       <button
         type="button"
@@ -15,7 +17,8 @@ export function CardActions({ onSave, onShare, onInvitePair }) {
         title="合盘功能即将开放"
         onClick={onInvitePair}
       >
-        💞 邀请合盘
+        <span>03</span>
+        邀请合盘
       </button>
     </div>
   );

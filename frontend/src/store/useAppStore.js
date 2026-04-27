@@ -3,7 +3,7 @@ import { SESSION_VERSION } from '../lib/constants.js';
 import { streamVerdicts } from '../lib/api.js';
 import { clearAuthSessionHint } from '../lib/authSessionHint.js';
 import { clearAuthPhoneHint } from '../lib/authPhoneHint.js';
-import { appendChatMessage } from '../lib/chatHistory.js';
+import { appendChatMessage, trimChatHistory } from '../lib/chatHistory.js';
 import { clearSession } from '../lib/persistence.js';
 import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
 
@@ -335,6 +335,18 @@ export const useAppStore = create((set, get) => ({
       if (arr[i].role === 'assistant') { arr[i] = { ...arr[i], content }; break; }
     }
     return { chatHistory: arr };
+  }),
+  prepareChatRegeneration: (userIndex, content) => set(s => {
+    const index = Number(userIndex);
+    const text = String(content ?? '').trim();
+    if (!Number.isInteger(index) || index < 0 || !text || s.chatHistory[index]?.role !== 'user') {
+      return {};
+    }
+
+    const chatHistory = s.chatHistory.slice(0, index + 1);
+    chatHistory[index] = { ...chatHistory[index], content: text };
+    chatHistory.push({ role: 'assistant', content: '' });
+    return { chatHistory: trimChatHistory(chatHistory) };
   }),
   replaceLastCtaWithAssistant: () => set(s => {
     const arr = s.chatHistory.slice();

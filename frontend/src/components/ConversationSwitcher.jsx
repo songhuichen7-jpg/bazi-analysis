@@ -113,8 +113,8 @@ export default function ConversationSwitcher({ disabled }) {
                     <div className="conv-item-preview">{String(preview).slice(0, 30)}</div>
                   </div>
                   <div className="conv-item-actions" onClick={e => e.stopPropagation()}>
-                    <button className="conv-icon" title="重命名" onClick={(e) => startRename(e, c)}>✎</button>
-                    <button className="conv-icon conv-icon-danger" title="删除" onClick={(e) => onDelete(e, c.id)}>×</button>
+                    <button className="conv-icon" title="重命名" aria-label="重命名对话" onClick={(e) => startRename(e, c)}>✎</button>
+                    <button className="conv-icon conv-icon-danger" title="删除" aria-label="删除对话" onClick={(e) => onDelete(e, c.id)}>×</button>
                   </div>
                 </div>
               );

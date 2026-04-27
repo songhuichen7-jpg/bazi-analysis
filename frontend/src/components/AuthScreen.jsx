@@ -83,9 +83,8 @@ export default function AuthScreen() {
                 className="auth-toggle-btn"
                 onClick={() => void onGuestLogin()}
                 disabled={guestLoading}
-                title="开发测试用"
               >
-                {guestLoading ? '游客登录中…' : '游客登录'}
+                {guestLoading ? '进入体验中…' : '先体验一下'}
               </button>
             ) : null}
           </div>

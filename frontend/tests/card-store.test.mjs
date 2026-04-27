@@ -11,6 +11,7 @@ function resetStore() {
     error: null,
     card: null,
     preview: null,
+    sourceChartId: null,
   });
 }
 
@@ -69,4 +70,31 @@ test('loadPreview fetches and stores preview', async () => {
     getCardPreviewImpl: async () => fakePreview,
   });
   assert.deepEqual(useCardStore.getState().preview, fakePreview);
+});
+
+test('generateFromBirthInfo builds a card from the active chart birth info', async () => {
+  const fakeCard = { type_id: '20', cosmic_name: '蒲公英', share_slug: 'c_chart' };
+  let captured;
+
+  const result = await useCardStore.getState().generateFromBirthInfo({
+    chartId: 'chart-1',
+    birthInfo: {
+      date: '1998-07-15',
+      time: '14:30',
+      hourUnknown: false,
+      city: '长沙',
+    },
+    nickname: '小满',
+    postCardImpl: async (payload) => {
+      captured = payload;
+      return fakeCard;
+    },
+  });
+
+  assert.deepEqual(captured, {
+    birth: { year: 1998, month: 7, day: 15, hour: 14, minute: 30, city: '长沙' },
+    nickname: '小满',
+  });
+  assert.deepEqual(result, fakeCard);
+  assert.equal(useCardStore.getState().sourceChartId, 'chart-1');
 });

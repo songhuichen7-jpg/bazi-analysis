@@ -53,6 +53,26 @@ test('replaceLastAssistant updates only the last assistant', () => {
 });
 
 
+test('prepareChatRegeneration trims later turns and opens a fresh assistant response', () => {
+  useAppStore.setState({
+    chatHistory: [
+      { role: 'user', content: '原来的问题' },
+      { role: 'assistant', content: '原来的回答' },
+      { role: 'user', content: '后面的问题' },
+      { role: 'assistant', content: '后面的回答' },
+    ],
+    currentId: 'chart-1', conversations: [], currentConversationId: null,
+  });
+
+  useAppStore.getState().prepareChatRegeneration(0, '改过的问题');
+
+  assert.deepEqual(useAppStore.getState().chatHistory, [
+    { role: 'user', content: '改过的问题' },
+    { role: 'assistant', content: '' },
+  ]);
+});
+
+
 test('replacePlaceholderWithCta turns last assistant into cta', () => {
   useAppStore.setState({
     chatHistory: [

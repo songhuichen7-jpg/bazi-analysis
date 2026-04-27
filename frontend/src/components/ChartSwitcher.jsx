@@ -130,13 +130,17 @@ export default function ChartSwitcher({ onNewChart }) {
                       </div>
                     </div>
                     <button
+                      type="button"
                       onDoubleClick={e => { e.stopPropagation(); startRename(id); }}
                       onClick={e => { e.stopPropagation(); startRename(id); }}
                       title="双击重命名"
+                      aria-label="重命名命盘"
                       style={{ background:'none', border:'none', cursor:'pointer', fontSize:13, opacity:.4, padding:'2px 4px', minHeight:28 }}
                     >✎</button>
                     <button
+                      type="button"
                       onClick={e => onDelete(id, e)}
+                      aria-label="删除命盘"
                       style={{ background:'none', border:'none', cursor:'pointer', fontSize:13, opacity:.4, padding:'2px 4px', color:'#c66', minHeight:28 }}
                     >×</button>
                   </>

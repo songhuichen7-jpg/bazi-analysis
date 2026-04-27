@@ -26,6 +26,21 @@ function compact(values) {
   return values.filter((value) => hasValue(value));
 }
 
+const DEFAULT_OPENING_GUIDE = {
+  intro: '你想从哪个方向聊起？比如：',
+  items: [
+    { label: '整体', detail: '这盘命的底色是什么，核心结构长什么样' },
+    { label: '性格', detail: '你是什么样的人，思维和情绪模式' },
+    { label: '事业', detail: '适合什么方向，当前的困难是结构性的还是阶段性的' },
+    { label: '财运', detail: '财的形态、来源、节奏' },
+    { label: '感情', detail: '正缘什么样，什么时候可能出现，关系里的模式' },
+    { label: '流年', detail: '最近几年或未来几年有什么重要变化' },
+    { label: '人生课题', detail: '你这辈子在修什么，压力的意义是什么' },
+    { label: '具体困惑', detail: '你现在有什么具体的事想问' },
+  ],
+  closing: '也可以什么都不选，我先从整体聊起，后面你随时追问。',
+};
+
 export function mergePromptChips(primary = [], secondary = [], max = 4) {
   const seen = new Set();
   const merged = [];
@@ -85,7 +100,7 @@ export function buildChatWorkspace({
   }
 
   return {
-    title: '先看哪一块',
+    title: '命盘已经排好了',
     lead: verdictsStreaming ? '' : '',
     badges: compact([
       visibility.dayMasterText || null,
@@ -93,6 +108,7 @@ export function buildChatWorkspace({
       hasValue(meta?.yongshen) ? `用神 ${meta.yongshen}` : null,
     ]),
     contextLabel: null,
+    openingGuide: DEFAULT_OPENING_GUIDE,
     starterQuestions: [
       '这张盘的核心矛盾是什么',
       '我最该先补哪一块',

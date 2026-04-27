@@ -37,7 +37,16 @@ export function CardScreen() {
   }, [card, searchParams]);
 
   if (loading) return <CardSkeleton />;
-  if (error) return <div className="form-error" role="alert">{error}</div>;
+  if (error) {
+    return (
+      <main className="card-error-screen" role="alert">
+        <div className="section-num">命盘摘录</div>
+        <h1 className="serif">这张命盘摘录暂时看不到</h1>
+        <p>它可能已经失效、被重新生成，或者链接有误。你可以回到首页，重新生成一张自己的命盘卡片。</p>
+        <Link to="/" className="primary-cta">回到首页 →</Link>
+      </main>
+    );
+  }
 
   if (card) {
     const handleSave = async () => {
@@ -54,7 +63,7 @@ export function CardScreen() {
 
     const handleShare = async () => {
       if (isWeChatBrowser()) {
-        alert('点击右上角「...」选择分享到朋友圈或好友');
+        alert('点击右上角菜单分享给好友');
       } else {
         const copied = await copyShareLink(window.location.href, {
           clipboard: navigator.clipboard,

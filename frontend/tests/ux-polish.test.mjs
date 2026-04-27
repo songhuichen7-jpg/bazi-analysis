@@ -127,3 +127,18 @@ test('assistant replies stay visually plain instead of sitting inside a bordered
   assert.match(css, /\.msg-ai-card\s*\{[^}]*background:\s*transparent;/s);
   assert.match(css, /\.msg-ai-card\s*\{[^}]*box-shadow:\s*none;/s);
 });
+
+test('primary shell navigation and icon-only controls expose button semantics', () => {
+  const shell = fs.readFileSync(new URL('../src/components/Shell.jsx', import.meta.url), 'utf8');
+  const chartSwitcher = fs.readFileSync(new URL('../src/components/ChartSwitcher.jsx', import.meta.url), 'utf8');
+  const conversationSwitcher = fs.readFileSync(new URL('../src/components/ConversationSwitcher.jsx', import.meta.url), 'utf8');
+  const form = fs.readFileSync(new URL('../src/components/FormScreen.jsx', import.meta.url), 'utf8');
+
+  assert.match(shell, /<button[\s\S]*aria-pressed=\{view === 'chart'\}[\s\S]*>命 盘<\/button>/);
+  assert.match(shell, /aria-label="清空所有命盘和聊天记录"/);
+  assert.match(chartSwitcher, /aria-label="重命名命盘"/);
+  assert.match(chartSwitcher, /aria-label="删除命盘"/);
+  assert.match(conversationSwitcher, /aria-label="重命名对话"/);
+  assert.match(conversationSwitcher, /aria-label="删除对话"/);
+  assert.match(form, /<button[\s\S]*className="back-link"[\s\S]*>← 返回<\/button>/);
+});

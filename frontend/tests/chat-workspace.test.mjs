@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import { buildChatWorkspace, mergePromptChips } from '../src/lib/chatWorkspace.js';
 
 
-test('buildChatWorkspace summarizes the chart and suggests guided opening questions', () => {
+test('buildChatWorkspace summarizes the chart and provides a textual opening guide', () => {
   const workspace = buildChatWorkspace({
     meta: {
       rizhu: '甲戌',
@@ -19,8 +20,12 @@ test('buildChatWorkspace summarizes the chart and suggests guided opening questi
   });
 
   assert.equal(workspace.contextLabel, null);
-  assert.equal(workspace.title, '先看哪一块');
+  assert.equal(workspace.title, '命盘已经排好了');
   assert.deepEqual(workspace.badges, ['甲戌 · 身弱', '食神格', '用神 木']);
+  assert.equal(workspace.openingGuide.intro, '你想从哪个方向聊起？比如：');
+  assert.equal(workspace.openingGuide.items[0].label, '整体');
+  assert.equal(workspace.openingGuide.items[0].detail, '这盘命的底色是什么，核心结构长什么样');
+  assert.match(workspace.openingGuide.closing, /我先从整体聊起/);
   assert.deepEqual(workspace.starterQuestions.slice(0, 3), [
     '这张盘的核心矛盾是什么',
     '我最该先补哪一块',
@@ -79,4 +84,23 @@ test('mergePromptChips keeps context-first ordering and removes duplicates', () 
     '我适合什么伴侣',
     '先看整体主线',
   ]);
+});
+
+
+test('empty chat welcome renders text instead of question cards', () => {
+  const source = fs.readFileSync(new URL('../src/components/Chat.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /chat-opening-guide/);
+  assert.doesNotMatch(source, /chat-guide-grid/);
+  assert.doesNotMatch(source, /chat-guide-btn/);
+});
+
+
+test('chat turns expose edit and regenerate controls', () => {
+  const source = fs.readFileSync(new URL('../src/components/Chat.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /prepareChatRegeneration/);
+  assert.match(source, /editingUserIndex/);
+  assert.match(source, /修改问题/);
+  assert.match(source, /重新回答/);
 });

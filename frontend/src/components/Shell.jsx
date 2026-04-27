@@ -10,6 +10,7 @@ import ChartSwitcher from './ChartSwitcher';
 import { buildChartVisibility } from '../lib/chartVisibility';
 import { getShellTopbarClassName } from '../lib/shellChrome';
 import ClassicsPanel from './ClassicsPanel';
+import { CardWorkspace } from './card/CardWorkspace';
 
 const MIN_RIGHT = 320;
 const MAX_RIGHT = 780;
@@ -42,7 +43,7 @@ export default function Shell() {
   }, [rightWidth]);
 
   useEffect(() => {
-    if (view !== 'chart' && view !== 'timing') {
+    if (view !== 'chart' && view !== 'timing' && view !== 'card') {
       setView('chart');
     }
   }, [view, setView]);
@@ -83,12 +84,34 @@ export default function Shell() {
             <div className={topbarClassName}>
               <div className="serif" style={{ fontSize:16 }}>{(meta?.rizhuGan || meta?.rizhu?.[0] || '命')} · 命</div>
               <div className="view-switch">
-                <div className={'view-item' + (view === 'chart' ? ' active' : '')} onClick={() => setView('chart')}>命 盘</div>
-                <div className={'view-item' + (view === 'timing' ? ' active' : '')} onClick={() => setView('timing')}>流 年</div>
+                <button
+                  type="button"
+                  className={'view-item' + (view === 'chart' ? ' active' : '')}
+                  aria-pressed={view === 'chart'}
+                  onClick={() => setView('chart')}
+                >命 盘</button>
+                <button
+                  type="button"
+                  className={'view-item' + (view === 'timing' ? ' active' : '')}
+                  aria-pressed={view === 'timing'}
+                  onClick={() => setView('timing')}
+                >流 年</button>
+                <button
+                  type="button"
+                  className={'view-item' + (view === 'card' ? ' active' : '')}
+                  aria-pressed={view === 'card'}
+                  onClick={() => setView('card')}
+                >卡 片</button>
               </div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 <ChartSwitcher onNewChart={() => startNewChart()} />
-                <button className="muted" style={{ fontSize:11 }} onClick={onReset} title="清空所有命盘">×</button>
+                <button
+                  className="muted"
+                  style={{ fontSize:11 }}
+                  onClick={onReset}
+                  title="清空所有命盘"
+                  aria-label="清空所有命盘和聊天记录"
+                >×</button>
               </div>
             </div>
           </div>
@@ -114,6 +137,12 @@ export default function Shell() {
           <div className="view" style={{ display: view === 'timing' ? 'block' : 'none' }}>
             <div className="left-content fade-in">
               <Dayun />
+            </div>
+          </div>
+
+          <div className="view" style={{ display: view === 'card' ? 'block' : 'none' }}>
+            <div className="left-content card-content fade-in">
+              <CardWorkspace />
             </div>
           </div>
         </div>

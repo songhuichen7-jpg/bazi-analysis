@@ -91,10 +91,18 @@ function isAbortError(error) {
   return error.name === 'AbortError' || /aborted|abort/i.test(String(error.message || error));
 }
 
+function findPreviousUserIndex(history, index) {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (history[i]?.role === 'user') return i;
+  }
+  return -1;
+}
+
 export default function Chat() {
   const history = useAppStore(s => s.chatHistory);
   const pushChat = useAppStore(s => s.pushChat);
   const replaceLastAssistant = useAppStore(s => s.replaceLastAssistant);
+  const prepareChatRegeneration = useAppStore(s => s.prepareChatRegeneration);
   const replacePlaceholderWithCta = useAppStore(s => s.replacePlaceholderWithCta);
   const replaceLastCtaWithAssistant = useAppStore(s => s.replaceLastCtaWithAssistant);
   const pushGuaCard = useAppStore(s => s.pushGuaCard);
@@ -120,6 +128,8 @@ export default function Chat() {
   const [chatError, setChatError] = useState(null);
   const [chips, setChips] = useState([]);
   const [chatTrace, setChatTrace] = useState(null);
+  const [editingUserIndex, setEditingUserIndex] = useState(null);
+  const [editingText, setEditingText] = useState('');
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
@@ -194,6 +204,29 @@ export default function Chat() {
     if (!streamAbortRef.current) return;
     streamAbortRef.current.abort();
     updateTrace({ type: 'abort' });
+  }
+
+  function beginEditUserMessage(index, content) {
+    if (chatStreaming || guaStreaming) return;
+    setChatError(null);
+    setEditingUserIndex(index);
+    setEditingText(String(content || ''));
+  }
+
+  function cancelEditUserMessage() {
+    setEditingUserIndex(null);
+    setEditingText('');
+  }
+
+  async function regenerateFromUser(index, content) {
+    const q = String(content || '').trim();
+    if (!q || chatStreaming || guaStreaming) return;
+    setInput('');
+    setChatError(null);
+    setChatTrace(null);
+    cancelEditUserMessage();
+    prepareChatRegeneration(index, q);
+    await send(q, { retry: true });
   }
 
   async function send(text, options = {}) {
@@ -418,36 +451,63 @@ export default function Chat() {
       <div className="chat-body" ref={bodyRef}>
         {history.length === 0 && (
           <div className="chat-welcome fade-in">
-            <div className="chat-welcome-head">
-              <div className="chat-welcome-title serif">{workspace.title}</div>
-              {workspace.badges.length ? (
-                <div className="chat-guide-badges">
-                  {workspace.badges.map((badge) => (
-                    <span className="chat-guide-badge" key={badge}>{badge}</span>
+            <div className="chat-opening-guide">
+              <p className="chat-opening-lead">
+                <strong>{workspace.title}</strong>
+                {workspace.openingGuide?.intro ? `。${workspace.openingGuide.intro}` : '。可以直接告诉我你想追问的点。'}
+              </p>
+              {workspace.openingGuide?.items?.length ? (
+                <ul className="chat-opening-list">
+                  {workspace.openingGuide.items.map(item => (
+                    <li key={item.label}>
+                      <strong>{item.label}</strong>
+                      <span>{item.detail}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : null}
-            </div>
-            <div className="chat-guide-grid">
-              {workspace.starterQuestions.map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  className="chat-guide-btn"
-                  onClick={() => send(question)}
-                  disabled={busy}
-                >
-                  {question}
-                </button>
-              ))}
+              {workspace.openingGuide?.closing ? (
+                <p className="chat-opening-closing">{workspace.openingGuide.closing}</p>
+              ) : null}
             </div>
           </div>
         )}
         {history.map((m, i) => {
           if (m.role === 'user') {
+            const isEditing = editingUserIndex === i;
+            if (isEditing) {
+              return (
+                <div className="msg msg-user msg-user-editing" key={i}>
+                  <div className="chat-edit-card">
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') cancelEditUserMessage();
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          regenerateFromUser(i, editingText);
+                        }
+                      }}
+                      rows={3}
+                      autoFocus
+                    />
+                    <div className="chat-turn-actions user-turn-actions">
+                      <button onClick={() => regenerateFromUser(i, editingText)} disabled={!String(editingText).trim() || busy}>
+                        重新回答
+                      </button>
+                      <button onClick={cancelEditUserMessage} disabled={busy}>取消</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div className="msg msg-user" key={i}>
                 <span className="bubble">{m.content}</span>
+                <div className="chat-turn-actions user-turn-actions">
+                  <button onClick={() => beginEditUserMessage(i, m.content)} disabled={busy}>修改问题</button>
+                </div>
               </div>
             );
           }
@@ -499,6 +559,17 @@ export default function Chat() {
                   {m.content ? <RichText text={m.content} /> : (isLast && traceVisible ? null : <TypingDots />)}
                 </div>
               </div>
+              {(() => {
+                const userIndex = findPreviousUserIndex(history, i);
+                if (userIndex < 0) return null;
+                const question = history[userIndex]?.content || '';
+                return (
+                  <div className="chat-turn-actions ai-turn-actions">
+                    {isLast && busy ? <button onClick={stopStreaming}>停止</button> : null}
+                    {!busy ? <button onClick={() => regenerateFromUser(userIndex, question)}>重新回答</button> : null}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
