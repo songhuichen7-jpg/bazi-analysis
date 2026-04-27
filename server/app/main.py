@@ -6,16 +6,22 @@ used by the frontend during bootstrap.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.card import router as card_router
 from app.api.charts import router as charts_router
 from app.api.conversations import charts_router as conversations_charts_router
 from app.api.conversations import router as conversations_router
 from app.api.quota import router as quota_router
 from app.api.sessions import router as sessions_router
 from app.api.public import router as public_router
+from app.api.tracking import router as tracking_router
+from app.api.wx import router as wx_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -28,6 +34,10 @@ async def lifespan(app: FastAPI):
     # smoke) can override via monkeypatch before import.
     from app.core.crypto import load_kek
     app.state.kek = load_kek()
+
+    from app.services.card.loader import load_all
+    load_all()
+
     yield
     from app.core.db import dispose_engine
     await dispose_engine()
@@ -41,13 +51,24 @@ app = FastAPI(
     redoc_url=None,
 )
 
+_CARDS_DATA_DIR = Path(__file__).parent / "data" / "cards"
+app.mount(
+    "/static/cards",
+    StaticFiles(directory=str(_CARDS_DATA_DIR)),
+    name="card_static",
+)
+
+app.include_router(admin_router)
 app.include_router(auth_router)
+app.include_router(card_router)
 app.include_router(sessions_router)
 app.include_router(charts_router)
 app.include_router(conversations_charts_router)
 app.include_router(conversations_router)
 app.include_router(quota_router)
 app.include_router(public_router)
+app.include_router(tracking_router)
+app.include_router(wx_router)
 
 
 @app.get("/api/health")

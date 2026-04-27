@@ -27,6 +27,7 @@ EXPECTED_TABLES = {
     "charts", "chart_cache",
     "conversations", "messages",
     "quota_usage", "llm_usage_logs",
+    "card_shares", "events",
     "alembic_version",
 }
 
@@ -76,6 +77,9 @@ def test_expected_indexes_present(alembic_config):
     assert "ix_charts_user_created" in indexes_by_table["charts"]
     assert "ix_messages_conv_created" in indexes_by_table["messages"]
     assert "ix_sms_phone_created" in indexes_by_table["sms_codes"]
+    assert "ix_card_shares_birth_hash" in indexes_by_table["card_shares"]
+    assert "ix_events_event" in indexes_by_table["events"]
+    assert "ix_events_share_slug" in indexes_by_table["events"]
 
 
 def _inspect_columns(async_url: str, table: str):

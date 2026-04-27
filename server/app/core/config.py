@@ -52,6 +52,11 @@ class Settings(BaseSettings):
 
     bazi_repo_root: str = ""                     # 空字符串 = 运行时推断
 
+    # Share-card analytics + WeChat JS-SDK config.
+    admin_token: str = ""
+    wx_app_id: str = ""
+    wx_app_secret: str = ""
+
     @property
     def mimo_api_key(self) -> str:
         """Backward-compatible alias for older call sites and docs."""
