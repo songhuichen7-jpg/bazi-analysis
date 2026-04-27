@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.card import router as card_router
+from app.api.hepan import router as hepan_router
 from app.api.charts import router as charts_router
 from app.api.conversations import charts_router as conversations_charts_router
 from app.api.conversations import router as conversations_router
@@ -37,6 +38,8 @@ async def lifespan(app: FastAPI):
 
     from app.services.card.loader import load_all
     load_all()
+    from app.services.hepan.loader import load_all as load_hepan_all
+    load_hepan_all()
 
     yield
     from app.core.db import dispose_engine
@@ -61,6 +64,7 @@ app.mount(
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(card_router)
+app.include_router(hepan_router)
 app.include_router(sessions_router)
 app.include_router(charts_router)
 app.include_router(conversations_charts_router)

@@ -1,5 +1,5 @@
 // frontend/src/components/card/CardActions.jsx
-export function CardActions({ onSave, onShare, onInvitePair, disabled = false }) {
+export function CardActions({ onSave, onShare, onInvitePair, disabled = false, inviting = false }) {
   return (
     <div className="card-actions">
       <button type="button" className="action-save" disabled={disabled} onClick={onSave}>
@@ -12,13 +12,12 @@ export function CardActions({ onSave, onShare, onInvitePair, disabled = false })
       </button>
       <button
         type="button"
-        className="action-pair disabled"
-        disabled
-        title="合盘功能即将开放"
+        className="action-pair"
+        disabled={disabled || inviting}
         onClick={onInvitePair}
       >
         <span>03</span>
-        邀请合盘
+        {inviting ? '生成邀请中…' : '邀请合盘'}
       </button>
     </div>
   );

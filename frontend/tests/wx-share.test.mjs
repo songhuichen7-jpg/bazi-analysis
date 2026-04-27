@@ -13,11 +13,11 @@ test('buildShareConfig friend produces correct title/desc/link', () => {
     suffix: '天生享乐家',
     share_slug: 'c_abc',
     illustration_url: '/static/01.png',
-  }, 'https://chabazi.com');
+  }, 'https://youshi.app');
   assert.match(cfg.title, /春笋·天生享乐家/);
   assert.match(cfg.link, /from=share_friend/);
   assert.match(cfg.link, /c_abc/);
-  assert.equal(cfg.imgUrl, 'https://chabazi.com/static/01.png');
+  assert.equal(cfg.imgUrl, 'https://youshi.app/static/01.png');
 });
 
 test('buildShareConfig timeline has distinct title', () => {
@@ -26,7 +26,7 @@ test('buildShareConfig timeline has distinct title', () => {
     suffix: '天生享乐家',
     share_slug: 'c_abc',
     illustration_url: '/static/01.png',
-  }, 'https://chabazi.com');
+  }, 'https://youshi.app');
   assert.match(cfg.title, /点开看你是什么/);
   assert.match(cfg.link, /from=share_timeline/);
 });

@@ -1,9 +1,12 @@
 // frontend/src/components/card/Card.jsx
+//
+// Spec: PM/specs/03_卡片与分享系统.md v4.0
+// 卡片正面只展示传播名 + 十神后缀 + 一句话 + 3 子标签 + 金句 + 品牌。
+// 不出现「日主」「格局」「五行生克」「参天木·绽放型」等命理术语（质检 #4）。
 import { forwardRef } from 'react';
 
-const CATEGORIES = ['性格', '关系', '事业'];
-
 export const Card = forwardRef(function Card({ card }, ref) {
+  const totalTypes = '20';
   return (
     <article
       ref={ref}
@@ -12,68 +15,36 @@ export const Card = forwardRef(function Card({ card }, ref) {
       data-type-id={card.type_id}
       style={{ '--theme': card.theme_color }}
     >
-      <div className="share-card-index" aria-hidden="true">
-        <span>{card.day_stem}</span>
-        <small>日主</small>
-      </div>
-
-      <header className="share-card-header">
-        <span className="brand">查八字</span>
-        <span className="type-id">命档 {card.type_id}</span>
+      <header className="share-card-head">
+        <span className="share-card-brand">有时</span>
+        <span className="share-card-typeid">
+          {card.type_id} <em>/ {totalTypes}</em>
+        </span>
       </header>
 
-      <div className="share-card-kicker">命盘摘录</div>
-      <div className="share-card-title-row">
-        <div>
-          <h1 className="cosmic-name">{card.cosmic_name}</h1>
-          <p className="suffix">{card.suffix}</p>
-        </div>
-        <span className="share-card-stamp">{card.state}</span>
-      </div>
+      <figure className="share-card-illustration">
+        <img src={card.illustration_url} alt={card.cosmic_name} />
+      </figure>
 
-      <div className="share-card-hero">
-        <p className="one-liner">{card.one_liner}</p>
-        <figure className="illustration">
-          <img src={card.illustration_url} alt={card.cosmic_name} />
-        </figure>
-      </div>
+      <h1 className="share-card-name">{card.cosmic_name}</h1>
+      <p className="share-card-suffix">· {card.suffix} ·</p>
 
-      <div className="share-card-meta">
-        <div>
-          <span>日主</span>
-          <strong>{card.day_stem}</strong>
-        </div>
-        <div>
-          <span>格局</span>
-          <strong>{card.ge_ju}</strong>
-        </div>
-        <div>
-          <span>状态</span>
-          <strong>{card.state}</strong>
-        </div>
-        <div>
-          <span>精度</span>
-          <strong>{card.precision === '3-pillar' ? '三柱' : '四柱'}</strong>
-        </div>
-      </div>
+      <p className="share-card-oneliner">{card.one_liner}</p>
 
-      <ul className="subtags">
+      <ul className="share-card-subtags">
         {card.subtags.map((t, i) => (
-          <li key={i}>
-            <span className="subtag-index">{String(i + 1).padStart(2, '0')}</span>
-            <div>
-              <span className="subtag-label">{CATEGORIES[i]}</span>
-              <strong>{t}</strong>
-            </div>
-          </li>
+          <li key={i}>{t}</li>
         ))}
       </ul>
 
-      <blockquote className="golden-line">{card.golden_line}</blockquote>
+      <blockquote className="share-card-golden">
+        <span className="share-card-quote">"</span>
+        {card.golden_line}
+      </blockquote>
 
-      <footer>
-        <span>命不是判决书，是一张地形图</span>
-        <span>chabazi.com</span>
+      <footer className="share-card-foot">
+        <span>有时</span>
+        <span>youshi.app</span>
       </footer>
     </article>
   );

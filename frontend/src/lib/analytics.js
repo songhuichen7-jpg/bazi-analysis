@@ -11,10 +11,10 @@ function collectContext() {
     viewport: `${window.innerWidth}x${window.innerHeight}`,
   };
   try {
-    let sid = sessionStorage.getItem('chabazi_sid');
+    let sid = sessionStorage.getItem('youshi_sid');
     if (!sid) {
       sid = `s_${Math.random().toString(36).slice(2, 14)}`;
-      sessionStorage.setItem('chabazi_sid', sid);
+      sessionStorage.setItem('youshi_sid', sid);
     }
     ctx.session_id = sid;
   } catch { /* sessionStorage may be unavailable */ }

@@ -1,0 +1,449 @@
+/*
+ * Hepan (合盘) card visual system.
+ *
+ * Spec: PM/specs/03_卡片与分享系统.md §三 + 04b §四 展示结构.
+ *   - 3:4 portrait (1080×1440 export, reuses saveImage TARGET_WIDTH)
+ *   - Warm hand-drawn aesthetic, blended pair theme color
+ *   - Side-aware accents: A 边色 / B 边色 / pair (中色)
+ *   - Quality check #4: no raw bazi terminology on the card front
+ *
+ * --theme       — pair color (blended from A and B in payload composer)
+ * --theme-a     — A side stem color
+ * --theme-b     — B side stem color
+ */
+
+/* ── Hepan invite landing page ──────────────────────────────────────── */
+.hepan-screen {
+  max-width: 600px;
+  margin: 32px auto;
+  padding: 20px;
+}
+
+.hepan-loading {
+  text-align: center;
+  color: #8b7858;
+  padding: 4rem 1rem;
+}
+
+.hepan-error {
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.hepan-error h1 {
+  font-size: 28px;
+  font-weight: normal;
+  margin: 0 0 12px;
+}
+
+.hepan-invite-head {
+  text-align: center;
+  margin: 32px auto 24px;
+  max-width: 480px;
+}
+
+.hepan-invite-kicker {
+  color: #b07a3c;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  margin: 0 0 8px;
+}
+
+.hepan-invite-head h1 {
+  margin: 0 0 14px;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1f1610;
+}
+
+.hepan-invite-sub {
+  color: #5d4f3a;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.hepan-invite-sub strong {
+  color: #b07a3c;
+  font-weight: 600;
+}
+
+.hepan-form {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 22px 22px 18px;
+  background: #fffdf7;
+  border: 1px solid #ecdfc8;
+  border-radius: 16px;
+}
+
+.hepan-form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.hepan-form-row input {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #ecdfc8;
+  border-radius: 10px;
+  background: #fffaf0;
+  font-size: 14px;
+  color: #1f1610;
+}
+
+.hepan-form-row input:focus {
+  outline: none;
+  border-color: #b07a3c;
+  background: #fff;
+}
+
+.hepan-form-error {
+  margin: 8px 0 12px;
+  padding: 9px 12px;
+  background: rgba(176, 70, 50, 0.06);
+  border-left: 3px solid #b04632;
+  color: #6e2418;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 0 8px 8px 0;
+}
+
+.hepan-form-submit {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 18px;
+  background: #b07a3c;
+  color: #fffdf7;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+
+.hepan-form-submit:hover:not(:disabled) {
+  background: #8c5e2b;
+}
+
+.hepan-form-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.hepan-form-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hepan-privacy-note {
+  margin: 14px 0 0;
+  text-align: center;
+  color: #9a8866;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Hepan card (3:4 portrait, export 1080×1440) ────────────────────── */
+.hepan-card {
+  --card-accent: var(--theme, #b07a3c);
+  --card-ink: #1f1610;
+
+  width: min(540px, 100%);
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+  padding: 22px 22px 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(60% 30% at 25% 0%, color-mix(in srgb, var(--theme-a, var(--card-accent)) 14%, transparent) 0%, transparent 60%),
+    radial-gradient(60% 30% at 75% 0%, color-mix(in srgb, var(--theme-b, var(--card-accent)) 14%, transparent) 0%, transparent 60%),
+    #fffdf7;
+  color: var(--card-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  box-shadow:
+    0 18px 38px rgba(60, 36, 14, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  overflow: hidden;
+}
+
+/* Header: brand + dual type id */
+.hepan-card-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: #8b7858;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+}
+
+.hepan-card-brand {
+  font-weight: 500;
+}
+
+.hepan-card-typeids {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.hepan-side-mark {
+  font-size: 13px;
+}
+
+.hepan-side-a { color: var(--theme-a, var(--card-accent)); }
+.hepan-side-b { color: var(--theme-b, var(--card-accent)); }
+
+.hepan-card-typeids em {
+  color: #b8a482;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.hepan-x {
+  color: #b8a482;
+  font-style: normal;
+  margin: 0 4px;
+}
+
+/* State row: ⚡⚡/⚡🔋 + label */
+.hepan-state-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5d4f3a;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.hepan-state-pair {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+/* Nicknames row */
+.hepan-nicks {
+  margin-top: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: #3a2c1d;
+}
+
+.hepan-nick-a { color: var(--theme-a, var(--card-accent)); font-weight: 500; }
+.hepan-nick-b { color: var(--theme-b, var(--card-accent)); font-weight: 500; }
+
+/* Relation illustration (placeholder SVG) */
+.hepan-card-illustration {
+  width: 35%;
+  aspect-ratio: 1 / 1;
+  margin: 12px 0 6px;
+  color: var(--card-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 14%, #fff7e6), transparent 75%);
+}
+
+.hepan-card-illustration svg {
+  width: 70%;
+  height: 70%;
+}
+
+/* Relation label — biggest text */
+.hepan-card-label {
+  margin: 6px 0 0;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: var(--card-ink);
+}
+
+/* Subtags — 3 chips */
+.hepan-card-subtags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  width: 100%;
+  justify-content: center;
+}
+
+.hepan-card-subtags li {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-accent) 9%, #fffaf0);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, #ecdfc4);
+  color: #2a1d10;
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Roles — A 角色 / B 角色 (双方角色对照) */
+.hepan-roles {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.hepan-role {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.hepan-role-divider {
+  width: 1px;
+  height: 36px;
+  background: #ecdfc8;
+}
+
+.hepan-role-cosmic {
+  font-size: 11px;
+  color: #8b7858;
+  letter-spacing: 0.12em;
+}
+
+.hepan-role-a .hepan-role-cosmic { color: var(--theme-a, var(--card-accent)); }
+.hepan-role-b .hepan-role-cosmic { color: var(--theme-b, var(--card-accent)); }
+
+.hepan-role-text {
+  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  font-size: 14px;
+  color: #2a1d10;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+/* Description (04a base) */
+.hepan-description {
+  margin: 12px 0 0;
+  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #3a2c1d;
+  letter-spacing: 0.02em;
+}
+
+/* Modifier (04b dynamic) */
+.hepan-modifier {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--card-accent) 8%, #fffaf0);
+  border-left: 2px solid var(--card-accent);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #3a2c1d;
+  text-align: left;
+}
+
+/* CTA quote */
+.hepan-cta {
+  margin: 12px 0 0;
+  padding: 0 10px;
+  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--card-ink);
+}
+
+.hepan-quote {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--card-accent);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  line-height: 0;
+  vertical-align: -7px;
+}
+
+/* Footer */
+.hepan-card-foot {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #9a8866;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* CTA below the card on completed state */
+.hepan-cta-block {
+  max-width: 540px;
+  margin: 24px auto 0;
+  padding: 18px 0 0;
+  border-top: 1px solid #ecdfc8;
+  text-align: center;
+}
+
+.hepan-cta-hook {
+  margin: 0;
+  font-size: 14px;
+  color: #2a1d10;
+}
+
+.hepan-cta-detail {
+  margin: 6px 0 14px;
+  font-size: 12px;
+  color: #746b5f;
+}
+
+.hepan-cta-link {
+  display: inline-block;
+  padding: 9px 20px;
+  border: 1px solid #2a1d10;
+  border-radius: 999px;
+  color: #2a1d10;
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.hepan-cta-link:hover {
+  background: #2a1d10;
+  color: #fffdf7;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 540px) {
+  .hepan-card {
+    width: 100%;
+  }
+
+  .hepan-card-label {
+    font-size: 30px;
+  }
+}

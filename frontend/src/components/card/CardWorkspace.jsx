@@ -5,6 +5,7 @@ import { Card } from './Card.jsx';
 import { CardActions } from './CardActions.jsx';
 import { saveCardAsImage } from '../../lib/saveImage.js';
 import { copyShareLink } from '../../lib/wxShare.js';
+import { postHepanInvite } from '../../lib/hepanApi.js';
 import { track } from '../../lib/analytics.js';
 
 function buildShareUrl(card) {
@@ -24,6 +25,7 @@ export function CardWorkspace() {
   const error = useCardStore(s => s.error);
   const generateFromBirthInfo = useCardStore(s => s.generateFromBirthInfo);
   const [notice, setNotice] = useState('');
+  const [inviting, setInviting] = useState(false);
 
   const activeCard = card && sourceChartId === currentId ? card : null;
   const canGenerate = !!birthInfo?.date && !!currentId;
@@ -66,6 +68,36 @@ export function CardWorkspace() {
     }
   }
 
+  async function handleInvitePair() {
+    if (!birthInfo?.date || inviting) return;
+    setNotice('');
+    setInviting(true);
+    try {
+      const [y, m, d] = birthInfo.date.split('-').map(s => parseInt(s, 10));
+      const h = Number.isFinite(birthInfo.hour) ? birthInfo.hour : -1;
+      const data = await postHepanInvite({
+        birth: { year: y, month: m, day: d, hour: h, minute: birthInfo.minute || 0 },
+        nickname: user?.nickname || null,
+      });
+      const inviteUrl = `${window.location.origin}/hepan/${data.slug}?from=invite`;
+      const copied = await copyShareLink(inviteUrl, {
+        clipboard: navigator.clipboard,
+        notify: (message) => setNotice(message),
+      });
+      if (copied) {
+        setNotice(`合盘邀请已复制：发给好友打开就能合盘。`);
+        await track('hepan_invite_create', {
+          slug: data.slug,
+          a_type_id: data.a?.type_id,
+        });
+      }
+    } catch (e) {
+      setNotice(e.message || '邀请生成失败，再试一次。');
+    } finally {
+      setInviting(false);
+    }
+  }
+
   return (
     <section className="card-workspace">
       <div className="card-workspace-head">
@@ -94,31 +126,23 @@ export function CardWorkspace() {
               <Card ref={cardRef} card={activeCard} />
             ) : (
               <article className="share-card share-card-empty">
-                <div className="share-card-index" aria-hidden="true">
-                  <span>{meta?.rizhuGan || meta?.rizhu?.[0] || '命'}</span>
-                  <small>日主</small>
-                </div>
-                <header className="share-card-header">
-                  <span>查八字</span>
-                  <span>命档 --</span>
+                <header className="share-card-head">
+                  <span className="share-card-brand">有时</span>
+                  <span className="share-card-typeid">-- <em>/ 20</em></span>
                 </header>
-                <div className="share-card-kicker">命盘摘录</div>
-                <div className="share-card-title-row">
-                  <div>
-                    <h1 className="cosmic-name">{meta?.rizhu || '日主'}</h1>
-                    <p className="suffix">{meta?.geju || '格局待定'}</p>
-                  </div>
-                  <span className="share-card-stamp">待定</span>
-                </div>
-                <p className="one-liner">一张从命盘里裁下来的纸面摘录，会落在这里。</p>
-                <div className="share-card-empty-rules" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <footer>
-                  <span>{birthInfo?.date || '未选择命盘'}</span>
-                  <span>chabazi.com</span>
+                <figure className="share-card-illustration share-card-illustration-empty" aria-hidden="true" />
+                <h1 className="share-card-name">??</h1>
+                <p className="share-card-suffix">· 等你的卡片 ·</p>
+                <p className="share-card-oneliner">输入生日，3 秒生成你的人格卡片。</p>
+                <ul className="share-card-subtags share-card-subtags-empty" aria-hidden="true">
+                  <li />
+                  <li />
+                  <li />
+                </ul>
+                <blockquote className="share-card-golden share-card-golden-empty" aria-hidden="true" />
+                <footer className="share-card-foot">
+                  <span>有时</span>
+                  <span>youshi.app</span>
                 </footer>
               </article>
             )}
@@ -147,9 +171,10 @@ export function CardWorkspace() {
           <div className="card-side-kicker">操作</div>
           <CardActions
             disabled={!activeCard}
+            inviting={inviting}
             onSave={handleSave}
             onShare={handleShare}
-            onInvitePair={() => {}}
+            onInvitePair={handleInvitePair}
           />
 
           {shareUrl ? (

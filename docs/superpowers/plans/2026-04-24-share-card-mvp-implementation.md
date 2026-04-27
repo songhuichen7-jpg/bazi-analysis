@@ -1885,7 +1885,7 @@ async def test_jsapi_ticket_returns_signature_payload(client, monkeypatch):
     with patch("app.api.wx._fetch_json", new=AsyncMock(side_effect=[
         fake_access_token, fake_ticket,
     ])):
-        resp = await client.get("/api/wx/jsapi-ticket?url=https%3A%2F%2Fchabazi.com%2Fcard%2Fc_abc")
+        resp = await client.get("/api/wx/jsapi-ticket?url=https%3A%2F%2Fyoushi.app%2Fcard%2Fc_abc")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -2168,17 +2168,17 @@ test('generates new id when cookie missing', () => {
   const cookieStore = { value: '' };
   const id = getAnonymousId({ readCookie: () => cookieStore.value, writeCookie: v => cookieStore.value = v });
   assert.match(id, /^a_[a-z0-9]{14}$/);
-  assert.match(cookieStore.value, /chabazi_aid=a_[a-z0-9]{14}/);
+  assert.match(cookieStore.value, /youshi_aid=a_[a-z0-9]{14}/);
 });
 
 test('returns existing id when cookie present', () => {
-  const cookieStore = { value: 'chabazi_aid=a_existing123456' };
+  const cookieStore = { value: 'youshi_aid=a_existing123456' };
   const id = getAnonymousId({ readCookie: () => cookieStore.value, writeCookie: () => {} });
   assert.equal(id, 'a_existing123456');
 });
 
 test('ignores malformed cookie', () => {
-  const cookieStore = { value: 'other=foo; chabazi_aid=BADFORMAT' };
+  const cookieStore = { value: 'other=foo; youshi_aid=BADFORMAT' };
   let wrote = '';
   const id = getAnonymousId({ readCookie: () => cookieStore.value, writeCookie: v => wrote = v });
   assert.match(id, /^a_[a-z0-9]{14}$/);
@@ -2192,7 +2192,7 @@ test('ignores malformed cookie', () => {
 
 ```javascript
 // frontend/src/lib/anonymousId.js
-const COOKIE_NAME = 'chabazi_aid';
+const COOKIE_NAME = 'youshi_aid';
 const MAX_AGE_DAYS = 7;
 const ID_RE = /^a_[a-z0-9]{14}$/;
 
@@ -2734,7 +2734,7 @@ export function LandingScreen() {
   return (
     <main className="landing-screen">
       <header className="hero">
-        <h1>查八字</h1>
+        <h1>有时</h1>
         <p className="tagline">3 秒看你的人格图鉴</p>
       </header>
       <BirthForm onSubmit={handleSubmit} />
@@ -2793,7 +2793,7 @@ export const Card = forwardRef(function Card({ card }, ref) {
       style={{ '--theme': card.theme_color }}
     >
       <header>
-        <span className="brand">查八字</span>
+        <span className="brand">有时</span>
         <span className="type-id">{card.type_id} / 20</span>
       </header>
 
@@ -2814,7 +2814,7 @@ export const Card = forwardRef(function Card({ card }, ref) {
       <blockquote className="golden-line">" {card.golden_line}</blockquote>
 
       <footer>
-        <span>查八字 · chabazi.com</span>
+        <span>有时 · youshi.app</span>
       </footer>
     </article>
   );
@@ -3128,7 +3128,7 @@ export async function saveCardAsImage(node, { typeId, cosmicName, onTrack } = {}
   if (isMobileUserAgent()) {
     showLongPressOverlay(dataUrl);
   } else {
-    triggerDownload(dataUrl, `chabazi-${typeId || ''}-${cosmicName || ''}.png`);
+    triggerDownload(dataUrl, `youshi-${typeId || ''}-${cosmicName || ''}.png`);
   }
   if (onTrack) onTrack();
 }
@@ -3212,9 +3212,9 @@ function collectContext() {
   if (typeof window === 'undefined') return {};
   return {
     anonymous_id: getAnonymousId(),
-    session_id: sessionStorage.getItem('chabazi_sid') || (() => {
+    session_id: sessionStorage.getItem('youshi_sid') || (() => {
       const s = `s_${Math.random().toString(36).slice(2, 14)}`;
-      sessionStorage.setItem('chabazi_sid', s);
+      sessionStorage.setItem('youshi_sid', s);
       return s;
     })(),
     user_agent: navigator.userAgent,
@@ -3271,7 +3271,7 @@ test('buildShareConfig friend produces correct title/desc/link', () => {
   const cfg = buildShareConfig('friend', {
     cosmic_name: '春笋', suffix: '天生享乐家', share_slug: 'c_abc',
     illustration_url: '/static/01.png',
-  }, 'https://chabazi.com');
+  }, 'https://youshi.app');
   assert.match(cfg.title, /春笋·天生享乐家/);
   assert.match(cfg.link, /from=share_friend/);
   assert.match(cfg.link, /c_abc/);
@@ -3281,7 +3281,7 @@ test('buildShareConfig timeline has distinct title', () => {
   const cfg = buildShareConfig('timeline', {
     cosmic_name: '春笋', suffix: '天生享乐家', share_slug: 'c_abc',
     illustration_url: '/static/01.png',
-  }, 'https://chabazi.com');
+  }, 'https://youshi.app');
   assert.match(cfg.title, /点开看你是什么/);
   assert.match(cfg.link, /from=share_timeline/);
 });
@@ -3304,7 +3304,7 @@ export function buildShareConfig(kind, card, origin) {
   if (kind === 'friend') {
     return {
       title: `我是${card.cosmic_name}·${card.suffix} -- 你是什么？`,
-      desc: '查八字人格图鉴，3 秒看到你的类型',
+      desc: '有时人格图鉴，3 秒看到你的类型',
       link: `${base}?from=share_friend`,
       imgUrl: `${origin}${card.illustration_url}`,
     };

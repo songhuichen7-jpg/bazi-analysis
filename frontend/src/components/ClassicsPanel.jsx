@@ -25,12 +25,18 @@ export default function ClassicsPanel() {
   const visibleItems = expanded ? items : items.slice(0, DEFAULT_VISIBLE_ITEMS);
   const hiddenCount = Math.max(0, items.length - visibleItems.length);
 
+  const isPending = (status === 'idle' || status === 'loading') && !items.length;
+  const hasContent = items.length > 0;
+
   return (
     <div className="classics-panel">
       <div className="panel-head classics-head">
         <div>
           <div className="section-num">古 籍 原 文</div>
-          <div className="serif classics-title">古书里与你命盘最贴近的原文</div>
+          {/* 副标题作为'结果断言', 只在数据真到达后才出现, 避免 loading 态误导 */}
+          {hasContent ? (
+            <div className="serif classics-title">古书里与你命盘最贴近的原文</div>
+          ) : null}
         </div>
         {status === 'error' && currentId && uiError?.retryable ? (
           <button className="btn-inline" onClick={() => loadClassics(currentId)}>再试一次</button>
@@ -46,9 +52,9 @@ export default function ClassicsPanel() {
         />
       ) : null}
 
-      {(status === 'idle' || status === 'loading') && !items.length ? (
+      {isPending ? (
         <div className="classics-pending-note" role="status">
-          正在检索与你命盘最相关的古籍原文…
+          正在为你检索古籍…
         </div>
       ) : null}
 

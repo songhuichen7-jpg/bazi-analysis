@@ -9,11 +9,11 @@ test('generates new id when cookie missing', () => {
     writeCookie: v => cookieStore.value = v,
   });
   assert.match(id, /^a_[a-z0-9]{14}$/);
-  assert.match(cookieStore.value, /chabazi_aid=a_[a-z0-9]{14}/);
+  assert.match(cookieStore.value, /youshi_aid=a_[a-z0-9]{14}/);
 });
 
 test('returns existing id when cookie present', () => {
-  const cookieStore = { value: 'chabazi_aid=a_existing123456' };
+  const cookieStore = { value: 'youshi_aid=a_existing123456' };
   const id = getAnonymousId({
     readCookie: () => cookieStore.value,
     writeCookie: () => {},
@@ -22,7 +22,7 @@ test('returns existing id when cookie present', () => {
 });
 
 test('ignores malformed cookie', () => {
-  const cookieStore = { value: 'other=foo; chabazi_aid=BADFORMAT' };
+  const cookieStore = { value: 'other=foo; youshi_aid=BADFORMAT' };
   let wrote = '';
   const id = getAnonymousId({
     readCookie: () => cookieStore.value,

@@ -1,7 +1,7 @@
 /** Cookie-based anonymous user id for cross-session K-factor tracking.
  *  Id format: a_ + 14 base36 chars (total 16 chars). 7-day sliding expiry.
  */
-const COOKIE_NAME = 'chabazi_aid';
+const COOKIE_NAME = 'youshi_aid';
 const MAX_AGE_DAYS = 7;
 const ID_RE = /^a_[a-z0-9]{14}$/;
 

@@ -1,0 +1,152 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+test('LandingHome covers the editorial single-page narrative', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+
+  // Hero — "有时·命有其时" 眉头点题 + 主标题保留 + 用户提供的时序诗
+  assert.match(source, /landing-hero/);
+  assert.match(source, /有时 · 命有其时/);
+  assert.match(source, /一个/);
+  assert.match(source, /命理工具/);
+  assert.match(source, /万事都有它出现的时刻/);
+  assert.match(source, /人也在自己的时序里慢慢展开/);
+  // 二十种人格
+  assert.match(source, /二十种命盘人格/);
+  assert.match(source, /给你的命盘/);
+  // 关系
+  assert.match(source, /你和 TA 的关系/);
+  assert.match(source, /不是合不合/);
+  assert.match(source, /RELATION_CATEGORIES/);
+  // 凭据
+  assert.match(source, /凭 据/);
+  assert.match(source, /古籍真本/);
+  assert.match(source, /TRUST_METRICS/);
+  // 时序收尾 — 纯诗意收束, 加品牌定位句
+  assert.match(source, /landing-final/);
+  assert.match(source, /和自己的时间/);
+  assert.match(source, /坐下来谈一谈/);
+});
+
+test('LandingHome CTA is single (Hero only) — Final 段是纯诗意收束, 不重复', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+  const matches = source.match(/onClick=\{handleStart\}/g) || [];
+  // 唯一 CTA 在 Hero, Final 段不应再出现
+  assert.equal(matches.length, 1, `expected exactly 1 CTA button, got ${matches.length}`);
+
+  // Final 段不应再有 CTA 按钮 (纯诗意收尾)
+  const finalSection = source.match(/landing-final[\s\S]*?<\/section>/);
+  assert.ok(finalSection, 'expected to find landing-final section');
+  assert.doesNotMatch(finalSection[0], /landing-cta-primary/);
+});
+
+test('LandingHome shows user-facing breadth metrics (no dev-internal numbers)', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+  // Trust metrics 全部讲产品丰富度, 不讲开发内部数字 (632 测试这种)
+  assert.match(source, /20.*?基础人格/);
+  assert.match(source, /200.*?人格细标签/);
+  assert.match(source, /5.*?古籍真本/);
+  assert.match(source, /210.*?关系组合/);
+  assert.doesNotMatch(source, /632/);
+  assert.doesNotMatch(source, /单元测试/);
+  assert.match(source, /SHOWCASE_TYPES/);
+});
+
+test('LandingHome 不暴露内部方法论给用户 ("正面重构"/"LLM"/"反幻觉")', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+  // 关系段不应有"正面重构"或"碰撞型搭子"这种暴露包装意图的话
+  assert.doesNotMatch(source, /正面重构/);
+  assert.doesNotMatch(source, /碰撞型搭子/);
+  // 凭据段不应有 LLM / 反幻觉 这种技术词
+  assert.doesNotMatch(source, /LLM/);
+  assert.doesNotMatch(source, /反幻觉/);
+  assert.doesNotMatch(source, /占卜机/);
+});
+
+test('LandingHome uses serif typography for display titles (Songti / Source Han Serif)', () => {
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
+  // 衬线字体栈用于标题
+  assert.match(css, /landing-display-title[\s\S]*?font-family:[\s\S]*?Songti SC|Source Han Serif/);
+  assert.match(css, /landing-section-title/);
+  assert.match(css, /landing-final-title/);
+});
+
+test('LandingHome uses paper-white palette (no warm radial backdrop, near-white base)', () => {
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
+  // landing-paper 接近纯白
+  assert.match(css, /--landing-paper:\s*#fcfcfa/);
+  // 黑色 CTA
+  assert.match(css, /\.landing-cta-primary[\s\S]*?background:\s*#1a1a1a/);
+  // 旧的 hero 暖色径向渐变 backdrop 应当消失
+  assert.doesNotMatch(css, /\.landing-hero[\s\S]*?radial-gradient.+rgba\(82,\s*183/);
+});
+
+test('Hero title — single line, "理性" muted accent, contained size', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
+
+  // JSX: 一个 + <span class="landing-title-muted">理性</span> + 的命理工具, 不换行
+  assert.match(source, /landing-title-muted/);
+  assert.match(source, /一个<span className="landing-title-muted">理性<\/span>的命理工具/);
+  const heroTitleMatch = source.match(/<h1[\s\S]*?landing-display-title[\s\S]*?<\/h1>/);
+  assert.ok(heroTitleMatch, 'expected to find landing-display-title h1');
+  assert.doesNotMatch(heroTitleMatch[0], /<br/);
+
+  // CSS: muted 灰 + 单行 nowrap + 字号 60 (克制版)
+  assert.match(css, /\.landing-title-muted[\s\S]*?color:\s*#c0bdb4/);
+  assert.match(css, /\.landing-display-title[\s\S]*?font-size:\s*60px/);
+  assert.match(css, /\.landing-display-title[\s\S]*?white-space:\s*nowrap/);
+});
+
+test('CTA wires through enterFromLanding store action (skips legacy LandingScreen)', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+
+  // 不再是 <Link to="/app">; 改成 button + onClick 调 enterFromLanding
+  assert.match(source, /enterFromLanding/);
+  assert.match(source, /useNavigate/);
+  assert.match(source, /handleStart/);
+  // <button ... onClick={handleStart}>
+  assert.match(source, /onClick=\{handleStart\}/);
+  // 确保不再用 Link 直跳 (这会跳过 store action 导致 AppShell screen='landing')
+  assert.doesNotMatch(source, /<Link\s+to="\/app"\s+className="landing-cta-primary"/);
+});
+
+test('Hero mockup renders the 命盘档案 + 对话 dual panels', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
+  assert.match(source, /landing-hero-mockup/);
+  assert.match(source, /landing-mockup-panel/);
+  assert.match(source, /命 盘 档 案/);
+  assert.match(source, /对 话/);
+});
+
+test('Trust metrics render as ruled grid (top + bottom rule, dividers between)', () => {
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
+  assert.match(css, /\.landing-trust-grid[\s\S]*?border-top:\s*1px solid/);
+  assert.match(css, /\.landing-trust-grid[\s\S]*?border-bottom:\s*1px solid/);
+  assert.match(css, /\.landing-metric[\s\S]*?border-right:\s*1px solid/);
+});
+
+test('Landing is responsive at 900px (mockup stacks, gallery wraps)', () => {
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
+  assert.match(css, /@media[^{]+max-width:\s*900px/);
+  assert.match(css, /\.landing-hero-mockup[\s\S]*?grid-template-columns:\s*1fr/);
+});
+
+test('CosmicCardPreview renders 5 illustration kinds without raw bazi terms', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/CosmicCardPreview.jsx', import.meta.url), 'utf8');
+  assert.match(source, /bamboo/);
+  assert.match(source, /samoye/);
+  assert.match(source, /lamp/);
+  assert.match(source, /puffer/);
+  assert.match(source, /dandelion/);
+  assert.doesNotMatch(source, /[>\s]日主[<\s]/);
+  assert.doesNotMatch(source, /[>\s]格局[<\s]/);
+});
+
+test('HepanCardPreview shows pair card with state pair icon + label + cta', () => {
+  const source = fs.readFileSync(new URL('../src/components/landing/HepanCardPreview.jsx', import.meta.url), 'utf8');
+  assert.match(source, /撑腰搭子/);
+  assert.match(source, /⚡⚡/);
+  assert.match(source, /你冲，我等你回来吃饭/);
+});

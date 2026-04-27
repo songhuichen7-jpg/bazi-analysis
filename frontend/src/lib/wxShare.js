@@ -9,7 +9,7 @@ export function buildShareConfig(kind, card, origin) {
   if (kind === 'friend') {
     return {
       title: `我是${card.cosmic_name}·${card.suffix} -- 你是什么？`,
-      desc: '查八字人格图鉴，3 秒看到你的类型',
+      desc: '有时人格图鉴，3 秒看到你的类型',
       link: `${base}?from=share_friend`,
       imgUrl: `${origin}${card.illustration_url}`,
     };

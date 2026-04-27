@@ -1,4 +1,18 @@
-/* Share card: editorial desktop workspace */
+/*
+ * Share card visual system.
+ *
+ * Spec: PM/specs/03_卡片与分享系统.md v4.0
+ *   - 3:4 竖版 (1080×1440 @2x export)
+ *   - 温暖手绘感 × 现代排版 × 留白呼吸
+ *   - 圆角 12-16px
+ *   - 圆体/手写体标题，正文无衬线
+ *   - 每型主题色锚点 (天干 × 绽/蓄)
+ *   - 卡片正面无裸命理术语 (质检 #4)
+ *
+ * --theme is set inline by Card.jsx from CardResponse.theme_color.
+ */
+
+/* ── Desktop workspace shell ───────────────────────────────────────── */
 .card-content {
   max-width: 1020px;
 }
@@ -14,7 +28,7 @@
   gap: 28px;
   margin-bottom: 22px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e7e0d5;
+  border-bottom: 1px solid #ecdfc8;
 }
 
 .card-workspace-head h2 {
@@ -36,14 +50,14 @@
 
 .card-workspace-grid {
   display: grid;
-  grid-template-columns: minmax(560px, 1fr) 250px;
-  gap: 28px;
+  grid-template-columns: minmax(420px, 1fr) 240px;
+  gap: 32px;
   align-items: start;
 }
 
 .card-document-stage {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   gap: 18px;
   min-width: 0;
 }
@@ -54,8 +68,8 @@
   justify-content: space-between;
   align-items: center;
   min-height: 0;
-  padding: 2px 0;
-  color: #a29a8c;
+  padding: 4px 0;
+  color: #b3a48a;
   font-size: 10px;
   letter-spacing: .18em;
   writing-mode: vertical-rl;
@@ -63,12 +77,10 @@
 
 .card-stage-mat {
   min-height: 0;
-  padding: 22px;
-  border: 1px solid #e3dbcc;
+  padding: 28px 22px;
+  border-radius: 16px;
   background:
-    linear-gradient(90deg, rgba(133, 119, 92, .06) 1px, transparent 1px),
-    linear-gradient(180deg, #f8f6f0 0%, #fbfaf6 100%);
-  background-size: 44px 44px, auto;
+    radial-gradient(120% 140% at 50% 0%, #fff7e8 0%, #f9efd8 60%, #f3e6c7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +88,7 @@
 
 .card-side-panel {
   padding-left: 24px;
-  border-left: 1px solid #e3dbcc;
+  border-left: 1px solid #ecdfc8;
 }
 
 .card-side-group {
@@ -84,7 +96,7 @@
 }
 
 .card-side-kicker {
-  color: #8b8375;
+  color: #9a8866;
   font-size: 10px;
   letter-spacing: .24em;
   line-height: 1.8;
@@ -92,7 +104,7 @@
 
 .card-facts {
   margin: 12px 0 0;
-  border-top: 1px solid #ebe5dc;
+  border-top: 1px solid #ecdfc8;
 }
 
 .card-facts div {
@@ -100,18 +112,18 @@
   grid-template-columns: 48px minmax(0, 1fr);
   gap: 14px;
   padding: 11px 0;
-  border-bottom: 1px solid #ebe5dc;
+  border-bottom: 1px solid #ecdfc8;
 }
 
 .card-facts dt {
-  color: #8d867a;
+  color: #9a8866;
   font-size: 11px;
   letter-spacing: .16em;
 }
 
 .card-facts dd {
   margin: 0;
-  color: #211d18;
+  color: #2a1f12;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -119,7 +131,7 @@
 .share-link-box {
   margin-top: 16px;
   padding: 12px 0 0;
-  border-top: 1px solid #ebe5dc;
+  border-top: 1px solid #ecdfc8;
   color: #6d665c;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
@@ -130,338 +142,252 @@
 .card-notice {
   margin-top: 12px;
   padding: 9px 0 0;
-  border-top: 1px solid #d4c29d;
-  color: #604c22;
+  border-top: 1px solid #d9c08e;
+  color: #6e4c10;
   font-size: 12px;
   line-height: 1.7;
 }
 
+/* ── Share card (3:4 portrait) ─────────────────────────────────────── */
 .share-card {
-  --card-accent: var(--theme, #8c6d3f);
-  width: min(620px, 100%);
-  height: clamp(500px, calc(100vh - 280px), 560px);
-  min-height: 0;
-  padding: 26px 30px 22px;
-  border: 1px solid #cfc5b2;
+  --card-accent: var(--theme, #b07a3c);
+  --card-accent-soft: color-mix(in srgb, var(--card-accent) 16%, #fff8ec);
+  --card-ink: #1f1610;
+
+  /* Spec: 3:4 portrait, export 1080×1440 (@2x of 540×720) */
+  width: min(540px, 100%);
+  aspect-ratio: 3 / 4;
+  padding: 28px 28px 22px;
+  border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(255, 254, 250, .96), rgba(248, 245, 238, .98)),
-    #fffdf8;
-  color: #171411;
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--card-accent) 12%, #fffdf7) 0%, #fffdf7 55%),
+    #fffdf7;
+  color: var(--card-ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   position: relative;
   box-shadow:
-    0 24px 45px rgba(33, 27, 17, .12),
+    0 18px 38px rgba(60, 36, 14, .14),
     0 1px 0 rgba(255, 255, 255, .9) inset;
   overflow: hidden;
 }
 
+/* Soft accent corner — 暖色手绘 hint */
 .share-card::before {
   content: "";
   position: absolute;
-  inset: 12px;
-  border: 1px solid rgba(131, 112, 78, .34);
+  top: -40%;
+  right: -25%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(closest-side, var(--card-accent-soft), transparent 70%);
   pointer-events: none;
+  z-index: 0;
 }
 
-.share-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(120, 105, 76, .045) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(120, 105, 76, .035) 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: .35;
-  pointer-events: none;
-}
-
-.share-card-index {
-  position: absolute;
-  right: 28px;
-  top: 25px;
-  width: 44px;
-  min-height: 74px;
-  border: 1px solid rgba(132, 103, 55, .42);
-  color: var(--card-accent);
-  display: grid;
-  place-items: center;
-  padding: 7px 5px;
+.share-card > * {
+  position: relative;
   z-index: 1;
 }
 
-.share-card-index span {
-  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.share-card-index small {
-  color: #9f978a;
-  font-size: 9px;
-  line-height: 1.25;
-  letter-spacing: .12em;
-  text-align: center;
-}
-
-.share-card-header {
+/* Header: brand · type id */
+.share-card-head {
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  padding-right: 54px;
-  color: #7e7568;
-  font-size: 10px;
-  letter-spacing: .2em;
-  position: relative;
-  z-index: 1;
-}
-
-.share-card-kicker {
-  margin-top: 26px;
-  color: #8d806a;
+  align-items: baseline;
+  color: #8b7858;
   font-size: 11px;
-  letter-spacing: .28em;
-  position: relative;
-  z-index: 1;
+  letter-spacing: .24em;
 }
 
-.share-card-title-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
-  gap: 18px;
-  align-items: end;
-  margin-top: 8px;
-  padding-right: 0;
-  position: relative;
-  z-index: 1;
+.share-card-brand {
+  font-weight: 500;
 }
 
-.share-card .cosmic-name {
-  margin: 0;
-  color: #14110e;
-  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 44px;
-  font-weight: normal;
-  line-height: 1.04;
-  letter-spacing: 0;
-}
-
-.share-card .suffix {
-  margin: 6px 0 0;
+.share-card-typeid {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  letter-spacing: .04em;
   color: var(--card-accent);
-  font-size: 14px;
-  line-height: 1.5;
 }
 
-.share-card-stamp {
-  width: 54px;
-  height: 54px;
-  border: 1px solid rgba(132, 103, 55, .52);
-  color: #7c5e29;
-  display: inline-flex;
+.share-card-typeid em {
+  color: #b8a482;
+  font-style: normal;
+  font-size: 11px;
+}
+
+/* Illustration — 中央大插画 (spec wireframe 第二行) */
+.share-card-illustration {
+  margin: 14px 0 10px;
+  width: 46%;
+  aspect-ratio: 1 / 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 15px;
-  line-height: 1.25;
-  text-align: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 18%, #fff7e6), transparent 75%);
 }
 
-.share-card-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
-  gap: 22px;
-  align-items: end;
-  margin-top: 18px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5ddcf;
-  position: relative;
-  z-index: 1;
-}
-
-.share-card .one-liner {
-  margin: 0;
-  max-width: 18em;
-  color: #312b24;
-  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 18px;
-  line-height: 1.65;
-}
-
-.share-card .illustration {
-  display: block;
-  margin: 0;
-  justify-self: end;
-  width: 86px;
-  height: 96px;
-  border-left: 1px solid #ded5c5;
-  border-bottom: 1px solid #ded5c5;
-  background: rgba(255, 255, 255, .38);
-  padding: 10px 8px;
-}
-
-.share-card .illustration img {
+.share-card-illustration img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: saturate(.48) contrast(.92);
-  opacity: .66;
+  filter: saturate(1.05);
 }
 
-.share-card-meta {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  margin-top: 14px;
-  border: 1px solid #ded6c7;
-  position: relative;
-  z-index: 1;
+.share-card-illustration-empty {
+  background:
+    repeating-linear-gradient(45deg, #f1e6cd 0 6px, #f7eedb 6px 12px);
+  opacity: .4;
 }
 
-.share-card-meta div {
-  min-width: 0;
-  padding: 8px 8px;
-  border-right: 1px solid #ded6c7;
+/* Cosmic name — 最大字 (传播名，社交货币) */
+.share-card-name {
+  margin: 0;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: .02em;
+  color: var(--card-ink);
 }
 
-.share-card-meta div:last-child {
-  border-right: none;
-}
-
-.share-card-meta span {
-  display: block;
-  color: #9a9184;
-  font-size: 9px;
-  letter-spacing: .16em;
+/* Suffix — 十神后缀，· 包裹 */
+.share-card-suffix {
+  margin: 8px 0 0;
+  color: var(--card-accent);
+  font-size: 14px;
+  letter-spacing: .08em;
   line-height: 1.4;
 }
 
-.share-card-meta strong {
-  display: block;
-  margin-top: 4px;
-  color: #28231d;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.45;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* One-liner */
+.share-card-oneliner {
+  margin: 16px 0 0;
+  max-width: 14em;
+  color: #3a2c1d;
+  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  font-size: 17px;
+  line-height: 1.55;
+  letter-spacing: .03em;
 }
 
-.share-card .subtags {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+/* Subtags — 3 chips (十神干预)
+ * 注: 02c 子标签矩阵实际字数中位数 7 字、最长 10 字 (与 spec #6 ≤5 字
+ * 硬约束既存偏差)。chip 允许换行而非截断，紧凑字号让 7-8 字一行可放. */
+.share-card-subtags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
   list-style: none;
   padding: 0;
   margin: 16px 0 0;
+  width: 100%;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.share-card-subtags li {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-accent) 9%, #fffaf0);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, #ecdfc4);
+  color: #2a1d10;
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: normal;
+  word-break: break-word;
+  hyphens: none;
+}
+
+.share-card-subtags-empty li {
+  background: repeating-linear-gradient(90deg, #f5ebd5 0 8px, #f9f0dc 8px 16px);
+  border-color: transparent;
+  color: transparent;
+  height: 32px;
+}
+
+/* Golden line — 引号 + 1 句 */
+.share-card-golden {
   position: relative;
-  z-index: 1;
-}
-
-.share-card .subtags li {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 10px;
-  padding: 0 0 0 10px;
-  border-left: 1px solid #e4dacb;
-  border-bottom: none;
-  color: #211d18;
-}
-
-.subtag-index {
-  color: #a79c8d;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.subtag-label {
-  display: block;
-  color: #9a8f7f;
-  font-size: 9px;
-  letter-spacing: .2em;
-  line-height: 1.4;
-}
-
-.share-card .subtags strong {
-  display: block;
-  margin-top: 3px;
-  color: #211d18;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.share-card .golden-line {
-  margin: 18px 0 0;
-  padding: 0 0 0 14px;
-  border-left: 2px solid var(--card-accent);
-  color: #28231c;
+  margin: 16px 0 0;
+  padding: 0 12px;
+  max-width: 22em;
+  color: var(--card-ink);
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
   font-size: 14px;
   line-height: 1.65;
-  position: relative;
-  z-index: 1;
+  letter-spacing: .02em;
 }
 
-.share-card footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
+.share-card-quote {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--card-accent);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  line-height: 0;
+  vertical-align: -7px;
+}
+
+.share-card-golden-empty {
+  height: 32px;
+  background: repeating-linear-gradient(90deg, #f5ebd5 0 6px, #f9f0dc 6px 12px);
+  opacity: .35;
+  border-radius: 6px;
+}
+
+/* Footer brand */
+.share-card-foot {
+  width: 100%;
   margin-top: auto;
   padding-top: 14px;
-  color: #989085;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #9a8866;
   font-size: 10px;
-  letter-spacing: .12em;
-  position: relative;
-  z-index: 1;
+  letter-spacing: .14em;
 }
 
+/* Empty placeholder card (CardWorkspace before generation) */
 .share-card-empty {
   box-shadow: none;
-  border-style: dashed;
-  color: #27231d;
+  border: 1px dashed color-mix(in srgb, var(--card-accent) 25%, #d8c8a8);
 }
 
-.share-card-empty .one-liner {
-  margin-top: 22px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5ddcf;
+.share-card-empty .share-card-name {
+  color: #c5b08a;
 }
 
-.share-card-empty-rules {
-  display: grid;
-  gap: 10px;
-  margin-top: 22px;
-  position: relative;
-  z-index: 1;
-}
-
-.share-card-empty-rules span {
-  height: 1px;
-  background: #e7dfd2;
-}
-
+/* ── Card actions (right rail) ─────────────────────────────────────── */
 .card-actions {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
   margin-top: 12px;
-  border-top: 1px solid #ebe5dc;
+  border-top: 1px solid #ecdfc8;
 }
 
 .card-actions button {
   min-height: 44px;
   padding: 11px 0;
-  border-bottom: 1px solid #ebe5dc;
+  border-bottom: 1px solid #ecdfc8;
   background: transparent;
-  color: #211d18;
+  color: #2a1f12;
   cursor: pointer;
   display: grid;
   grid-template-columns: 32px 1fr;
@@ -474,14 +400,14 @@
 }
 
 .card-actions button span {
-  color: #a59a8a;
+  color: #b8a482;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 13px;
   letter-spacing: 0;
 }
 
 .card-actions button:hover:not(:disabled) {
-  color: var(--card-accent, #8c6d3f);
+  color: var(--card-accent, #b07a3c);
   padding-left: 6px;
 }
 
@@ -491,6 +417,7 @@
   cursor: not-allowed;
 }
 
+/* ── Save-overlay (mobile long-press to save) ──────────────────────── */
 .save-overlay {
   position: fixed;
   inset: 0;
@@ -506,11 +433,13 @@
   padding: 24px;
   max-width: 90vw;
   text-align: center;
+  border-radius: 16px;
 }
 
 .save-overlay-inner img {
   max-width: 100%;
   max-height: 70vh;
+  border-radius: 12px;
 }
 
 .save-overlay-inner .close {
@@ -519,11 +448,13 @@
   border: 1px solid var(--line);
   background: white;
   cursor: pointer;
+  border-radius: 999px;
 }
 
+/* ── Standalone share-link page (/card/:slug) ──────────────────────── */
 .card-screen {
-  max-width: 900px;
-  margin: 44px auto;
+  max-width: 600px;
+  margin: 32px auto;
   padding: 20px;
 }
 
@@ -543,7 +474,7 @@
 
 .card-error-screen h1 {
   margin: 18px 0 14px;
-  color: #171411;
+  color: #1f1610;
   font-size: 38px;
   font-weight: normal;
   line-height: 1.25;
@@ -562,10 +493,10 @@
 }
 
 .upgrade-cta {
-  width: min(620px, 100%);
+  width: min(540px, 100%);
   margin: 22px auto 0;
   padding: 18px 0 0;
-  border-top: 1px solid #e2dacd;
+  border-top: 1px solid #ecdfc8;
   text-align: center;
 }
 
@@ -588,6 +519,7 @@
   color: var(--ink);
   text-decoration: none;
   font-size: 12px;
+  border-radius: 999px;
 }
 
 .upgrade-cta .cta-link:hover {
@@ -599,33 +531,32 @@
   max-width: 520px;
   margin: 70px auto;
   padding: 32px;
-  border: 1px solid #ddd3c2;
+  border: 1px solid #ecdfc8;
   background: #fffdf8;
   text-align: center;
+  border-radius: 18px;
 }
 
 .card-preview .preview-notice {
-  color: #8b8377;
+  color: #9a8866;
   font-size: 12px;
   letter-spacing: .1em;
   margin-bottom: 24px;
 }
 
 .card-preview img {
-  width: 112px;
-  height: 112px;
+  width: 132px;
+  height: 132px;
   object-fit: contain;
   margin: 0 auto 24px;
   display: block;
-  opacity: .72;
-  filter: saturate(.55);
 }
 
 .card-preview h2 {
   margin: 0;
-  font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
   font-size: 38px;
-  font-weight: normal;
+  font-weight: 600;
 }
 
 .card-preview .primary-cta {
@@ -636,6 +567,7 @@
   color: var(--ink);
   text-decoration: none;
   font-size: 12px;
+  border-radius: 999px;
 }
 
 .card-preview .primary-cta:hover {
@@ -651,14 +583,58 @@
   margin: 14px 0;
 }
 
+/* ── Skeleton (loading state) ──────────────────────────────────────── */
+.card-skeleton {
+  width: min(540px, 100%);
+  aspect-ratio: 3 / 4;
+  margin: 32px auto;
+  padding: 36px 34px;
+  border-radius: 18px;
+  background: #fffdf7;
+  border: 1px solid #ecdfc8;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-skeleton .shimmer {
+  background: linear-gradient(90deg, #f5ebd5 0%, #f9f0dc 50%, #f5ebd5 100%);
+  background-size: 200% 100%;
+  animation: card-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.card-skeleton .shimmer-name {
+  width: 60%;
+  height: 56px;
+}
+
+.card-skeleton .shimmer-tags {
+  width: 80%;
+  height: 32px;
+}
+
+.card-skeleton .shimmer-line {
+  width: 70%;
+  height: 18px;
+}
+
+@keyframes card-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 1120px) {
   .card-workspace-grid {
-    grid-template-columns: minmax(520px, 1fr) 230px;
+    grid-template-columns: minmax(380px, 1fr) 220px;
     gap: 24px;
   }
 
   .card-stage-mat {
-    padding: 18px;
+    padding: 22px 16px;
   }
 }
 
@@ -680,7 +656,15 @@
   .card-side-panel {
     padding-left: 0;
     border-left: none;
-    border-top: 1px solid #e3dbcc;
+    border-top: 1px solid #ecdfc8;
     padding-top: 20px;
+  }
+
+  .share-card {
+    width: min(420px, 100%);
+  }
+
+  .share-card-name {
+    font-size: 48px;
   }
 }

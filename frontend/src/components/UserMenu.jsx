@@ -1,10 +1,12 @@
 import { useEffect, useReducer, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { buildUserMenuProfile, reduceUserMenuOpen } from '../lib/userMenu';
 
 export default function UserMenu() {
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const navigate = useNavigate();
   const rootRef = useRef(null);
   const [open, dispatch] = useReducer(reduceUserMenuOpen, false);
 
@@ -40,9 +42,11 @@ export default function UserMenu() {
           <div className="user-menu-sep" />
           <button
             className="user-menu-logout"
-            onClick={() => {
+            onClick={async () => {
               dispatch({ type: 'logout' });
-              void logout();
+              await logout();
+              // 退出后跳访客首页, 不要停在 /app 让 AppShell 渲染内部旧 landing screen
+              navigate('/', { replace: true });
             }}
           >
             退出登录

@@ -85,7 +85,12 @@ export function CardScreen() {
         <CardActions
           onSave={handleSave}
           onShare={handleShare}
-          onInvitePair={() => alert('合盘功能即将开放')}
+          onInvitePair={() => {
+            // The standalone share-link page only knows the share slug, not
+            // the original birth — invite creation needs raw birth data.
+            // Redirect viewers to / to generate their own card first.
+            window.location.href = '/?action=invite_pair';
+          }}
         />
         <UpgradeCTA typeId={card.type_id} />
       </main>

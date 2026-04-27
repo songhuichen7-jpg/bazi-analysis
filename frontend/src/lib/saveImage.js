@@ -1,12 +1,21 @@
 import html2canvas from 'html2canvas';
 
+// Spec: PM/specs/03_卡片与分享系统.md
+//   1080×1440 (3:4 portrait, @2x) — best fit for 朋友圈
+const TARGET_WIDTH = 1080;
+
 export function isMobileUserAgent(ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '')) {
   return /iPhone|iPad|iPod|Android/i.test(ua);
 }
 
 export async function renderCardToDataUrl(node) {
+  // Pin the export width to TARGET_WIDTH regardless of the on-screen size.
+  // The card is laid out 3:4 (aspect-ratio in CSS), so 1080 wide → 1440 tall.
+  const rect = node.getBoundingClientRect();
+  const scale = rect.width > 0 ? TARGET_WIDTH / rect.width : 2;
+
   const canvas = await html2canvas(node, {
-    scale: 2,
+    scale,
     useCORS: true,
     backgroundColor: null,
     logging: false,
@@ -43,7 +52,7 @@ export async function saveCardAsImage(node, { typeId, cosmicName, onTrack } = {}
   if (isMobileUserAgent()) {
     showLongPressOverlay(dataUrl);
   } else {
-    triggerDownload(dataUrl, `chabazi-${typeId || ''}-${cosmicName || ''}.png`);
+    triggerDownload(dataUrl, `youshi-${typeId || ''}-${cosmicName || ''}.png`);
   }
   if (onTrack) onTrack();
 }

@@ -1,4 +1,6 @@
 @import './styles/card.css';
+@import './styles/hepan.css';
+@import './styles/landing.css';
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -362,13 +364,45 @@
     overflow: hidden;
   }
   .left-pane { overflow-y: auto; }
+  /* resize-handle 默认隐形, 只在 hover/拖动时浮现 — 避免与 scrollbar 形成两条线 */
   .resize-handle {
-    width: 6px; cursor: col-resize; background: var(--line);
+    width: 6px; cursor: col-resize; background: transparent;
     transition: background .15s;
     flex-shrink: 0;
   }
-  .resize-handle:hover, .resize-handle:active { background: #aaa; }
+  .resize-handle:hover { background: var(--line); }
+  .resize-handle:active { background: #c8c8c8; }
   .right-pane { overflow-y: auto; background: #fff; display: flex; flex-direction: column; }
+
+  /* Shell 内两栏的 scrollbar 调薄 + 低对比 — 接近 macOS overlay 风格 */
+  .left-pane,
+  .right-pane {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.14) transparent;
+  }
+  .left-pane::-webkit-scrollbar,
+  .right-pane::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .left-pane::-webkit-scrollbar-track,
+  .right-pane::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .left-pane::-webkit-scrollbar-thumb,
+  .right-pane::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    border: none;
+  }
+  .left-pane:hover::-webkit-scrollbar-thumb,
+  .right-pane:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .left-pane::-webkit-scrollbar-thumb:hover,
+  .right-pane::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.32);
+  }
 
   @media (max-width: 960px) {
     .shell-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }

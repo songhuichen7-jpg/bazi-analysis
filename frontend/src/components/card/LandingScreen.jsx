@@ -25,7 +25,7 @@ export function LandingScreen() {
   return (
     <main className="landing-screen">
       <header className="hero">
-        <h1>查八字</h1>
+        <h1>有时</h1>
         <p className="tagline">3 秒看你的人格图鉴</p>
       </header>
       <BirthForm onSubmit={handleSubmit} />

@@ -423,7 +423,7 @@ components/card/
 ```
 落地页 /
 ┌─────────────────────────────┐
-│  查八字 · 3 秒看你的人格图鉴    │
+│  有时 · 3 秒看你的人格图鉴    │
 │                             │
 │  年: [1998]  月: [07]  日: [15] │
 │  ▸ + 出生时间（可选，更准）      │
@@ -485,7 +485,7 @@ components/card/
   style={{'--theme': card.theme_color}}
 >
   <header>
-    <span className="brand">查八字</span>
+    <span className="brand">有时</span>
     <span className="type-id">{card.type_id} / 20</span>
   </header>
 
@@ -507,7 +507,7 @@ components/card/
   <blockquote className="golden-line">" {card.golden_line}</blockquote>
 
   <footer>
-    <span>查八字 · chabazi.com</span>
+    <span>有时 · youshi.app</span>
   </footer>
 </article>
 ```
@@ -554,7 +554,7 @@ async function saveCardAsImage() {
   if (isMobile()) {
     showLongPressOverlay(dataUrl);  // iOS Safari 不能 programmatic download
   } else {
-    triggerDownload(dataUrl, `chabazi-${card.type_id}-${card.cosmic_name}.png`);
+    triggerDownload(dataUrl, `youshi-${card.type_id}-${card.cosmic_name}.png`);
   }
 
   track('card_save', { type_id: card.type_id });
@@ -567,15 +567,15 @@ async function saveCardAsImage() {
 wx.ready(() => {
   wx.updateAppMessageShareData({
     title: `我是${card.cosmic_name}·${card.suffix} -- 你是什么？`,
-    desc: '查八字人格图鉴，3 秒看到你的类型',
-    link: `https://chabazi.com/card/${card.share_slug}?from=share_friend`,
+    desc: '有时人格图鉴，3 秒看到你的类型',
+    link: `https://youshi.app/card/${card.share_slug}?from=share_friend`,
     imgUrl: `${ORIGIN}${card.illustration_url}`,
     success: () => track('card_share', { type_id: card.type_id, channel: 'wx_friend' })
   });
 
   wx.updateTimelineShareData({
     title: `我是${card.cosmic_name} -- 点开看你是什么`,
-    link: `https://chabazi.com/card/${card.share_slug}?from=share_timeline`,
+    link: `https://youshi.app/card/${card.share_slug}?from=share_timeline`,
     imgUrl: `${ORIGIN}${card.illustration_url}`,
     success: () => track('card_share', { type_id: card.type_id, channel: 'wx_timeline' })
   });
@@ -587,7 +587,7 @@ wx.ready(() => {
 - 前端 CardScreen mount 时调 wx.config 一次
 
 **公众号备案（非工程，用户侧推进）：**
-- 域名 `chabazi.com` 购买 + 备案
+- 域名 `youshi.app` 购买 + 备案
 - 微信公众号/服务号注册 + 备案（周期 7-15 天）
 - JS 接口安全域名配置
 
@@ -662,7 +662,7 @@ K = 分享率 × 每次分享点击量 × 点击→填单转化率
 |------|------|
 | 诱导分享 | 绝不做"分享后解锁"；UpgradeCTA 引流注册，与分享解耦 |
 | JS-SDK 频繁调用 | `wx.config` 仅在 CardScreen mount 调一次；切路由不重复 |
-| 域名被封 | 主 `chabazi.com` + 备用 `chabazi.xyz`；自建短链 `go.chabazi.com/<slug>` 301 |
+| 域名被封 | 主 `youshi.app` + 备用 `youshi.xyz`；自建短链 `go.youshi.app/<slug>` 301 |
 | OG 预览被爬 | 不暴露真实命盘字段到 HTML meta |
 
 ---
@@ -715,7 +715,7 @@ K = 分享率 × 每次分享点击量 × 点击→填单转化率
 
 | 项目 | 建议启动 | 耗时 | 阻塞？ |
 |------|---------|------|--------|
-| 域名 `chabazi.com` 购买 + 解析 + HTTPS | Week 1 Day 1 | 1-3 天 | ✅ 阻塞上线 |
+| 域名 `youshi.app` 购买 + 解析 + HTTPS | Week 1 Day 1 | 1-3 天 | ✅ 阻塞上线 |
 | 微信公众号/服务号备案 | Week 1 Day 1 | 7-15 天 | ⚠️ 仅阻塞微信分享功能 |
 | 微信 JS 接口安全域名配置 | 备案后 | 5 分钟 | ⚠️ 同上 |
 | 插画风格锚点决定 | Week 1 Day 1 | 几小时 | ❌ emoji 可顶替 |

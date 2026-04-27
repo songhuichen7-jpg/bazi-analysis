@@ -17,8 +17,8 @@ dist/
 build/
 .coverage
 
-# git worktrees
-.claude/worktrees/
+# local Claude tooling (worktrees + settings.local.json + future caches)
+.claude/
 
 # Local browser-smoke artifacts and runtime caches (entire .claire/)
 # Release-notes reference smoke screenshots there as a local-only convention

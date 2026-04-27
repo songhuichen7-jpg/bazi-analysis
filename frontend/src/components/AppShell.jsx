@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import FormScreen, { LandingScreen, LoadingScreen } from './FormScreen';
+import FormScreen, { LoadingScreen } from './FormScreen';
 import Shell from './Shell';
 import AuthScreen from './AuthScreen';
 import { fetchHealth, me } from '../lib/api';
@@ -20,6 +21,16 @@ export default function AppShell() {
   const loadMessages = useAppStore(s => s.loadMessages);
   const loadClassics = useAppStore(s => s.loadClassics);
   const classics = useAppStore(s => s.classics);
+  const navigate = useNavigate();
+
+  // 兜底: 'landing' state 现在归 LandingHome (访客首页) 管, AppShell 不再渲染.
+  // 任何路径让 store.screen 落回 'landing' (logout / session 过期 / 重置) →
+  // 自动跳访客首页, 避免渲染内部旧 LandingScreen.
+  useEffect(() => {
+    if (screen === 'landing') {
+      navigate('/', { replace: true });
+    }
+  }, [screen, navigate]);
 
   useEffect(() => {
     fetchHealth().then(j => {
@@ -58,7 +69,8 @@ export default function AppShell() {
 
   let content = null;
   if (screen === 'auth') content = <AuthScreen />;
-  else if (screen === 'landing') content = <LandingScreen />;
+  // screen === 'landing' 不再渲染内部旧 landing — 上面的 useEffect 兜底跳 /
+  else if (screen === 'landing') content = null;
   else if (screen === 'input') content = <FormScreen />;
   else if (screen === 'loading') content = <LoadingScreen />;
   else if (screen === 'shell') content = <Shell />;
