@@ -23,3 +23,6 @@ build/
 # Local browser-smoke artifacts and runtime caches (entire .claire/)
 # Release-notes reference smoke screenshots there as a local-only convention
 .claire/
+
+# retrieval2 index artifacts (regenerable from classics/ via scripts/build_classics_index.py)
+server/var/

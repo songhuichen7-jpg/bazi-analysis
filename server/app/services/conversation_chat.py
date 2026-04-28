@@ -16,7 +16,7 @@ from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
 from app.models.user import User
 from app.prompts import expert as prompts_expert
-from app.retrieval.service import retrieve_for_chart
+from app.retrieval2.service import retrieve_for_chart
 from app.services import message as msg_svc
 from app.services.chat_router import classify
 from app.services.exceptions import UpstreamLLMError

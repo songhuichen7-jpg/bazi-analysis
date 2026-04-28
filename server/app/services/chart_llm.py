@@ -20,7 +20,7 @@ from app.llm.events import replay_cached, sse_pack
 from app.llm.logs import insert_llm_usage_log
 from app.models.chart import ChartCache
 from app.models.user import User
-from app.retrieval.service import retrieve_for_chart
+from app.retrieval2.service import retrieve_for_chart
 from app.services.exceptions import UpstreamLLMError
 from app.services.quota import QuotaTicket
 

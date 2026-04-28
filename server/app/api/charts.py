@@ -31,8 +31,10 @@ from app.schemas.chart import (
     ChartResponse,
 )
 from app.schemas.llm import LiunianBody, SectionBody
-from app.retrieval import service as retrieval_service
-from app.retrieval.llm_filter import filter_classics_for_display
+from app.retrieval2 import service as retrieval_service
+# NOTE: retrieval2 returns claim-level (50-200 char) hits already selected
+# by DeepSeek; the v1 filter_classics_for_display layer is no longer needed
+# (retrieval2 does its own LLM-based selection in selector.py).
 from app.services import chart as chart_service
 from app.services import chart_chips as chart_chips_service
 from app.services import chart_llm as chart_llm_service
@@ -130,8 +132,7 @@ async def get_chart_classics_endpoint(
     except ServiceError as e:
         raise _http_error(e)
 
-    candidates = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
-    items = await filter_classics_for_display(chart.paipan, candidates)
+    items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
     return ChartClassicsResponse(items=items)
 
 
