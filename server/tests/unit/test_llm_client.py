@@ -47,6 +47,24 @@ class _FakeClient:
         return factory()
 
 
+class _FakeOneShotClient:
+    def __init__(self):
+        self.calls = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    async def _create(self, *, model, stream, **kwargs):
+        assert stream is False
+        self.calls.append({"model": model, **kwargs})
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content='{"ok":true}', reasoning_content=""),
+                    finish_reason="stop",
+                )
+            ]
+        )
+
+
 def _patch_client(monkeypatch, fake: _FakeClient):
     from app.llm import client as c
     monkeypatch.setattr(c, "_client", fake)
@@ -61,7 +79,7 @@ def _patch_primary_fallback_models(monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_stream_happy_primary(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
-    fake = _FakeClient({"deepseek-v4-flash": lambda: _mk_stream(["Hello ", "world"], tokens=30)})
+    fake = _FakeClient({"deepseek-v4-pro": lambda: _mk_stream(["Hello ", "world"], tokens=30)})
     _patch_client(monkeypatch, fake)
 
     events = []
@@ -73,7 +91,7 @@ async def test_chat_stream_happy_primary(monkeypatch):
 
     types = [e["type"] for e in events]
     assert types == ["model", "delta", "delta", "done"]
-    assert events[0]["modelUsed"] == "deepseek-v4-flash"
+    assert events[0]["modelUsed"] == "deepseek-v4-pro"
     assert "".join(e["text"] for e in events if e["type"] == "delta") == "Hello world"
     assert events[-1]["full"] == "Hello world"
     assert events[-1]["tokens_used"] == 30
@@ -180,7 +198,7 @@ async def test_chat_stream_empty_primary_triggers_fallback(monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_stream_tier_fast_uses_fast_model(monkeypatch):
     from app.llm.client import chat_stream_with_fallback
-    fake = _FakeClient({"deepseek-v4-flash": lambda: _mk_stream(["fast"], tokens=2)})
+    fake = _FakeClient({"deepseek-v4-pro": lambda: _mk_stream(["fast"], tokens=2)})
     _patch_client(monkeypatch, fake)
 
     events = []
@@ -189,7 +207,25 @@ async def test_chat_stream_tier_fast_uses_fast_model(monkeypatch):
         tier="fast", temperature=0.9, max_tokens=200,
     ):
         events.append(ev)
-    assert events[0]["modelUsed"] == "deepseek-v4-flash"
+    assert events[0]["modelUsed"] == "deepseek-v4-pro"
+
+
+@pytest.mark.asyncio
+async def test_chat_once_with_fallback_disables_thinking_for_json_tasks(monkeypatch):
+    from app.llm.client import chat_once_with_fallback
+    fake = _FakeOneShotClient()
+    _patch_client(monkeypatch, fake)
+
+    text, model = await chat_once_with_fallback(
+        messages=[{"role": "user", "content": "json please"}],
+        tier="fast",
+        temperature=0,
+        max_tokens=200,
+    )
+
+    assert text == '{"ok":true}'
+    assert model == "deepseek-v4-pro"
+    assert fake.calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
 def test_client_has_max_retries_zero():

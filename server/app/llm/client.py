@@ -189,3 +189,100 @@ async def chat_with_fallback(
         elif ev["type"] == "delta":
             full += ev["text"]
     return full, model_used
+
+
+def _completion_content(response) -> str:
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", None)
+    return str(getattr(message, "content", None) or "")
+
+
+async def _run_one_model_once(
+    model: str,
+    *,
+    messages,
+    temperature,
+    max_tokens,
+    disable_thinking: bool,
+) -> str:
+    kwargs = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if disable_thinking:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    response = await _client.chat.completions.create(**kwargs)
+    text = _completion_content(response).strip()
+    if not text:
+        raise UpstreamLLMError(
+            code="UPSTREAM_LLM_FAILED",
+            message=f"{model} returned empty content",
+        )
+    return text
+
+
+async def chat_once_with_fallback(
+    *,
+    messages,
+    tier: Literal["primary", "fast"] = "primary",
+    temperature: float,
+    max_tokens: int,
+    disable_thinking: bool = True,
+) -> tuple[str, str]:
+    """Non-streaming helper for short structured tasks.
+
+    DeepSeek V4 defaults to thinking mode, where reasoning tokens count toward
+    max_tokens and can leave JSON tasks with empty final content. Callers that
+    need deeper deliberation can pass disable_thinking=False and raise token
+    budget.
+    """
+    primary = _primary_for_tier(tier)
+    fallback = _fallback_for_tier(tier)
+
+    primary_fail: UpstreamLLMError | None = None
+    try:
+        return (
+            await _run_one_model_once(
+                primary,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                disable_thinking=disable_thinking,
+            ),
+            primary,
+        )
+    except UpstreamLLMError as e:
+        primary_fail = e
+    except Exception as e:  # noqa: BLE001
+        primary_fail = UpstreamLLMError(
+            code="UPSTREAM_LLM_FAILED",
+            message=f"{primary}: {e}",
+        )
+        _log.warning("primary %s failed: %s", primary, e)
+
+    if fallback is None:
+        raise primary_fail
+
+    try:
+        return (
+            await _run_one_model_once(
+                fallback,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                disable_thinking=disable_thinking,
+            ),
+            fallback,
+        )
+    except UpstreamLLMError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise UpstreamLLMError(
+            code="UPSTREAM_LLM_FAILED",
+            message=f"{fallback}: {e}",
+        ) from e

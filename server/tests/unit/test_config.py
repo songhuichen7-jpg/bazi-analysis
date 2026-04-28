@@ -54,9 +54,9 @@ def test_plan5_llm_config_defaults(monkeypatch):
     assert s.llm_base_url == "https://api.deepseek.com"
     assert s.mimo_api_key == ""
     assert s.mimo_base_url == "https://api.deepseek.com"
-    assert s.llm_model == "deepseek-v4-flash"
-    assert s.llm_fast_model == "deepseek-v4-flash"
-    assert s.llm_fallback_model == "deepseek-v4-flash"
+    assert s.llm_model == "deepseek-v4-pro"
+    assert s.llm_fast_model == "deepseek-v4-pro"
+    assert s.llm_fallback_model == "deepseek-v4-pro"
     assert s.llm_stream_first_delta_ms == 0
     assert s.bazi_repo_root == ""
 

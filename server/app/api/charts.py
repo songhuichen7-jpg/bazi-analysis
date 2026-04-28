@@ -32,6 +32,7 @@ from app.schemas.chart import (
 )
 from app.schemas.llm import LiunianBody, SectionBody
 from app.retrieval import service as retrieval_service
+from app.retrieval.llm_filter import filter_classics_for_display
 from app.services import chart as chart_service
 from app.services import chart_chips as chart_chips_service
 from app.services import chart_llm as chart_llm_service
@@ -129,7 +130,8 @@ async def get_chart_classics_endpoint(
     except ServiceError as e:
         raise _http_error(e)
 
-    items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
+    candidates = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
+    items = await filter_classics_for_display(chart.paipan, candidates)
     return ChartClassicsResponse(items=items)
 
 

@@ -9,6 +9,7 @@ import { bootstrapAuthGate } from '../lib/appBootstrap';
 import { scrollAndFlash } from '../lib/parseRef';
 import ErrorState from './ErrorState';
 import UserMenu from './UserMenu';
+import { CLASSICS_VERSION } from '../store/useAppStore';
 
 export default function AppShell() {
   const screen = useAppStore(s => s.screen);
@@ -53,7 +54,7 @@ export default function AppShell() {
   useEffect(() => {
     if (!currentId || !meta) return;
     (async () => {
-      if (classics?.status === 'idle' && !(classics?.items || []).length) {
+      if ((classics?.version !== CLASSICS_VERSION) || (classics?.status === 'idle' && !(classics?.items || []).length)) {
         void loadClassics(currentId);
       }
       const result = await ensureConversation(currentId);

@@ -45,9 +45,9 @@ class Settings(BaseSettings):
         "https://api.deepseek.com",
         validation_alias=AliasChoices("LLM_BASE_URL", "DEEPSEEK_BASE_URL", "MIMO_BASE_URL"),
     )
-    llm_model: str = "deepseek-v4-flash"
-    llm_fast_model: str = "deepseek-v4-flash"
-    llm_fallback_model: str = "deepseek-v4-flash"
+    llm_model: str = "deepseek-v4-pro"
+    llm_fast_model: str = "deepseek-v4-pro"
+    llm_fallback_model: str = "deepseek-v4-pro"
     llm_stream_first_delta_ms: int = 0           # 0 = 禁用；B 阶段生产调 8000
 
     bazi_repo_root: str = ""                     # 空字符串 = 运行时推断

@@ -124,11 +124,18 @@ def _extract_qiongtong_section_detail(content: str, day_gan: str, month_zhi: str
         pattern = r"(^|[^一二三四五六七八九十])" + re.escape(num_char) + r"[一二三四五六七八九十]{0,2}月" + re.escape(day_gan + wx) + r"[，,]"
         return bool(re.search(pattern, body)) or (num + day_gan + wx) in body
 
-    hit = [p for p in paras if para_matches(p)]
+    hit_indices = [idx for idx, p in enumerate(paras) if para_matches(p)]
 
     # NOTE: retrieval.js:78-82
-    if hit:
-        text = "\n\n".join(strip_first_heading(p) for p in hit).strip()
+    if hit_indices:
+        selected: list[str] = []
+        first_hit = hit_indices[0]
+        for p in paras[:first_hit]:
+            body = strip_first_heading(p)
+            if body.startswith(season + day_gan + wx):
+                selected.append(body)
+        selected.extend(strip_first_heading(paras[idx]) for idx in hit_indices)
+        text = "\n\n".join(p for p in selected if p).strip()
         return {"text": text, "scope": num + day_gan + wx, "heading": season_heading}
     return {"text": season_block, "scope": "season", "heading": season_heading}
 

@@ -48,7 +48,7 @@ test('buildChartVisibility suppresses internal guard hints even when engine data
   assert.equal(result.showGuards, false);
 });
 
-test('buildGenerationStatus only surfaces background verdict generation in chat', () => {
+test('buildGenerationStatus distinguishes generated interpretation from retrieved classics', () => {
   const result = buildGenerationStatus({
     verdicts: { status: 'streaming', body: '正在生成中' },
     dayunStreaming: true,
@@ -57,7 +57,7 @@ test('buildGenerationStatus only surfaces background verdict generation in chat'
 
   assert.deepEqual(result, {
     visible: true,
-    text: '后台还在生成：古籍判词 ⏳',
+    text: '后台还在生成：综合解读 ⏳',
   });
 });
 
@@ -73,16 +73,23 @@ test('buildGenerationStatus stays hidden for timing-page generation alone', () =
   });
 });
 
-test('getWelcomeMessageState prepends an in-flight hint while classical verdicts are still generating', () => {
+test('getWelcomeMessageState avoids calling in-flight verdicts raw classics', () => {
   const result = getWelcomeMessageState({
     verdicts: { status: 'streaming' },
   });
 
   assert.equal(
     result.lead,
-    '我正在为你研读古籍判词。你现在就可以先提问，我会继续在后台把依据补齐。',
+    '我正在整理这张命盘的综合解读。你现在就可以先提问，我会继续在后台把长文分析补齐。',
   );
   assert.equal(result.showDefaultGuidance, true);
+});
+
+test('VerdictsPanel pending copy does not conflict with the classics panel', () => {
+  const source = fs.readFileSync(new URL('../src/components/VerdictsPanel.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /正在整理命盘解读/);
+  assert.doesNotMatch(source, /正在研读古籍判词/);
 });
 
 test('reduceUserMenuOpen toggles open and closes on outside interactions', () => {

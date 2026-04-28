@@ -866,6 +866,14 @@
     text-indent: 2em;
   }
   .classics-paragraph:first-child { margin-top: 0; }
+  .classics-match {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(164, 136, 86, .16);
+    font-size: 12px;
+    line-height: 1.75;
+    color: #75664f;
+  }
   .classics-toggle { margin-top: 16px; }
 
   .verdicts-panel { margin-top: 28px; padding: 22px 20px; border: 1px solid var(--line); background: linear-gradient(180deg, #fffef9 0%, #fff 100%); }

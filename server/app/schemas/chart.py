@@ -90,6 +90,7 @@ class ClassicalExcerpt(BaseModel):
     scope: str
     chars: int
     text: str
+    match: str | None = None
 
 
 class ChartClassicsResponse(BaseModel):

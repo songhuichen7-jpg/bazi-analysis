@@ -32,10 +32,10 @@ export default function ClassicsPanel() {
     <div className="classics-panel">
       <div className="panel-head classics-head">
         <div>
-          <div className="section-num">古 籍 原 文</div>
-          {/* 副标题作为'结果断言', 只在数据真到达后才出现, 避免 loading 态误导 */}
+          <div className="section-num">古 籍 旁 证</div>
+          {/* 副标题作为结果态文案, 只在数据真到达后才出现, 避免 loading 态误导 */}
           {hasContent ? (
-            <div className="serif classics-title">古书里与你命盘最贴近的原文</div>
+            <div className="serif classics-title">从古书里取几段，与这张命盘互相照看</div>
           ) : null}
         </div>
         {status === 'error' && currentId && uiError?.retryable ? (
@@ -54,7 +54,7 @@ export default function ClassicsPanel() {
 
       {isPending ? (
         <div className="classics-pending-note" role="status">
-          正在为你检索古籍…
+          正在翻检古籍…
         </div>
       ) : null}
 
@@ -78,6 +78,9 @@ export default function ClassicsPanel() {
                     </p>
                   ))}
                 </div>
+                {item.match ? (
+                  <div className="classics-match">对照本盘：{item.match}</div>
+                ) : null}
               </article>
             );
           })}
@@ -86,7 +89,7 @@ export default function ClassicsPanel() {
 
       {items.length > DEFAULT_VISIBLE_ITEMS ? (
         <button className="btn-inline classics-toggle" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? '收起原文' : `展开更多原文（还有 ${hiddenCount} 段）`}
+          {expanded ? '收起旁证' : `展开更多旁证（还有 ${hiddenCount} 段）`}
         </button>
       ) : null}
     </div>

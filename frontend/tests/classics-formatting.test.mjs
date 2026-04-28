@@ -30,3 +30,30 @@ test('buildClassicsDisplayItem hides internal scope tokens and strips duplicate 
   assert.equal(item.section, null);
   assert.deepEqual(item.paragraphs, ['八字用神，专求月令。']);
 });
+
+
+test('buildClassicsDisplayItem hides focused internal scope suffixes', () => {
+  const item = buildClassicsDisplayItem({
+    source: '滴天髓·衰旺',
+    scope: 'full·focused',
+    text: '能知衰旺之真机。',
+  });
+
+  assert.equal(item.book, '滴天髓');
+  assert.equal(item.chapter, '衰旺');
+  assert.equal(item.section, null);
+  assert.deepEqual(item.paragraphs, ['能知衰旺之真机。']);
+});
+
+
+test('buildClassicsDisplayItem keeps the chart-facing match note', () => {
+  const item = buildClassicsDisplayItem({
+    source: '穷通宝鉴 · 三秋甲木',
+    scope: '七月甲木',
+    match: '本盘是甲日主、七月生，这一段先看调候用神。',
+    text: '七月甲木，丁火为尊。',
+  });
+
+  assert.equal(item.match, '本盘是甲日主、七月生，这一段先看调候用神。');
+  assert.equal(Object.hasOwn(item, 'fitType'), false);
+});

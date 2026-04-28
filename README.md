@@ -41,9 +41,9 @@ npm run start        # http://localhost:3101
 # DeepSeek（OpenAI-compatible API）
 DEEPSEEK_API_KEY=...                      # https://platform.deepseek.com
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-v4-flash               # 主模型
-LLM_FAST_MODEL=deepseek-v4-flash          # 快模型（router/liunian）
-LLM_FALLBACK_MODEL=deepseek-v4-flash      # 失败兜底
+LLM_MODEL=deepseek-v4-pro                 # 主模型
+LLM_FAST_MODEL=deepseek-v4-pro            # 快模型（router/liunian）
+LLM_FALLBACK_MODEL=deepseek-v4-pro        # 失败兜底
 PORT=3101
 ```
 

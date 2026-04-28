@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { useAppStore } from '../src/store/useAppStore.js';
+import { CLASSICS_VERSION, useAppStore } from '../src/store/useAppStore.js';
 
 
 function _stubFetch(impl) {
@@ -240,7 +240,9 @@ test('loadClassics populates classical excerpts for the active chart', async () 
     await useAppStore.getState().loadClassics('chart-1');
     const state = useAppStore.getState();
     assert.equal(state.classics.status, 'done');
+    assert.equal(state.classics.version, CLASSICS_VERSION);
     assert.equal(state.classics.items.length, 2);
+    assert.equal(state.charts['chart-1'].classics.version, CLASSICS_VERSION);
     assert.equal(state.charts['chart-1'].classics.items[0].source, '穷通宝鉴');
   } finally {
     _restoreFetch();

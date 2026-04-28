@@ -85,7 +85,7 @@ bazi-analysis/
 | 后端 | FastAPI + SQLAlchemy 2.0 (async) + asyncpg | Python 3.12, uvicorn `:3101` |
 | DB | PostgreSQL | 服务端持久化（Plan 6 取代 localStorage） |
 | 认证 | 手机号 + SMS 验证码 | DEV mode 在 UI surface code |
-| LLM | DeepSeek API（OpenAI 协议兼容） | `deepseek-v4-flash` 主/快/回退 |
+| LLM | DeepSeek API（OpenAI 协议兼容） | `deepseek-v4-pro` 主/快/回退 |
 | 流式 | SSE (`text/event-stream`) | 自定义事件: `delta` / `done` / `error` / `model` / `intent` / `retrieval` / `gua` / `redirect` |
 | 命理引擎 | 纯 Python | 完整 Plan 7.x 系列：用神三法 + 行运 5-bin + transmutation 双层 |
 | 起卦 | 梅花易数·时间起卦 | 基于 lunar-python |
@@ -370,7 +370,7 @@ npm install
 npm run dev   # http://localhost:5173, vite proxy /api → :3101
 ```
 
-健康检查：`curl http://localhost:3101/api/health` 应返回 `{status:"ok", llm:{hasKey:true, model:"deepseek-v4-flash"}}`
+健康检查：`curl http://localhost:3101/api/health` 应返回 `{status:"ok", llm:{hasKey:true, model:"deepseek-v4-pro"}}`
 
 ### 8.2 测试
 

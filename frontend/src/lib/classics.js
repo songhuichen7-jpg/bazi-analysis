@@ -1,4 +1,4 @@
-const INTERNAL_SCOPES = new Set(['full', 'fallback', 'fallback-head', 'season', 'month']);
+const INTERNAL_SCOPES = new Set(['full', 'fallback', 'fallback-head', 'season', 'month', 'focused']);
 
 function cleanLabel(value) {
   return String(value || '')
@@ -22,7 +22,7 @@ function splitSource(source) {
 }
 
 function normalizeScope(scope, chapter) {
-  const normalized = cleanLabel(scope);
+  const normalized = cleanLabel(scope).replace(/(?:^|·)focused$/u, '').trim();
   if (!normalized || INTERNAL_SCOPES.has(normalized)) return null;
   if (chapter && (chapter === normalized || chapter.includes(normalized))) return null;
   return normalized;
@@ -65,6 +65,7 @@ export function buildClassicsDisplayItem(item) {
     book,
     chapter,
     section,
+    match: String(item?.match || '').trim(),
     paragraphs,
   };
 }

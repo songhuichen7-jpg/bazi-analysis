@@ -7,6 +7,8 @@ import { appendChatMessage, trimChatHistory } from '../lib/chatHistory.js';
 import { clearSession } from '../lib/persistence.js';
 import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
 
+export const CLASSICS_VERSION = 'skill-index-v6';
+
 function _serverMsgToUiMsg(m) {
   if (m.role === 'gua') {
     const { gua, body, question } = m.meta || {};
@@ -32,6 +34,7 @@ function blankClassics() {
     status: 'idle',
     items: [],
     lastError: null,
+    version: CLASSICS_VERSION,
   };
 }
 
@@ -52,6 +55,7 @@ function hydrateClassics(classics) {
     status: classics.status || (items.length ? 'done' : 'idle'),
     items,
     lastError: classics.lastError || null,
+    version: classics.version || null,
   };
 }
 
@@ -266,6 +270,7 @@ export const useAppStore = create((set, get) => ({
       status: 'loading',
       items: [],
       lastError: null,
+      version: CLASSICS_VERSION,
     })));
 
     try {
@@ -275,6 +280,7 @@ export const useAppStore = create((set, get) => ({
         status: 'done',
         items: Array.isArray(data?.items) ? data.items : [],
         lastError: null,
+        version: CLASSICS_VERSION,
       })));
     } catch (e) {
       const message = e.message || String(e);

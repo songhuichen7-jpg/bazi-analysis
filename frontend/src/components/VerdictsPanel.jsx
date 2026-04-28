@@ -25,8 +25,8 @@ export default function VerdictsPanel() {
     <div id="verdicts" className={panelClass}>
       <div className="panel-head" style={{ marginBottom: 8 }}>
         <div>
-          <div className="section-num">古 籍 判 词</div>
-          <div className="serif" style={{ fontSize: 22, marginTop: 6 }}>古籍里的整体定性</div>
+          <div className="section-num">命 盘 解 读</div>
+          <div className="serif" style={{ fontSize: 22, marginTop: 6 }}>古籍依据下的整体定性</div>
         </div>
         {status === 'error' && currentId && uiError?.retryable && (
           <button className="btn-inline" onClick={() => loadVerdicts(currentId)}>再试一次</button>
@@ -44,7 +44,7 @@ export default function VerdictsPanel() {
 
       {isWaiting ? (
         <div className="verdicts-pending-note" role="status">
-          正在研读古籍判词，完成后会自动出现在这里。你可以先看命盘，或者直接开始提问。
+          正在整理命盘解读，完成后会自动出现在这里。你可以先看命盘，或者直接开始提问。
         </div>
       ) : null}
 
