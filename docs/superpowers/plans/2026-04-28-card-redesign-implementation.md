@@ -1,57 +1,63 @@
-# Card Visual Redesign Implementation Plan
+# 卡片视觉重设计实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 agentic workers：** 必须使用子技能 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，按任务逐项执行本计划。所有步骤使用 checkbox（`- [ ]`）追踪。
 
-**Goal:** Ship the confirmed personal share-card redesign: a premium series-cover card layout with five micro-scene illustration samples.
+**目标：** 落地已确认的个人分享卡重设计：系列封套卡版式 + 5 张五行微场景绘本样板插图。
 
-**Architecture:** Keep the existing card API payload and static illustration URL contract. Update the React card markup and CSS to render a collector-style cover card, update the landing preview to match, and add a small prompt manifest for the five AI illustration samples so full 20-type generation can later follow the same rules.
+**架构：** 不改现有卡片 API payload，不改 `/static/cards/illustrations/` 静态资源合同。前端只重写卡片 DOM/CSS 和 landing 预览；后端数据层只新增一份非运行时的插图 prompt manifest，用来固定 5 张样板图的生成方向，后续再扩展到 20 张。
 
-**Tech Stack:** React 19, Vite, plain CSS, Node `node:test`, FastAPI static files for `/static/cards/illustrations/`.
-
----
-
-## File Structure
-
-- `frontend/src/components/card/Card.jsx`  
-  Owns the runtime personal share card DOM. It must keep rendering `card.illustration_url`, `card.cosmic_name`, `card.suffix`, `card.one_liner`, `card.subtags`, and `card.golden_line`; no backend payload change.
-
-- `frontend/src/styles/card.css`  
-  Owns the share card, desktop card workspace, save overlay, preview page, and card skeleton styling. Only the `share-card` visual section and related empty/skeleton responsive styles should be changed.
-
-- `frontend/src/components/landing/CosmicCardPreview.jsx`  
-  Owns static landing card previews. It should mirror the new series-cover composition without depending on card API data.
-
-- `frontend/src/components/landing/LandingHome.jsx`  
-  Owns the landing showcase list. It should show the five confirmed sample types: `01`, `08`, `11`, `16`, `19`.
-
-- `frontend/src/styles/landing.css`  
-  Owns landing gallery layout and static preview card CSS. It should move the showcase from the current four-card row to a five-card responsive collector grid.
-
-- `server/app/data/cards/illustration_prompts.json`  
-  New non-runtime prompt manifest for the five sample illustrations. It makes the AI asset direction explicit and testable.
-
-- `server/app/data/cards/illustrations/{01-chunsun.png,08-xiaoyedeng.png,11-duorou.png,16-mao.png,19-shuimu.png}`  
-  Replace these five current sample files with generated micro-scene illustrations. Leave the other 15 image files untouched.
-
-- `frontend/tests/card-placement.test.mjs`  
-  Source-level contract tests for the new card DOM and CSS.
-
-- `frontend/tests/landing-home.test.mjs`  
-  Source-level contract tests for the five sample landing preview and micro-scene illustration kinds.
-
-- `server/tests/unit/test_card_illustration_prompts.py`  
-  New test that validates the prompt manifest covers the five sample images and avoids forbidden style directions.
+**技术栈：** React 19、Vite、纯 CSS、Node `node:test`、FastAPI 静态文件服务。
 
 ---
 
-### Task 1: Add Card Redesign Contract Tests
+## 文件职责
 
-**Files:**
-- Modify: `frontend/tests/card-placement.test.mjs`
+- `frontend/src/components/card/Card.jsx`
+  运行时个人分享卡 DOM。必须继续渲染 `card.illustration_url`、`card.cosmic_name`、`card.suffix`、`card.one_liner`、`card.subtags`、`card.golden_line`，避免后端 payload 变更。
 
-- [ ] **Step 1: Add failing tests for the new card DOM contract**
+- `frontend/src/styles/card.css`
+  分享卡、桌面卡片工作区、保存浮层、预览页、卡片 skeleton 的样式。重点改 `share-card` 视觉系统、空态、skeleton 和移动端尺寸。
 
-Append these tests after the existing `share card front matches spec wireframe` test:
+- `frontend/src/components/card/CardWorkspace.jsx`
+  App 内卡片工作区。需要同步空态卡片 DOM，避免未生成卡片时仍显示旧圆形插图结构。
+
+- `frontend/src/components/card/CardSkeleton.jsx`
+  卡片加载态。需要从旧的普通横条 skeleton 改成带拱窗插图区的封套卡 skeleton。
+
+- `frontend/src/components/landing/CosmicCardPreview.jsx`
+  Landing 页静态人格卡预览。需要模拟新版系列封套卡，而不是旧 SVG 头像卡。
+
+- `frontend/src/components/landing/LandingHome.jsx`
+  Landing 展示样板列表。需要展示 5 张已确认样板：`01`、`08`、`11`、`16`、`19`。
+
+- `frontend/src/styles/landing.css`
+  Landing 图鉴区布局和静态预览卡 CSS。需要从四张 flex row 改成五张响应式 collector grid。
+
+- `server/app/data/cards/illustration_prompts.json`
+  新增非运行时 prompt manifest，用来记录 5 张样板插图的目标文件、场景描述和统一 prompt。
+
+- `server/app/data/cards/illustrations/{01-chunsun.png,08-xiaoyedeng.png,11-duorou.png,16-mao.png,19-shuimu.png}`
+  用新生成的微场景插图替换这 5 张当前样板图，其余 15 张暂不动。
+
+- `frontend/tests/card-placement.test.mjs`
+  卡片 DOM/CSS 的源码级契约测试。
+
+- `frontend/tests/landing-home.test.mjs`
+  Landing 页 5 张样板和微场景预览的源码级契约测试。
+
+- `server/tests/unit/test_card_illustration_prompts.py`
+  新增 prompt manifest 测试，验证 5 张样板覆盖完整且包含风格护栏。
+
+---
+
+### 任务 1：添加卡片重设计契约测试
+
+**文件：**
+- 修改：`frontend/tests/card-placement.test.mjs`
+
+- [ ] **步骤 1：为新版卡片 DOM 写失败测试**
+
+在现有 `share card front matches spec wireframe` 测试后追加：
 
 ```js
 test('share card uses the series-cover micro-scene structure', () => {
@@ -86,9 +92,9 @@ test('share card CSS renders a collector cover instead of a circular avatar card
 });
 ```
 
-- [ ] **Step 2: Update the existing subtags test expectation**
+- [ ] **步骤 2：更新子标签布局测试**
 
-In the existing `share card subtags render as 3 chips...` test, replace the flex expectations with grid expectations:
+在现有 `share card subtags render as 3 chips...` 测试中，把 flex 断言替换成 grid 断言：
 
 ```js
 assert.match(css, /\.share-card-subtags[\s\S]*display:\s*grid/);
@@ -97,7 +103,7 @@ assert.match(css, /\.share-card-subtags li[\s\S]*min-width:\s*0/);
 assert.match(css, /\.share-card-subtags li[\s\S]*white-space:\s*normal/);
 ```
 
-Remove these old assertions from that test:
+删除这些旧断言：
 
 ```js
 assert.match(css, /\.share-card-subtags[\s\S]*display:\s*flex/);
@@ -105,17 +111,15 @@ assert.match(css, /\.share-card-subtags[\s\S]*flex-wrap:\s*nowrap/);
 assert.match(css, /\.share-card-subtags li[\s\S]*flex:\s*1\s*1\s*0/);
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
-
-Run:
+- [ ] **步骤 3：运行测试，确认失败**
 
 ```bash
 cd frontend && node --test tests/card-placement.test.mjs
 ```
 
-Expected: FAIL. The new tests should complain about missing `share-card-edition`, `share-card-scene`, and/or collector-cover CSS.
+预期：失败，原因应包含缺少 `share-card-edition`、`share-card-scene` 或新版 collector-cover CSS。
 
-- [ ] **Step 4: Commit the failing test**
+- [ ] **步骤 4：提交失败测试**
 
 ```bash
 git add frontend/tests/card-placement.test.mjs
@@ -124,15 +128,15 @@ git commit -m "test(cards): lock collector cover card contract"
 
 ---
 
-### Task 2: Update Runtime Card Markup
+### 任务 2：更新运行时卡片 DOM
 
-**Files:**
-- Modify: `frontend/src/components/card/Card.jsx`
-- Modify: `frontend/src/components/card/CardWorkspace.jsx`
+**文件：**
+- 修改：`frontend/src/components/card/Card.jsx`
+- 修改：`frontend/src/components/card/CardWorkspace.jsx`
 
-- [ ] **Step 1: Replace `Card.jsx` with the collector-cover structure**
+- [ ] **步骤 1：替换 `Card.jsx` 为系列封套卡结构**
 
-Replace the component body in `frontend/src/components/card/Card.jsx` with this implementation, keeping the existing imports and `forwardRef` wrapper:
+保留文件顶部 import 和 `forwardRef` 包装，把组件实现替换为：
 
 ```jsx
 export const Card = forwardRef(function Card({ card }, ref) {
@@ -184,11 +188,11 @@ export const Card = forwardRef(function Card({ card }, ref) {
 });
 ```
 
-This keeps `share-card-illustration`, `share-card-name`, `share-card-suffix`, `share-card-oneliner`, `share-card-golden`, `share-card-subtags`, and `share-card-foot` so existing tests and save/export hooks still understand the card.
+说明：保留 `share-card-illustration`、`share-card-name`、`share-card-suffix`、`share-card-oneliner`、`share-card-golden`、`share-card-subtags`、`share-card-foot`，让现有测试和保存导出逻辑继续能识别卡片。
 
-- [ ] **Step 2: Update the empty card preview markup**
+- [ ] **步骤 2：同步 CardWorkspace 空态卡片**
 
-In `frontend/src/components/card/CardWorkspace.jsx`, replace the empty-card figure and title/golden section with:
+在 `frontend/src/components/card/CardWorkspace.jsx` 中，把空态卡片里的旧 figure、标题和金句区域替换为：
 
 ```jsx
 <figure className="share-card-illustration share-card-scene share-card-illustration-empty" aria-hidden="true">
@@ -202,7 +206,7 @@ In `frontend/src/components/card/CardWorkspace.jsx`, replace the empty-card figu
 <blockquote className="share-card-golden share-card-golden-empty" aria-hidden="true" />
 ```
 
-Also replace the empty footer with:
+把空态 footer 替换为：
 
 ```jsx
 <footer className="share-card-foot">
@@ -211,17 +215,15 @@ Also replace the empty footer with:
 </footer>
 ```
 
-- [ ] **Step 3: Run the focused test**
-
-Run:
+- [ ] **步骤 3：运行聚焦测试**
 
 ```bash
 cd frontend && node --test tests/card-placement.test.mjs
 ```
 
-Expected: still FAIL, because CSS is not updated yet. DOM-related assertions should now pass.
+预期：仍失败，因为 CSS 还没更新；DOM 相关断言应已通过。
 
-- [ ] **Step 4: Commit the markup**
+- [ ] **步骤 4：提交 DOM 更新**
 
 ```bash
 git add frontend/src/components/card/Card.jsx frontend/src/components/card/CardWorkspace.jsx
@@ -230,14 +232,15 @@ git commit -m "feat(cards): render collector cover card markup"
 
 ---
 
-### Task 3: Rewrite Runtime Card CSS
+### 任务 3：重写运行时卡片 CSS
 
-**Files:**
-- Modify: `frontend/src/styles/card.css`
+**文件：**
+- 修改：`frontend/src/styles/card.css`
+- 修改：`frontend/src/components/card/CardSkeleton.jsx`
 
-- [ ] **Step 1: Replace the share-card visual section**
+- [ ] **步骤 1：替换 share-card 视觉系统**
 
-In `frontend/src/styles/card.css`, replace the block from `/* ── Share card (3:4 portrait)` through the end of `.share-card-foot` with this CSS:
+在 `frontend/src/styles/card.css` 中，用下面的 CSS 替换从 `/* ── Share card (3:4 portrait)` 到 `.share-card-foot` 结束的整段旧样式：
 
 ```css
 /* ── Share card (3:4 portrait) ─────────────────────────────────────── */
@@ -460,9 +463,9 @@ In `frontend/src/styles/card.css`, replace the block from `/* ── Share card 
 }
 ```
 
-- [ ] **Step 2: Replace empty-state styles**
+- [ ] **步骤 2：替换空态样式**
 
-Replace the existing `.share-card-illustration-empty`, `.share-card-subtags-empty`, and `.share-card-golden-empty` rules with:
+把现有 `.share-card-illustration-empty`、`.share-card-subtags-empty`、`.share-card-golden-empty` 替换为：
 
 ```css
 .share-card-illustration-empty .share-card-scene-frame,
@@ -485,9 +488,9 @@ Replace the existing `.share-card-illustration-empty`, `.share-card-subtags-empt
 }
 ```
 
-- [ ] **Step 3: Update the card skeleton for the cover shape**
+- [ ] **步骤 3：更新 skeleton**
 
-Replace the `.card-skeleton` children sizing rules with:
+把 `.card-skeleton` 子元素尺寸改成：
 
 ```css
 .card-skeleton .shimmer-scene {
@@ -512,7 +515,7 @@ Replace the `.card-skeleton` children sizing rules with:
 }
 ```
 
-Then update `frontend/src/components/card/CardSkeleton.jsx` in this same task so it includes a scene shimmer:
+同时把 `frontend/src/components/card/CardSkeleton.jsx` 改成：
 
 ```jsx
 export function CardSkeleton() {
@@ -527,11 +530,17 @@ export function CardSkeleton() {
 }
 ```
 
-Add `frontend/src/components/card/CardSkeleton.jsx` to this task's file list when committing.
+- [ ] **步骤 4：调整移动端尺寸**
 
-- [ ] **Step 4: Adjust mobile sizing**
+在现有 `@media (max-width: 820px)` 中保留：
 
-In the existing `@media (max-width: 820px)` block, keep `.share-card { width: min(420px, 100%); }` and replace the name sizing rule with:
+```css
+.share-card {
+  width: min(420px, 100%);
+}
+```
+
+并把名称和插图区尺寸改成：
 
 ```css
 .share-card-name {
@@ -544,17 +553,15 @@ In the existing `@media (max-width: 820px)` block, keep `.share-card { width: mi
 }
 ```
 
-- [ ] **Step 5: Run the focused test**
-
-Run:
+- [ ] **步骤 5：运行聚焦测试**
 
 ```bash
 cd frontend && node --test tests/card-placement.test.mjs
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 6: Commit runtime card styling**
+- [ ] **步骤 6：提交卡片样式**
 
 ```bash
 git add frontend/src/styles/card.css frontend/src/components/card/CardSkeleton.jsx
@@ -563,17 +570,17 @@ git commit -m "style(cards): apply collector cover visual system"
 
 ---
 
-### Task 4: Update Landing Preview To Match The New Card System
+### 任务 4：同步 Landing 预览卡
 
-**Files:**
-- Modify: `frontend/tests/landing-home.test.mjs`
-- Modify: `frontend/src/components/landing/LandingHome.jsx`
-- Modify: `frontend/src/components/landing/CosmicCardPreview.jsx`
-- Modify: `frontend/src/styles/landing.css`
+**文件：**
+- 修改：`frontend/tests/landing-home.test.mjs`
+- 修改：`frontend/src/components/landing/LandingHome.jsx`
+- 修改：`frontend/src/components/landing/CosmicCardPreview.jsx`
+- 修改：`frontend/src/styles/landing.css`
 
-- [ ] **Step 1: Update landing tests first**
+- [ ] **步骤 1：先更新 landing 测试**
 
-In `frontend/tests/landing-home.test.mjs`, replace the existing `CosmicCardPreview renders 5 illustration kinds...` test with:
+把现有 `CosmicCardPreview renders 5 illustration kinds...` 测试替换为：
 
 ```js
 test('CosmicCardPreview renders the five micro-scene sample kinds without raw bazi terms', () => {
@@ -599,19 +606,17 @@ test('LandingHome showcases the five confirmed card redesign samples', () => {
 });
 ```
 
-- [ ] **Step 2: Run landing test to verify it fails**
-
-Run:
+- [ ] **步骤 2：运行 landing 测试，确认失败**
 
 ```bash
 cd frontend && node --test tests/landing-home.test.mjs
 ```
 
-Expected: FAIL because the static preview still uses old illustration keys and only four showcase cards.
+预期：失败，因为静态预览仍使用旧插图 key，且 showcase 仍只有 4 张。
 
-- [ ] **Step 3: Update the showcase data**
+- [ ] **步骤 3：更新 showcase 数据**
 
-In `frontend/src/components/landing/LandingHome.jsx`, replace `SHOWCASE_TYPES` with:
+把 `frontend/src/components/landing/LandingHome.jsx` 中的 `SHOWCASE_TYPES` 替换为：
 
 ```js
 const SHOWCASE_TYPES = [
@@ -623,9 +628,9 @@ const SHOWCASE_TYPES = [
 ];
 ```
 
-- [ ] **Step 4: Replace `CosmicCardPreview.jsx` with micro-scene preview markup**
+- [ ] **步骤 4：替换 `CosmicCardPreview.jsx` 为微场景预览**
 
-Replace the file contents after the comment header with:
+保留文件开头注释，把后续内容替换为：
 
 ```jsx
 const SCENES = {
@@ -716,9 +721,9 @@ export function CosmicCardPreview({
 }
 ```
 
-- [ ] **Step 5: Update landing preview CSS**
+- [ ] **步骤 5：更新 Landing 预览 CSS**
 
-In `frontend/src/styles/landing.css`, find the existing landing card preview rules and update them to match the runtime card structure. If the file has old `.landing-card-illustration svg` rules, replace that preview block with:
+在 `frontend/src/styles/landing.css` 中找到旧的 landing card preview 样式。如果存在 `.landing-card-illustration svg`，用下面的 preview 样式块替换旧 preview 样式：
 
 ```css
 .landing-gallery-row {
@@ -849,7 +854,7 @@ In `frontend/src/styles/landing.css`, find the existing landing card preview rul
 }
 ```
 
-Then add the small CSS scene shapes below it:
+在其后追加 5 种微场景小图形：
 
 ```css
 .landing-scene-sprout,
@@ -940,7 +945,7 @@ Then add the small CSS scene shapes below it:
 }
 ```
 
-In the existing `@media (max-width: 900px)` block, add:
+在现有 `@media (max-width: 900px)` 中追加：
 
 ```css
 .landing-gallery-row {
@@ -948,7 +953,7 @@ In the existing `@media (max-width: 900px)` block, add:
 }
 ```
 
-In the existing narrow mobile block, add:
+在更窄移动端 media block 中追加：
 
 ```css
 .landing-gallery-row {
@@ -956,17 +961,15 @@ In the existing narrow mobile block, add:
 }
 ```
 
-- [ ] **Step 6: Run landing tests**
-
-Run:
+- [ ] **步骤 6：运行 landing 测试**
 
 ```bash
 cd frontend && node --test tests/landing-home.test.mjs
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 7: Commit landing preview update**
+- [ ] **步骤 7：提交 Landing 预览更新**
 
 ```bash
 git add frontend/tests/landing-home.test.mjs frontend/src/components/landing/LandingHome.jsx frontend/src/components/landing/CosmicCardPreview.jsx frontend/src/styles/landing.css
@@ -975,20 +978,20 @@ git commit -m "style(landing): preview collector cover cards"
 
 ---
 
-### Task 5: Add AI Illustration Prompt Manifest And Five Sample Assets
+### 任务 5：添加 AI 插图 Prompt Manifest 与 5 张样板资产
 
-**Files:**
-- Create: `server/tests/unit/test_card_illustration_prompts.py`
-- Create: `server/app/data/cards/illustration_prompts.json`
-- Modify: `server/app/data/cards/illustrations/01-chunsun.png`
-- Modify: `server/app/data/cards/illustrations/08-xiaoyedeng.png`
-- Modify: `server/app/data/cards/illustrations/11-duorou.png`
-- Modify: `server/app/data/cards/illustrations/16-mao.png`
-- Modify: `server/app/data/cards/illustrations/19-shuimu.png`
+**文件：**
+- 新建：`server/tests/unit/test_card_illustration_prompts.py`
+- 新建：`server/app/data/cards/illustration_prompts.json`
+- 修改：`server/app/data/cards/illustrations/01-chunsun.png`
+- 修改：`server/app/data/cards/illustrations/08-xiaoyedeng.png`
+- 修改：`server/app/data/cards/illustrations/11-duorou.png`
+- 修改：`server/app/data/cards/illustrations/16-mao.png`
+- 修改：`server/app/data/cards/illustrations/19-shuimu.png`
 
-- [ ] **Step 1: Write the prompt manifest test**
+- [ ] **步骤 1：写 prompt manifest 测试**
 
-Create `server/tests/unit/test_card_illustration_prompts.py`:
+创建 `server/tests/unit/test_card_illustration_prompts.py`：
 
 ```python
 import json
@@ -1029,19 +1032,17 @@ def test_prompt_manifest_preserves_style_guardrails():
             assert word in prompt
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run:
+- [ ] **步骤 2：运行测试，确认失败**
 
 ```bash
 uv run --package server pytest -q server/tests/unit/test_card_illustration_prompts.py
 ```
 
-Expected: FAIL because `illustration_prompts.json` does not exist yet.
+预期：失败，因为 `illustration_prompts.json` 尚不存在。
 
-- [ ] **Step 3: Create the prompt manifest**
+- [ ] **步骤 3：创建 prompt manifest**
 
-Create `server/app/data/cards/illustration_prompts.json`:
+创建 `server/app/data/cards/illustration_prompts.json`：
 
 ```json
 {
@@ -1088,19 +1089,17 @@ Create `server/app/data/cards/illustration_prompts.json`:
 }
 ```
 
-- [ ] **Step 4: Run prompt manifest test**
-
-Run:
+- [ ] **步骤 4：运行 prompt manifest 测试**
 
 ```bash
 uv run --package server pytest -q server/tests/unit/test_card_illustration_prompts.py
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 5: Generate the five AI illustrations**
+- [ ] **步骤 5：生成 5 张 AI 插图**
 
-Use the prompt value from each manifest entry exactly. Generate square PNG illustrations and save them to these paths:
+逐条使用 manifest 中的 `prompt` 原文生成方形 PNG，并保存到：
 
 ```text
 server/app/data/cards/illustrations/01-chunsun.png
@@ -1110,16 +1109,14 @@ server/app/data/cards/illustrations/16-mao.png
 server/app/data/cards/illustrations/19-shuimu.png
 ```
 
-Asset requirements:
+资产要求：
 
-- PNG format.
-- At least `1024 × 1024`.
-- No embedded text, logo, watermark, zodiac symbols, tarot cards, crystal balls, or heavy ancient ornament.
-- Subject sits in the upper/middle of the image and still reads when cropped by an arched card window.
+- PNG 格式。
+- 尺寸至少 `1024 × 1024`。
+- 图片内不能有文字、logo、水印、星座符号、塔罗牌、水晶球、重古风装饰。
+- 主体位于画面中上部，被前端拱窗裁切后仍能清楚识别。
 
-- [ ] **Step 6: Verify asset dimensions locally**
-
-Run:
+- [ ] **步骤 6：本地验证图片尺寸**
 
 ```bash
 sips -g pixelWidth -g pixelHeight \
@@ -1130,9 +1127,9 @@ sips -g pixelWidth -g pixelHeight \
   server/app/data/cards/illustrations/19-shuimu.png
 ```
 
-Expected: each file reports `pixelWidth` and `pixelHeight` of at least `1024`.
+预期：每个文件的 `pixelWidth` 和 `pixelHeight` 都至少为 `1024`。
 
-- [ ] **Step 7: Commit prompt manifest and sample assets**
+- [ ] **步骤 7：提交 prompt manifest 和样板资产**
 
 ```bash
 git add server/tests/unit/test_card_illustration_prompts.py server/app/data/cards/illustration_prompts.json \
@@ -1146,96 +1143,84 @@ git commit -m "feat(cards): add micro-scene illustration samples"
 
 ---
 
-### Task 6: Full Verification And Visual QA
+### 任务 6：完整验证与视觉 QA
 
-**Files:**
-- No planned source edits. Only fix issues discovered by verification.
+**文件：**
+- 无计划内源码改动。只修复验证中发现的问题。
 
-- [ ] **Step 1: Run focused frontend tests**
-
-Run:
+- [ ] **步骤 1：运行聚焦前端测试**
 
 ```bash
 cd frontend && node --test tests/card-placement.test.mjs tests/landing-home.test.mjs tests/save-image.test.mjs
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 2: Run the new server prompt test**
-
-Run:
+- [ ] **步骤 2：运行新增服务端 prompt 测试**
 
 ```bash
 uv run --package server pytest -q server/tests/unit/test_card_illustration_prompts.py
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 3: Run frontend build**
-
-Run:
+- [ ] **步骤 3：运行前端构建**
 
 ```bash
 cd frontend && npm run build
 ```
 
-Expected: PASS with Vite build output and no CSS/JS compile errors.
+预期：Vite build 通过，没有 CSS/JS 编译错误。
 
-- [ ] **Step 4: Run frontend lint**
-
-Run:
+- [ ] **步骤 4：运行前端 lint**
 
 ```bash
 cd frontend && npm run lint
 ```
 
-Expected: PASS.
+预期：通过。
 
-- [ ] **Step 5: Start the app for browser QA**
+- [ ] **步骤 5：启动本地应用做浏览器 QA**
 
-In one terminal:
+一个终端启动后端：
 
 ```bash
 npm run dev:back
 ```
 
-In another terminal:
+另一个终端启动前端：
 
 ```bash
 npm run dev:front
 ```
 
-Expected:
+预期：
 
-- Backend on `http://127.0.0.1:3101`
-- Frontend on `http://localhost:5173`
+- 后端在 `http://127.0.0.1:3101`
+- 前端在 `http://localhost:5173`
 
-- [ ] **Step 6: Browser-check the landing page**
+- [ ] **步骤 6：浏览器检查 Landing**
 
-Open `http://localhost:5173/`.
+打开 `http://localhost:5173/`，检查：
 
-Check:
+- “二十种命盘人格”区域展示 5 张 collector-cover 预览卡。
+- 可见的 5 个样板名为 `春笋`、`小夜灯`、`多肉`、`猫`、`水母`。
+- 桌面宽度下预览卡不溢出。
+- 约 `390px` 移动端宽度下 gallery 垂直堆叠，没有横向滚动。
 
-- The “二十种命盘人格” section shows five collector-cover previews.
-- The five visible sample names are `春笋`, `小夜灯`, `多肉`, `猫`, `水母`.
-- Preview cards do not overflow at desktop width.
-- At mobile width around `390px`, the gallery stacks without horizontal scroll.
+- [ ] **步骤 7：浏览器检查生成后的卡片**
 
-- [ ] **Step 7: Browser-check a generated card**
+通过现有 landing 流程生成一张卡，或使用已有本地测试卡片路由。检查：
 
-Use the existing landing flow to create a card, or hit a known local card route if test data exists.
+- `/card/:slug` 和 App 内 `卡片` 工作区都使用 collector-cover 布局。
+- 插图显示在拱窗式微场景窗口中。
+- 传播名 1 秒内可读。
+- 金句位于三个参数 chip 之前。
+- 导出图片仍为 3:4 PNG，卡片没有被裁掉。
 
-Check:
+- [ ] **步骤 8：提交验证修复**
 
-- `/card/:slug` and the in-app `卡片` workspace both render the collector-cover layout.
-- The illustration is framed in an arched micro-scene window.
-- The propagation name is readable in one second.
-- Golden line appears before the three parameter chips.
-- Export image still produces a 3:4 PNG and the card is not clipped.
-
-- [ ] **Step 8: Commit any verification fixes**
-
-If verification required fixes, stage only redesign files from this exact allowlist:
+如果验证中需要修复，只允许 stage 下面这组重设计相关文件：
 
 ```bash
 git add \
@@ -1258,24 +1243,24 @@ git add \
 git commit -m "fix(cards): address collector cover QA"
 ```
 
-If no fixes were needed, do not create an empty commit.
+如果没有修复，不要创建空 commit。
 
 ---
 
-## Self-Review Notes
+## 自检记录
 
-Spec coverage:
+规格覆盖：
 
-- Series-cover layout: Tasks 1-3.
-- Micro-scene illustration direction: Task 5.
-- Five sample types `01`, `08`, `11`, `16`, `19`: Tasks 4-5.
-- No backend payload change: Tasks 2-3 keep `card.illustration_url` and existing fields.
-- Landing/result visual consistency: Task 4 and Task 6.
-- Export/build verification: Task 6.
+- 系列封套卡版式：Task 1-3。
+- 微场景绘本插图方向：Task 5。
+- 5 张样板 `01`、`08`、`11`、`16`、`19`：Task 4-5。
+- 不改后端 payload：Task 2-3 继续使用 `card.illustration_url` 与现有字段。
+- Landing 与结果卡视觉一致：Task 4 和 Task 6。
+- 导出、构建、lint 验证：Task 6。
 
-Scope kept out:
+明确不包含：
 
-- No all-20 illustration generation.
-- No card copy, subtype, or backend mapping changes.
-- No hepan card redesign.
-- No new UI framework.
+- 不一次性生成全部 20 张插图。
+- 不改卡片文案、子标签矩阵或后端类型映射。
+- 不重设计合盘卡片。
+- 不引入新的 UI 框架。
