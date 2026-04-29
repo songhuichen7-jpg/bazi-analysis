@@ -37,6 +37,7 @@ from app.retrieval2 import service as retrieval_service
 # (retrieval2 does its own LLM-based selection in selector.py).
 from app.services import chart as chart_service
 from app.services import chart_chips as chart_chips_service
+from app.services import classics_polisher
 from app.services import chart_llm as chart_llm_service
 from app.services import paipan_adapter
 from app.services.exceptions import ServiceError
@@ -121,7 +122,11 @@ async def get_chart_endpoint(
     return await _chart_to_response(chart, db=db)
 
 
-@router.get("/{chart_id}/classics", response_model=ChartClassicsResponse)
+@router.get(
+    "/{chart_id}/classics",
+    response_model=ChartClassicsResponse,
+    response_model_exclude_none=True,
+)
 async def get_chart_classics_endpoint(
     chart_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -132,7 +137,8 @@ async def get_chart_classics_endpoint(
     except ServiceError as e:
         raise _http_error(e)
 
-    items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
+    raw_items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
+    items = await classics_polisher.polish_classics_for_chart(chart.paipan, raw_items)
     return ChartClassicsResponse(items=items)
 
 

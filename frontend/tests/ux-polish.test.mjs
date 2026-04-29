@@ -48,7 +48,7 @@ test('buildChartVisibility suppresses internal guard hints even when engine data
   assert.equal(result.showGuards, false);
 });
 
-test('buildGenerationStatus distinguishes generated interpretation from retrieved classics', () => {
+test('buildGenerationStatus ignores removed verdict generation', () => {
   const result = buildGenerationStatus({
     verdicts: { status: 'streaming', body: '正在生成中' },
     dayunStreaming: true,
@@ -56,8 +56,8 @@ test('buildGenerationStatus distinguishes generated interpretation from retrieve
   });
 
   assert.deepEqual(result, {
-    visible: true,
-    text: '后台还在生成：综合解读 ⏳',
+    visible: false,
+    text: '',
   });
 });
 
@@ -73,23 +73,24 @@ test('buildGenerationStatus stays hidden for timing-page generation alone', () =
   });
 });
 
-test('getWelcomeMessageState avoids calling in-flight verdicts raw classics', () => {
+test('getWelcomeMessageState does not mention removed comprehensive reading', () => {
   const result = getWelcomeMessageState({
     verdicts: { status: 'streaming' },
   });
 
   assert.equal(
     result.lead,
-    '我正在整理这张命盘的综合解读。你现在就可以先提问，我会继续在后台把长文分析补齐。',
+    '我已经看过你的命盘了。你可以：',
   );
   assert.equal(result.showDefaultGuidance, true);
 });
 
-test('VerdictsPanel pending copy does not conflict with the classics panel', () => {
-  const source = fs.readFileSync(new URL('../src/components/VerdictsPanel.jsx', import.meta.url), 'utf8');
+test('FormScreen no longer starts comprehensive reading generation', () => {
+  const source = fs.readFileSync(new URL('../src/components/FormScreen.jsx', import.meta.url), 'utf8');
 
-  assert.match(source, /正在整理命盘解读/);
-  assert.doesNotMatch(source, /正在研读古籍判词/);
+  assert.doesNotMatch(source, /loadVerdicts/);
+  assert.doesNotMatch(source, /streamVerdicts/);
+  assert.doesNotMatch(source, /综合解读/);
 });
 
 test('reduceUserMenuOpen toggles open and closes on outside interactions', () => {

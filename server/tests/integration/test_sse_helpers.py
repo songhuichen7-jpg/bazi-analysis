@@ -20,16 +20,17 @@ def patch_llm_client(monkeypatch, prescribed: dict[str, list[str]],
     # now defaults to DeepSeek, while many fixtures still describe the old MiMo
     # primary/fast slots.
     model_aliases = {
-        "mimo-v2-pro": c.settings.llm_model,
-        "mimo-v2-flash": c.settings.llm_fast_model,
+        "mimo-v2-pro": {c.settings.llm_model},
+        "mimo-v2-flash": {c.settings.llm_fast_model, c.settings.llm_fallback_model},
     }
     prescribed = dict(prescribed)
-    for legacy, current in model_aliases.items():
-        if legacy in prescribed and current not in prescribed:
-            prescribed[current] = prescribed[legacy]
-    for legacy, current in model_aliases.items():
+    for legacy, currents in model_aliases.items():
+        for current in currents:
+            if legacy in prescribed and current not in prescribed:
+                prescribed[current] = prescribed[legacy]
+    for legacy, currents in model_aliases.items():
         if legacy in raise_on_model:
-            raise_on_model.add(current)
+            raise_on_model.update(currents)
 
     class _Chunk:
         def __init__(self, c):

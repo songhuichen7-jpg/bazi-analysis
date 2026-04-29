@@ -93,6 +93,7 @@ def _fake_stream_factory_error(err):
 
 async def test_normal_flow_writes_user_then_assistant(monkeypatch, db_session, user_and_dek):
     user, dek = user_and_dek
+    stream_kwargs = {}
     with user_dek_context(dek):
         chart = await _make_chart(db_session, user)
         c = await conv_svc.create_conversation(db_session, user, chart.id)
@@ -100,8 +101,11 @@ async def test_normal_flow_writes_user_then_assistant(monkeypatch, db_session, u
 
         monkeypatch.setattr("app.services.conversation_chat.classify",
                              _fake_classify(intent="career", source="keyword"))
-        monkeypatch.setattr("app.services.conversation_chat.chat_stream_with_fallback",
-                             _fake_stream_factory(["你好", "世界"]))
+        async def _fake_stream(**kwargs):
+            stream_kwargs.update(kwargs)
+            async for ev in _fake_stream_factory(["你好", "世界"])(**kwargs):
+                yield ev
+        monkeypatch.setattr("app.services.conversation_chat.chat_stream_with_fallback", _fake_stream)
         async def _no_retr(*a, **kw):
             return []
         monkeypatch.setattr("app.services.conversation_chat.retrieve_for_chart", _no_retr)
@@ -124,6 +128,7 @@ async def test_normal_flow_writes_user_then_assistant(monkeypatch, db_session, u
         roles = [m.role for m in page["items"]]
         assert roles == ["assistant", "user"]
         assert page["items"][0].content == "你好世界"
+        assert stream_kwargs["max_tokens"] >= 8000
 
 
 async def test_divination_writes_cta_and_redirects(monkeypatch, db_session, user_and_dek):

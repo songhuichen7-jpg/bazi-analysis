@@ -115,13 +115,58 @@ def test_build_messages_prepends_time_anchor_to_user_message():
     assert "今年我适合换工作吗" in last["content"]
 
 
-def test_build_messages_history_max_8():
+def test_build_messages_uses_prebudgeted_history_without_local_eight_message_cutoff():
     history = [{"role": "user", "content": f"q{i}"} for i in range(20)]
     msgs = build_messages(
         paipan=_SAMPLE_PAIPAN, history=history,
         user_message="新", intent="other", retrieved=[],
     )
-    assert len(msgs) == 10  # 1 system + 8 history + 1 user
+    assert len(msgs) == 22  # 1 system + 20 prebudgeted history + 1 user
+    assert [m["content"] for m in msgs[1:21]] == [f"q{i}" for i in range(20)]
+
+
+def test_build_messages_includes_client_page_context_for_references():
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN,
+        history=[],
+        user_message="上面第一条是什么意思",
+        intent="career",
+        retrieved=[],
+        client_context={
+            "view": "chart",
+            "context_label": "戊午大运",
+            "classics": [
+                {
+                    "source": "穷通宝鉴",
+                    "scope": "论甲木 · 三秋甲木",
+                    "quote": "七月甲木，丁火为尊，庚金次之。",
+                    "plain": "七月甲木先看丁火，再看庚金。",
+                    "match": "本盘甲木生申月，庚透而丁藏。",
+                }
+            ],
+        },
+    )
+    sys = msgs[0]["content"]
+    assert "【当前界面上下文】" in sys
+    assert "当前焦点：戊午大运" in sys
+    assert "穷通宝鉴 · 论甲木 · 三秋甲木" in sys
+    assert "七月甲木，丁火为尊，庚金次之。" in sys
+    assert "本盘甲木生申月，庚透而丁藏。" in sys
+
+
+def test_build_messages_includes_long_term_conversation_memory():
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN,
+        history=[],
+        user_message="继续讲刚才那个判断",
+        intent="career",
+        retrieved=[],
+        memory_summary="用户之前重点关心七杀格、丁火用神、癸水阻丁，以及古籍旁证是否贴盘。",
+    )
+    sys = msgs[0]["content"]
+    assert "【长期对话记忆】" in sys
+    assert "七杀格" in sys
+    assert "癸水阻丁" in sys
 
 
 def test_build_messages_chitchat_skips_chart_context():

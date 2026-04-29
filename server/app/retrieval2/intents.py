@@ -115,6 +115,7 @@ _DOMAIN_TABLE: dict[str, tuple[dict[str, tuple[str, ...]], str]] = {
     "health":       ({"domain": ("疾病",)}, "疾病 衰旺"),
     "timing":       ({"domain": ("行运",)}, "大运 流年 岁运"),
     "dayun_step":   ({"domain": ("行运", "用神取舍")}, "大运 用神"),
+    "liunian":      ({"domain": ("行运",)}, "流年 岁运 太岁 行运"),
     "special_geju": ({"domain": ("格局成败",)}, "特殊格局 外格"),
     "other":        ({"domain": ("用神取舍",)}, ""),
 }
@@ -167,9 +168,6 @@ def bazi_chart_to_intents(
             },
             weight=1.0, kind="tiaohou",
         )
-
-    if kind == "liunian":
-        return out
 
     # 2. Main 格局
     if main:

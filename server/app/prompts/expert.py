@@ -13,6 +13,11 @@ from app.prompts.loader import load_shard
 from app.prompts.style import BAZI_OUTPUT_STYLE_PRESET, CLASSICAL_QUOTE_POLICY
 
 
+CLIENT_CONTEXT_MAX_CLASSICS = 6
+CLIENT_CONTEXT_QUOTE_MAX = 240
+CLIENT_CONTEXT_NOTE_MAX = 180
+
+
 # NOTE: prompts.js:44-51 — fallback style when no shard exists for an intent
 FALLBACK_STYLE = """
 你是一位懂命理的朋友。回复要：
@@ -175,18 +180,75 @@ def _runtime_constraints() -> str:
         BAZI_OUTPUT_STYLE_PRESET,
         CLASSICAL_QUOTE_POLICY,
         '【输出格式】纯文本或极简 Markdown。\n'
-        '- 回复长度随内容走，写透为止，不要自行截断\n'
+        '- 回复长度随内容走，写透为止，不要自行截断；复杂问题可以展开到 1200-2500 字，不要为了显得简短而省略关键推理\n'
         '- 关键判断要落到命盘里具体的干支/十神/分数，不要悬空下结论\n'
         '- 引用古籍时用「」包裹原文，立刻接白话，再接命盘对应；没有锚点时不硬引原文',
     ])
+
+
+def _clip_text(value: Any, limit: int) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "…"
+
+
+def _render_client_context(client_context: dict[str, Any] | None) -> str:
+    if not isinstance(client_context, dict):
+        return ""
+
+    lines: list[str] = ["【当前界面上下文】"]
+    view = _clip_text(client_context.get("view"), 40)
+    context_label = _clip_text(client_context.get("context_label"), 80)
+    if view:
+        lines.append(f"当前视图：{view}")
+    if context_label:
+        lines.append(f"当前焦点：{context_label}")
+
+    raw_classics = client_context.get("classics")
+    classics = raw_classics if isinstance(raw_classics, list) else []
+    visible_classics = [item for item in classics if isinstance(item, dict)][:CLIENT_CONTEXT_MAX_CLASSICS]
+    if visible_classics:
+        lines.append("左侧古籍旁证（供理解用户说“上面/第几条/这段”时的指代；不替代本轮动态检索）：")
+        for idx, item in enumerate(visible_classics, start=1):
+            title_parts = [
+                _clip_text(item.get("source"), 40),
+                _clip_text(item.get("scope"), 80),
+            ]
+            title = " · ".join(part for part in title_parts if part) or "古籍旁证"
+            lines.append(f"{idx}. {title}")
+            quote = _clip_text(item.get("quote") or item.get("text"), CLIENT_CONTEXT_QUOTE_MAX)
+            plain = _clip_text(item.get("plain"), CLIENT_CONTEXT_NOTE_MAX)
+            match = _clip_text(item.get("match"), CLIENT_CONTEXT_NOTE_MAX)
+            if quote:
+                lines.append(f"   原文：{quote}")
+            if plain:
+                lines.append(f"   白话：{plain}")
+            if match:
+                lines.append(f"   对照本盘：{match}")
+
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def _render_memory_summary(memory_summary: str | None) -> str:
+    summary = _clip_text(memory_summary, 3200)
+    if not summary:
+        return ""
+    return (
+        "【长期对话记忆】\n"
+        "这是较早对话的压缩摘要，用来保持连续性；若与本轮用户新说法冲突，以本轮为准。\n"
+        f"{summary}"
+    )
 
 
 def build_messages(
     paipan: dict, history: list[dict],
     user_message: str, intent: str,
     retrieved: list[dict],
+    client_context: dict[str, Any] | None = None,
+    memory_summary: str | None = None,
 ) -> list[dict]:
-    """Build expert messages (system + history[-8:] + user with time anchor).
+    """Build expert messages (system + prebudgeted history + user with time anchor).
 
     NOTE: prompts.js:604-656.
     """
@@ -201,12 +263,20 @@ def build_messages(
     else:
         parts.append(FALLBACK_STYLE)
 
+    rendered_memory = _render_memory_summary(memory_summary)
+    if rendered_memory:
+        parts.append(rendered_memory)
+
     # Chart slice
     sliced = pick_chart_slice(paipan, intent)
     if sliced:
         ctx = compact_chart_context(sliced)
         if ctx:
             parts.append(ctx)
+
+    rendered_client_context = _render_client_context(client_context)
+    if rendered_client_context:
+        parts.append(rendered_client_context)
 
     # Classical anchor (skip for chitchat)
     # NOTE: terse=False — chat path needs full classical text (up to PER_SOURCE_MAX
@@ -233,7 +303,7 @@ def build_messages(
     else:
         anchor_line = ""
 
-    history_window = (history or [])[-8:]
+    history_window = history or []
     return [
         {"role": "system", "content": "\n\n".join(parts)},
         *history_window,

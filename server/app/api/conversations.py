@@ -201,6 +201,7 @@ async def post_message_endpoint(
             db=db, user=user, conversation_id=conv_id,
             chart=chart, message=body.message,
             bypass_divination=body.bypass_divination,
+            client_context=body.client_context,
             ticket=ticket,
         ):
             yield raw

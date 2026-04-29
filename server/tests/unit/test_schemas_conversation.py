@@ -79,6 +79,21 @@ def test_chat_message_request_strips_and_rejects_empty():
         ChatMessageRequest(message="   ")
 
 
+def test_chat_message_request_accepts_client_context():
+    body = ChatMessageRequest(
+        message=" 上面第一条是什么意思 ",
+        client_context={
+            "view": "chart",
+            "context_label": "戊午大运",
+            "classics": [{"source": "穷通宝鉴", "quote": "七月甲木，丁火为尊。"}],
+        },
+    )
+
+    assert body.message == "上面第一条是什么意思"
+    assert body.client_context["view"] == "chart"
+    assert body.client_context["classics"][0]["source"] == "穷通宝鉴"
+
+
 def test_gua_cast_request_rejects_empty_question():
     body = GuaCastRequest(question="该不该换工作")
     assert body.question == "该不该换工作"

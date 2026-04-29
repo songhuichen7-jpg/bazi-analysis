@@ -57,3 +57,21 @@ test('buildClassicsDisplayItem keeps the chart-facing match note', () => {
   assert.equal(item.match, '本盘是甲日主、七月生，这一段先看调候用神。');
   assert.equal(Object.hasOwn(item, 'fitType'), false);
 });
+
+
+test('buildClassicsDisplayItem prefers polished quote and keeps plain explanation', () => {
+  const item = buildClassicsDisplayItem({
+    source: '穷通宝鉴 · 三秋甲木',
+    scope: '七月甲木',
+    text: '七月甲木丁火为尊庚金次之若有癸水阻隔便灭丁火',
+    quote: '七月甲木，丁火为尊，庚金次之。',
+    plain: '七月甲木先看丁火调候，再看庚金成器。',
+    match: '本盘甲木生申月，庚透月干，丁火只藏支内。',
+    original_text: '七月甲木丁火为尊庚金次之若有癸水阻隔便灭丁火',
+  });
+
+  assert.deepEqual(item.paragraphs, ['七月甲木，丁火为尊，庚金次之。']);
+  assert.equal(item.plain, '七月甲木先看丁火调候，再看庚金成器。');
+  assert.equal(item.match, '本盘甲木生申月，庚透月干，丁火只藏支内。');
+  assert.equal(item.originalText, '七月甲木丁火为尊庚金次之若有癸水阻隔便灭丁火');
+});

@@ -22,7 +22,7 @@ class Base(DeclarativeBase):
 # Import all models so Base.metadata is populated when Alembic imports us.
 from app.models.user import InviteCode, SmsCode, User, UserSession  # noqa: E402
 from app.models.chart import Chart, ChartCache  # noqa: E402
-from app.models.conversation import Conversation, Message  # noqa: E402
+from app.models.conversation import Conversation, ConversationSummary, Message  # noqa: E402
 from app.models.quota import LlmUsageLog, QuotaUsage  # noqa: E402
 from app.models.card_share import CardShare  # noqa: E402
 from app.models.event import Event  # noqa: E402
@@ -32,7 +32,7 @@ __all__ = [
     "Base",
     "User", "InviteCode", "UserSession", "SmsCode",
     "Chart", "ChartCache",
-    "Conversation", "Message",
+    "Conversation", "Message", "ConversationSummary",
     "QuotaUsage", "LlmUsageLog",
     "CardShare", "Event",
     "HepanInvite",

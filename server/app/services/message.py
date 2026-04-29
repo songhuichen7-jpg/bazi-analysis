@@ -12,6 +12,11 @@ from app.models.conversation import Message
 from app.schemas.message import MessageDetail
 
 
+CHAT_CONTEXT_MAX_MESSAGES = 60
+CHAT_CONTEXT_CHAR_BUDGET = 18_000
+CHAT_CONTEXT_ALWAYS_KEEP = 12
+
+
 async def insert(
     db: AsyncSession, *,
     conversation_id: UUID, role: str,
@@ -101,6 +106,58 @@ async def recent_chat_history(
     rows = (await db.execute(stmt)).scalars().all()
     rows.reverse()  # chronological
     return [{"role": m.role, "content": m.content or ""} for m in rows]
+
+
+def _prompt_message_cost(item: dict) -> int:
+    return len(str(item.get("role") or "")) + len(str(item.get("content") or ""))
+
+
+async def context_chat_history(
+    db: AsyncSession, *,
+    conversation_id: UUID,
+    max_messages: int = CHAT_CONTEXT_MAX_MESSAGES,
+    char_budget: int = CHAT_CONTEXT_CHAR_BUDGET,
+    always_keep: int = CHAT_CONTEXT_ALWAYS_KEEP,
+) -> list[dict]:
+    """Longer prompt history for expert chat, bounded by a rough char budget.
+
+    We fetch a reasonably large tail, always retain the latest ``always_keep``
+    messages, then fill older turns backwards until the budget is reached.
+    Returned order is chronological and role/content shaped for prompts.
+    """
+    max_messages = max(1, min(int(max_messages), 200))
+    char_budget = max(0, int(char_budget))
+    always_keep = max(0, min(int(always_keep), max_messages))
+
+    stmt = (
+        select(Message)
+        .where(
+            Message.conversation_id == conversation_id,
+            Message.role.in_(["user", "assistant"]),
+        )
+        .order_by(desc(Message.created_at), desc(Message.id))
+        .limit(max_messages)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    rows.reverse()  # chronological
+    items = [{"role": m.role, "content": m.content or ""} for m in rows]
+    if len(items) <= always_keep:
+        return items
+
+    recent_tail = items[-always_keep:] if always_keep else []
+    older = items[:-always_keep] if always_keep else items
+    used = sum(_prompt_message_cost(item) for item in recent_tail)
+    selected_older: list[dict] = []
+
+    for item in reversed(older):
+        item_cost = _prompt_message_cost(item)
+        if used + item_cost > char_budget:
+            break
+        selected_older.append(item)
+        used += item_cost
+
+    selected_older.reverse()
+    return selected_older + recent_tail
 
 
 async def delete_last_cta(

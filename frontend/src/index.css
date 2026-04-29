@@ -620,43 +620,95 @@
     min-width: 0;
   }
   .msg-ai-body { color: #25211b; }
-  .chat-receipts {
+  .thinking-indicator {
     display: grid;
-    gap: 7px;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(0, 0, 0, .06);
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    max-width: 34rem;
+    color: #635846;
   }
-  .chat-receipt {
-    display: grid;
-    grid-template-columns: 8px minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
+  .thinking-signal {
+    position: relative;
+    width: 34px;
+    height: 28px;
+    margin-top: 2px;
   }
-  .chat-receipt-dot {
-    width: 6px;
-    height: 6px;
+  .thinking-dot {
+    position: absolute;
+    left: 2px;
+    top: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 999px;
-    background: #c6bca9;
+    background: #3b3328;
+    box-shadow: 0 0 0 0 rgba(59, 51, 40, .16);
+    animation: thinking-breathe 1.6s ease-in-out infinite;
   }
-  .chat-receipt.streaming .chat-receipt-dot {
-    background: #111;
-    animation: trace-pulse 1.3s ease-in-out infinite;
+  .thinking-line {
+    position: absolute;
+    left: 16px;
+    right: 0;
+    top: 12px;
+    height: 1px;
+    overflow: hidden;
+    background: rgba(99, 88, 70, .18);
   }
-  .chat-receipt.abort .chat-receipt-dot {
-    background: #9a5a5a;
+  .thinking-line::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, rgba(59, 51, 40, .62), transparent);
+    animation: thinking-scan 1.9s ease-in-out infinite;
   }
-  .chat-receipt-text {
-    font-size: 12px;
-    line-height: 1.6;
+  .thinking-copy {
+    display: grid;
+    gap: 4px;
+    padding-top: 1px;
+  }
+  .thinking-copy-line {
+    font-size: 13px;
+    line-height: 1.7;
     color: #6d6353;
+    opacity: 0;
+    transform: translateY(3px);
+    animation: thinking-copy-in .42s ease forwards;
+    animation-delay: calc(var(--line-index) * .72s);
+  }
+  .thinking-indicator.stopped .thinking-dot {
+    background: #9a5a5a;
+    animation: none;
+  }
+  .thinking-indicator.stopped .thinking-line::after {
+    animation: none;
+    background: rgba(154, 90, 90, .5);
   }
   .msg-ai .inline-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   .stream-cursor::after { content: "▎"; margin-left: 2px; opacity: .6; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: 0; } }
-  @keyframes trace-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(17, 17, 17, .12); }
-    50% { box-shadow: 0 0 0 6px rgba(17, 17, 17, 0); }
+  @keyframes thinking-breathe {
+    0%, 100% { opacity: .45; transform: scale(.84); box-shadow: 0 0 0 0 rgba(59, 51, 40, .16); }
+    45% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 7px rgba(59, 51, 40, 0); }
+  }
+  @keyframes thinking-scan {
+    0% { transform: translateX(-110%); opacity: 0; }
+    24%, 68% { opacity: 1; }
+    100% { transform: translateX(230%); opacity: 0; }
+  }
+  @keyframes thinking-copy-in {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .thinking-dot,
+    .thinking-line::after,
+    .thinking-copy-line {
+      animation: none;
+    }
+    .thinking-copy-line {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* Clickable & linkable refs */
@@ -753,14 +805,11 @@
     .timing-paragraph { font-size: 14px; line-height: 1.95; }
     .liunian-chip-grid { gap: 6px; }
     .liunian-chip { padding: 8px 11px; }
-    .section-card { padding: 16px 0; }
     .classics-panel { padding: 18px 16px; }
     .classics-item { padding: 16px 14px 14px 18px; }
     .classics-book { font-size: 17px; }
     .classics-chapter { font-size: 14px; }
     .classics-paragraph { font-size: 14px; line-height: 1.95; }
-    .verdicts-panel { padding: 18px 16px; }
-    .verdicts-body { font-size: 13.5px; }
     .skeleton-line { height: 0.85em; margin: 0.42em 0; }
     .skeleton-progress-label, .skeleton-progress-sublabel { font-size: 0.84em; }
     .app-toast {
@@ -794,9 +843,6 @@
   .reading-sec p { font-size: 14px; line-height: 1.9; color: #222; }
   .ask-link { font-size: 11px; color: var(--mute); margin-top: 10px; display: inline-block; cursor: pointer; letter-spacing: .1em; }
   .ask-link:hover { color: var(--ink); }
-  .reading-cta-card { margin-top: 28px; padding: 20px; border: 1px dashed #d8d1bf; background: linear-gradient(180deg, #fff 0%, #fbf9f4 100%); }
-  .reading-cta-title { font-size: 18px; line-height: 1.5; margin-bottom: 8px; }
-  .reading-cta-copy { font-size: 13px; line-height: 1.85; color: #555; margin-bottom: 16px; max-width: 560px; }
   .classics-panel {
     margin-top: 8px;
     padding: 22px 20px;
@@ -866,6 +912,14 @@
     text-indent: 2em;
   }
   .classics-paragraph:first-child { margin-top: 0; }
+  .classics-plain {
+    margin-top: 12px;
+    max-width: 44em;
+    font-size: 13px;
+    line-height: 1.85;
+    color: #5e5548;
+    font-family: var(--font-sans);
+  }
   .classics-match {
     margin-top: 14px;
     padding-top: 12px;
@@ -875,14 +929,6 @@
     color: #75664f;
   }
   .classics-toggle { margin-top: 16px; }
-
-  .verdicts-panel { margin-top: 28px; padding: 22px 20px; border: 1px solid var(--line); background: linear-gradient(180deg, #fffef9 0%, #fff 100%); }
-  .verdicts-error { padding: 12px 14px; border-left: 3px solid #c66; background: #fdf5f5; color: #933; font-size: 13px; line-height: 1.8; }
-  .verdicts-pending-note { margin-top: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.85; color: #5d5a52; background: rgba(250, 246, 236, 0.85); border-left: 2px solid #c8a24b; }
-  .verdicts-body { white-space: pre-wrap; font-size: 14px; line-height: 1.95; color: #222; margin-top: 12px; font-family: "Songti SC", "Source Han Serif", serif; }
-  .verdicts-body strong { font-weight: 600; color: var(--ink); }
-  .verdicts-body em { font-style: italic; color: #555; }
-  .verdicts-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: #f4f0e4; padding: 1px 5px; border-radius: 3px; }
 
   .quote-mark { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: .3em; margin: 36px 0 16px; }
 

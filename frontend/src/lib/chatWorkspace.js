@@ -61,12 +61,10 @@ export function buildChatWorkspace({
   dayun = [],
   dayunOpenIdx = null,
   liunianOpenKey = null,
-  verdicts,
 } = {}) {
   const visibility = buildChartVisibility({ meta, force, guards });
   const liunianFocus = getOpenLiunian(dayun, liunianOpenKey);
   const dayunFocus = getOpenDayun(dayun, dayunOpenIdx);
-  const verdictsStreaming = verdicts?.status === 'streaming';
 
   if (liunianFocus) {
     const { step, year } = liunianFocus;
@@ -101,7 +99,7 @@ export function buildChatWorkspace({
 
   return {
     title: '命盘已经排好了',
-    lead: verdictsStreaming ? '' : '',
+    lead: '',
     badges: compact([
       visibility.dayMasterText || null,
       hasValue(meta?.geju) ? meta.geju : null,

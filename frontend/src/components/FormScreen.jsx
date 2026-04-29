@@ -16,9 +16,7 @@ export default function FormScreen() {
   const setSections = useAppStore(s => s.setSections);
   const setSectionsLoading = useAppStore(s => s.setSectionsLoading);
   const setSectionsError = useAppStore(s => s.setSectionsError);
-  const llmEnabled = useAppStore(s => s.llmEnabled);
   const charts = useAppStore(s => s.charts);
-  const loadVerdicts = useAppStore(s => s.loadVerdicts);
   const ensureConversation = useAppStore(s => s.ensureConversation);
 
   const [date, setDate]     = useState(birthInfo?.date || '1993-07-15');
@@ -78,10 +76,6 @@ export default function FormScreen() {
       setSections([]);
       setSectionsError(null);
       setSectionsLoading(false);
-
-      if (llmEnabled) {
-        void loadVerdicts(data.chart.id);
-      }
     } catch (e) {
       clearInterval(stageTimer);
       console.error(e);

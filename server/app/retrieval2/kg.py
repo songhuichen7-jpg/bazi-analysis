@@ -39,7 +39,7 @@ class KGIndex:
                   if vs and k in self.field_index]
         if not active:
             return {}
-        candidate_set: set[str] = set()
+        candidate_set: set[str] | None = None
         scores: dict[str, int] = defaultdict(int)
         for field_name, terms in active:
             field_hits: set[str] = set()
@@ -48,11 +48,13 @@ class KGIndex:
                 field_hits |= self.lookup(field_name, canonical(term))
             for cid in field_hits:
                 scores[cid] += 1
-            candidate_set |= field_hits
+            candidate_set = field_hits if candidate_set is None else candidate_set & field_hits
+            if not candidate_set:
+                return {}
         denom = max(1, len(active))
         return {
             cid: scores.get(cid, 0) / denom + 0.05 * self.authority.get(cid, 0.0)
-            for cid in candidate_set
+            for cid in (candidate_set or set())
         }
 
 

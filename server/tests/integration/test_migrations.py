@@ -25,7 +25,7 @@ def alembic_config(database_url):
 EXPECTED_TABLES = {
     "users", "invite_codes", "sessions", "sms_codes",
     "charts", "chart_cache",
-    "conversations", "messages",
+    "conversations", "messages", "conversation_summaries",
     "quota_usage", "llm_usage_logs",
     "card_shares", "events",
     "alembic_version",

@@ -58,7 +58,8 @@ function splitParagraphs(text) {
 export function buildClassicsDisplayItem(item) {
   const { book, chapter } = splitSource(item?.source);
   const section = normalizeScope(item?.scope, chapter);
-  const cleanedText = stripLeadingLabels(item?.text, new Set([book, chapter, section].filter(Boolean)));
+  const displayText = item?.quote || item?.text;
+  const cleanedText = stripLeadingLabels(displayText, new Set([book, chapter, section].filter(Boolean)));
   const paragraphs = splitParagraphs(cleanedText);
 
   return {
@@ -66,6 +67,8 @@ export function buildClassicsDisplayItem(item) {
     chapter,
     section,
     match: String(item?.match || '').trim(),
+    plain: normalizeParagraph(item?.plain || ''),
+    originalText: String(item?.original_text || '').trim(),
     paragraphs,
   };
 }

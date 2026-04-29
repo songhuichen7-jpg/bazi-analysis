@@ -7,15 +7,33 @@ import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import ConversationSwitcher from './ConversationSwitcher';
-import { buildGenerationStatus } from '../lib/chatStatus';
 import { buildChatWorkspace, mergePromptChips } from '../lib/chatWorkspace';
+import { buildChatClientContext } from '../lib/chatClientContext';
 import { applyChatProgressEvent, createChatProgress } from '../lib/chatProgress';
+import { buildThinkingSequence } from '../lib/chatThinking';
 
-function TypingDots() {
+function ThinkingIndicator({ trace, hasClassics, previousFirst }) {
+  const lines = buildThinkingSequence({
+    intent: trace?.intent,
+    hasClassics: !!(hasClassics || trace?.hasRetrieval),
+    previousFirst,
+    seed: trace?.seed || 0,
+  });
+  const stopped = trace?.phase === 'stopped';
   return (
-    <span className="typing-dots" aria-label="生成中">
-      <span /><span /><span />
-    </span>
+    <div className={'thinking-indicator' + (stopped ? ' stopped' : '')} role="status" aria-live="polite">
+      <div className="thinking-signal" aria-hidden="true">
+        <span className="thinking-dot" />
+        <span className="thinking-line" />
+      </div>
+      <div className="thinking-copy">
+        {(stopped ? ['已停止'] : lines).map((line, index) => (
+          <div className="thinking-copy-line" style={{ '--line-index': index }} key={`${line}-${index}`}>
+            {line}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -68,24 +86,6 @@ function CtaBubble({ question, manual, onCast, onAnalyze, disabled }) {
   );
 }
 
-function TraceReceipt({ receipt }) {
-  return (
-    <div className={'chat-receipt ' + receipt.key}>
-      <span className="chat-receipt-dot" aria-hidden="true" />
-      <div className="chat-receipt-text">{receipt.text}</div>
-    </div>
-  );
-}
-
-function ChatReceipts({ trace }) {
-  if (!trace?.receipts?.length) return null;
-  return (
-    <div className="chat-receipts">
-      {trace.receipts.map((receipt) => <TraceReceipt key={`${receipt.key}-${receipt.text}`} receipt={receipt} />)}
-    </div>
-  );
-}
-
 function isAbortError(error) {
   if (!error) return false;
   return error.name === 'AbortError' || /aborted|abort/i.test(String(error.message || error));
@@ -113,13 +113,14 @@ export default function Chat() {
   const guaStreaming = useAppStore(s => s.guaStreaming);
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
+  const view = useAppStore(s => s.view);
   const meta = useAppStore(s => s.meta);
   const force = useAppStore(s => s.force);
   const guards = useAppStore(s => s.guards);
   const dayun = useAppStore(s => s.dayun);
   const dayunOpenIdx = useAppStore(s => s.dayunOpenIdx);
   const liunianOpenKey = useAppStore(s => s.liunianOpenKey);
-  const verdicts = useAppStore(s => s.verdicts);
+  const classics = useAppStore(s => s.classics);
   const currentConversationId = useAppStore(s => s.currentConversationId);
   const ensureConversation = useAppStore(s => s.ensureConversation);
   const newConversationOnServer = useAppStore(s => s.newConversationOnServer);
@@ -133,6 +134,7 @@ export default function Chat() {
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
+  const lastThinkingFirstRef = useRef('');
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -181,7 +183,15 @@ export default function Chat() {
   }
 
   function beginTrace() {
-    setChatTrace(createChatProgress({ contextLabel: workspace.contextLabel }));
+    const seed = Date.now();
+    const previousFirst = lastThinkingFirstRef.current;
+    const initialLines = buildThinkingSequence({
+      hasClassics: !!(classics?.items || []).length,
+      previousFirst,
+      seed,
+    });
+    lastThinkingFirstRef.current = initialLines[0] || previousFirst;
+    setChatTrace(createChatProgress({ contextLabel: workspace.contextLabel, seed, previousFirst }));
   }
 
   function updateTrace(event) {
@@ -270,7 +280,7 @@ export default function Chat() {
     const controller = bindStreamController();
     try {
       console.log(`[chat] stream:start conv=${convId} dt=${Date.now() - sendStartedAt}ms`);
-      await streamMessage(convId, { message: q, bypass_divination: false }, {
+      await streamMessage(convId, { message: q, bypass_divination: false, client_context: clientContext }, {
         signal: controller.signal,
         onDelta: (_t, running) => {
           replaceLastAssistant(running);
@@ -367,7 +377,7 @@ export default function Chat() {
     }
     const controller = bindStreamController();
     try {
-      await streamMessage(convId, { message: question, bypass_divination: true }, {
+      await streamMessage(convId, { message: question, bypass_divination: true, client_context: clientContext }, {
         signal: controller.signal,
         onDelta: (_t, running) => {
           replaceLastAssistant(running);
@@ -413,7 +423,6 @@ export default function Chat() {
     }
   }
 
-  const generationStatus = buildGenerationStatus({ verdicts });
   const workspace = buildChatWorkspace({
     meta,
     force,
@@ -421,11 +430,11 @@ export default function Chat() {
     dayun,
     dayunOpenIdx,
     liunianOpenKey,
-    verdicts,
   });
+  const clientContext = buildChatClientContext({ view, workspace, classics });
   const composerChips = mergePromptChips(workspace.starterQuestions, chips, 4);
   const busy = chatStreaming || guaStreaming;
-  const traceVisible = !!chatTrace?.receipts?.length && (busy || chatTrace.phase === 'stopped');
+  const traceVisible = !!chatTrace && !chatTrace.hasOutput && (chatStreaming || chatTrace.phase === 'stopped');
 
   return (
     <div className="right-pane">
@@ -553,10 +562,14 @@ export default function Chat() {
             <div className="msg msg-ai" key={i}>
               <div className={'msg-ai-card' + (!m.content && !(isLast && traceVisible) ? ' loading' : '')}>
                 {isLast && traceVisible ? (
-                  <ChatReceipts trace={chatTrace} />
+                  <ThinkingIndicator
+                    trace={chatTrace}
+                    hasClassics={!!(classics?.items || []).length}
+                    previousFirst={chatTrace?.previousFirst}
+                  />
                 ) : null}
                 <div className="msg-ai-body">
-                  {m.content ? <RichText text={m.content} /> : (isLast && traceVisible ? null : <TypingDots />)}
+                  {m.content ? <RichText text={m.content} /> : null}
                 </div>
               </div>
               {(() => {
@@ -576,9 +589,6 @@ export default function Chat() {
       </div>
 
       <div className="chat-input-wrap">
-        {generationStatus.visible ? (
-          <div className="chat-status-note muted" role="status">{generationStatus.text}</div>
-        ) : null}
         {workspace.contextLabel ? (
           <div className="chat-context-pill">{workspace.contextLabel}</div>
         ) : null}

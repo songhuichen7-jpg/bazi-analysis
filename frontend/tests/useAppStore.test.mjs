@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { CLASSICS_VERSION, useAppStore } from '../src/store/useAppStore.js';
+import { SESSION_VERSION } from '../src/lib/constants.js';
 
 
 function _stubFetch(impl) {
@@ -247,6 +248,33 @@ test('loadClassics populates classical excerpts for the active chart', async () 
   } finally {
     _restoreFetch();
   }
+});
+
+test('restoreFromSession discards stale classics cache before refetch', () => {
+  useAppStore.setState(useAppStore.getInitialState(), true);
+
+  useAppStore.getState().restoreFromSession({
+    version: SESSION_VERSION,
+    currentId: 'chart-1',
+    charts: {
+      'chart-1': {
+        id: 'chart-1',
+        paipan: { ok: true },
+        meta: { ok: true },
+        classics: {
+          status: 'done',
+          version: 'skill-index-v6',
+          items: [{ source: '旧古籍', scope: 'full', chars: 4, text: '旧原文' }],
+          lastError: null,
+        },
+      },
+    },
+  });
+
+  const state = useAppStore.getState();
+  assert.equal(state.classics.version, CLASSICS_VERSION);
+  assert.equal(state.classics.status, 'idle');
+  assert.deepEqual(state.classics.items, []);
 });
 
 test('store starts with optimistic llmEnabled to avoid false fallback before health probe resolves', () => {

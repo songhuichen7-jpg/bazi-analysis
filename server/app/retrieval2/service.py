@@ -29,6 +29,7 @@ from . import selector as selector_mod
 from . import storage
 from .intents import bazi_chart_to_intents
 from .normalize import book_label
+from .policy import RetrievalPolicy, build_policy
 from .types import ClaimTags, ClaimUnit, RetrievalHit
 
 logger = logging.getLogger(__name__)
@@ -76,12 +77,10 @@ def reset_cache() -> None:
 
 def _v1_shape(hit: RetrievalHit) -> V1Hit:
     parts = [book_label(hit.claim.book), hit.claim.chapter_title]
-    if hit.claim.section:
-        parts.append(hit.claim.section)
     return V1Hit(
         source=" · ".join(p for p in parts if p),
         file=hit.claim.chapter_file,
-        scope=f"claim:{hit.claim.id}",
+        scope=hit.claim.section or "full",
         text=hit.claim.text,
         chars=len(hit.claim.text),
     )
@@ -91,8 +90,11 @@ def _gather_candidates(
     intents,
     bm25_idx,
     kg_idx,
+    claims: dict[str, ClaimUnit],
+    tags: dict[str, ClaimTags],
     *,
     n: int,
+    policy: RetrievalPolicy,
 ) -> dict[str, dict[str, float]]:
     """Run BM25 + KG on each intent; aggregate per-claim per-channel score."""
     scores: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -103,6 +105,14 @@ def _gather_candidates(
         if intent.constraints:
             for cid, s in kg_idx.match(intent.constraints).items():
                 scores[cid]["kg"] += s * intent.weight
+    for cid, claim in claims.items():
+        tag = tags.get(cid, ClaimTags(claim_id=cid))
+        if policy.rejects(claim, tag):
+            scores[cid]["reject"] = 1.0
+            continue
+        boost = policy.boost(claim, tag)
+        if boost > 0:
+            scores[cid]["policy"] += boost
     return scores
 
 
@@ -114,17 +124,133 @@ def _fuse(
     """Tiny linear blend across channels — only used to pre-filter to N
     candidates before the selector. Selector does the real ranking, so this
     just needs to keep the right candidates in the pool."""
+    max_bm25 = max((ch.get("bm25", 0.0) for ch in scores.values()), default=0.0)
+    usable = [ch for ch in scores.values() if not ch.get("reject")]
+    max_kg = max((ch.get("kg", 0.0) for ch in usable), default=0.0)
+    max_policy = max((ch.get("policy", 0.0) for ch in usable), default=0.0)
     out: list[tuple[str, float, dict[str, float]]] = []
     for cid, ch in scores.items():
+        if ch.get("reject"):
+            continue
         # Normalize each channel by its own max within this query so the
         # blend doesn't get dominated by one channel's scale.
-        bm25 = ch.get("bm25", 0.0)
-        kg = ch.get("kg", 0.0)
-        # Simple sum is fine here — selector reads all of them anyway.
-        fused = 0.5 * bm25 + 1.5 * kg  # KG weighted higher because tag matches are stronger signal
+        bm25 = ch.get("bm25", 0.0) / max_bm25 if max_bm25 > 0 else 0.0
+        kg = ch.get("kg", 0.0) / max_kg if max_kg > 0 else 0.0
+        policy = ch.get("policy", 0.0) / max_policy if max_policy > 0 else 0.0
+        fused = 0.35 * bm25 + 1.0 * kg + 1.35 * policy
         out.append((cid, fused, dict(ch)))
     out.sort(key=lambda x: x[1], reverse=True)
     return out[:n]
+
+
+def _promote_preferred_files(
+    fused: list[tuple[str, float, dict[str, float]]],
+    claims: dict[str, ClaimUnit],
+    policy: RetrievalPolicy,
+    *,
+    n: int,
+) -> list[tuple[str, float, dict[str, float]]]:
+    if not policy.preferred_files:
+        return fused[:n]
+
+    anchors: list[tuple[str, float, dict[str, float]]] = []
+    for file_name in policy.preferred_files:
+        match = next(
+            (item for item in fused if claims.get(item[0]) and claims[item[0]].chapter_file == file_name),
+            None,
+        )
+        if match is not None:
+            anchors.append(match)
+
+    out: list[tuple[str, float, dict[str, float]]] = []
+    seen: set[str] = set()
+    for item in [*anchors, *fused]:
+        cid = item[0]
+        if cid in seen:
+            continue
+        out.append(item)
+        seen.add(cid)
+        if len(out) >= n:
+            break
+    return out
+
+
+def _diversify_fused(
+    fused: list[tuple[str, float, dict[str, float]]],
+    claims: dict[str, ClaimUnit],
+    *,
+    n: int,
+    per_file: int = 2,
+) -> list[tuple[str, float, dict[str, float]]]:
+    if per_file <= 0:
+        return fused[:n]
+
+    counts: dict[str, int] = defaultdict(int)
+    out: list[tuple[str, float, dict[str, float]]] = []
+    seen: set[str] = set()
+
+    for item in fused:
+        cid = item[0]
+        claim = claims.get(cid)
+        if claim is None or counts[claim.chapter_file] >= per_file:
+            continue
+        out.append(item)
+        seen.add(cid)
+        counts[claim.chapter_file] += 1
+        if len(out) >= n:
+            return out
+
+    for item in fused:
+        cid = item[0]
+        if cid in seen:
+            continue
+        out.append(item)
+        if len(out) >= n:
+            break
+    return out
+
+
+def _ensure_preferred_hits(
+    hits: list[RetrievalHit],
+    candidates: list[selector_mod.Candidate],
+    policy: RetrievalPolicy,
+    *,
+    k: int,
+) -> list[RetrievalHit]:
+    if not policy.preferred_files or not candidates:
+        return hits[:k]
+
+    by_file: dict[str, selector_mod.Candidate] = {}
+    for c in candidates:
+        by_file.setdefault(c.claim.chapter_file, c)
+
+    out: list[RetrievalHit] = []
+    seen: set[str] = set()
+    by_hit_id = {h.claim.id: h for h in hits}
+
+    for file_name in policy.preferred_files:
+        c = by_file.get(file_name)
+        if c is None:
+            continue
+        hit = by_hit_id.get(c.claim.id) or RetrievalHit(
+            claim=c.claim,
+            tags=c.tags,
+            score=c.fused_score,
+            reason="preferred-source",
+        )
+        out.append(hit)
+        seen.add(hit.claim.id)
+        if len(out) >= k:
+            return out
+
+    for hit in hits:
+        if hit.claim.id in seen:
+            continue
+        out.append(hit)
+        seen.add(hit.claim.id)
+        if len(out) >= k:
+            break
+    return out
 
 
 async def retrieve_for_chart(
@@ -142,13 +268,14 @@ async def retrieve_for_chart(
     Internal pipeline:
       1. chart → intents
       2. BM25 + KG → top fused_top_n candidates
-      3. DeepSeek selector → top final_k (graceful fallback to fused score)
+      3. DeepSeek selector → up to final_k (graceful fallback to fused score)
       4. v1 dict shape
     """
     intent_kind = kind[len("section:"):] if kind.startswith("section:") else kind
     intents = bazi_chart_to_intents(chart, intent_kind, user_message)
     if not intents:
         return []
+    policy = build_policy(chart, intent_kind, user_message)
     claims, tags, bm25_idx, kg_idx = _bundle(
         str((index_root or _default_index_root()).resolve())
     )
@@ -156,8 +283,25 @@ async def retrieve_for_chart(
         logger.warning("retrieval2 index empty — returning []")
         return []
 
-    raw_scores = _gather_candidates(intents, bm25_idx, kg_idx, n=fused_top_n)
-    fused = _fuse(raw_scores, n=fused_top_n)
+    raw_scores = _gather_candidates(
+        intents, bm25_idx, kg_idx, claims, tags,
+        n=fused_top_n, policy=policy,
+    )
+    fused = _fuse(raw_scores, n=max(fused_top_n, len(raw_scores)))
+    if not fused and (
+        policy.allowed_file_fragments
+        or policy.rejected_file_fragments
+        or policy.required_domains
+        or policy.required_terms
+    ):
+        fallback_policy = RetrievalPolicy(kind=intent_kind)
+        raw_scores = _gather_candidates(
+            intents, bm25_idx, kg_idx, claims, tags,
+            n=fused_top_n, policy=fallback_policy,
+        )
+        fused = _fuse(raw_scores, n=max(fused_top_n, len(raw_scores)))
+    fused = _promote_preferred_files(fused, claims, policy, n=fused_top_n)
+    fused = _diversify_fused(fused, claims, n=fused_top_n)
     candidates = [
         selector_mod.Candidate(
             claim=claims[cid],
@@ -171,7 +315,9 @@ async def retrieve_for_chart(
     if use_selector:
         hits = await selector_mod.select(
             chart, intents, user_message, candidates, k=final_k,
+            policy_hint=policy.selector_hint,
         )
+        hits = _ensure_preferred_hits(hits, candidates, policy, k=final_k)
     else:
         hits = [
             RetrievalHit(claim=c.claim, tags=c.tags, score=c.fused_score)

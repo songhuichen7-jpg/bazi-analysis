@@ -13,7 +13,7 @@ Failure modes are explicit and graceful:
 * LLM call timeout / error → fall back to top-N by candidate score.
 * Bad JSON → fall back to top-N by candidate score.
 * IDs the LLM made up → silently dropped.
-* Too few picked → top-up from candidates by score until reaching K.
+* Fewer confident picks → return fewer hits; precision beats padding.
 """
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ _SYSTEM = """你是八字检索结果的精排器。给你一个命盘+用户问
 只输出 JSON：
 {"picks":[{"id":"<claim_id>","reason":"<10-20字>"}]}
 
-picks 数组按相关性从高到低排列。给我精选 N 条；宁缺毋滥。
+picks 数组按相关性从高到低排列。最多给 N 条；宁缺毋滥。
 不要解释，不要 ```fence。"""
 
 
@@ -80,14 +80,34 @@ def _format_intents(intents: Sequence[QueryIntent]) -> str:
     return "\n".join(lines)
 
 
+def _format_tags(tags: ClaimTags) -> str:
+    parts: list[str] = []
+    for label, values in (
+        ("domain", tags.domain),
+        ("shishen", tags.shishen),
+        ("method", tags.yongshen_method),
+        ("strength", tags.day_strength),
+        ("day_gan", tags.day_gan),
+        ("month_zhi", tags.month_zhi),
+        ("geju", tags.geju),
+    ):
+        if values:
+            parts.append(f"{label}={','.join(values)}")
+    return "；".join(parts) or "无结构标签"
+
+
 def _format_candidates(candidates: Sequence[Candidate]) -> str:
     lines: list[str] = []
     for c in candidates:
         text = c.claim.text.replace("\n", " ").strip()
         if len(text) > 220:
             text = text[:220] + "…"
-        src = c.claim.chapter_title
-        lines.append(f"[{c.claim.id}] {src}\n  {text}")
+        src = " · ".join(p for p in (c.claim.chapter_file, c.claim.chapter_title, c.claim.section) if p)
+        lines.append(
+            f"[{c.claim.id}] {src}\n"
+            f"  tags: {_format_tags(c.tags)}\n"
+            f"  text: {text}"
+        )
     return "\n".join(lines)
 
 
@@ -97,14 +117,17 @@ def _user_message(
     user_msg: str | None,
     candidates: Sequence[Candidate],
     k: int,
+    policy_hint: str = "",
 ) -> str:
     user_q = user_msg or "（用户未直接提问；按命盘整体特征做检索）"
+    hint = policy_hint or "按用户问题、命盘结构、候选标签与原文直接相关性筛选。"
     return (
         f"【命盘】\n  {_format_chart(chart)}\n\n"
         f"【用户问题】\n  {user_q}\n\n"
         f"【系统识别的检索意图】\n{_format_intents(intents) or '  · meta'}\n\n"
+        f"【本轮精排规则】\n  {hint}\n\n"
         f"【候选 claim（共 {len(candidates)} 条）】\n{_format_candidates(candidates)}\n\n"
-        f"请从中精选最对题的 {k} 条，输出 JSON。"
+        f"请从中精选最多 {k} 条，宁缺毋滥；不够对题的候选不要为了凑数输出。输出 JSON。"
     )
 
 
@@ -186,6 +209,7 @@ async def select(
     k: int = DEFAULT_K,
     max_candidates: int = DEFAULT_MAX_CANDIDATES,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    policy_hint: str = "",
 ) -> list[RetrievalHit]:
     """Pick best k claims from candidates using DeepSeek.
 
@@ -200,7 +224,9 @@ async def select(
 
     messages = [
         {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": _user_message(chart, intents, user_msg, pool, k)},
+        {"role": "user", "content": _user_message(
+            chart, intents, user_msg, pool, k, policy_hint,
+        )},
     ]
     try:
         text = await _call_deepseek(messages, timeout=timeout_seconds)
@@ -209,7 +235,11 @@ async def select(
         logger.warning("selector LLM call failed: %s — falling back to fused_score", exc)
         picks = []
 
-    final = _topup(picks, pool, k)
+    if picks:
+        score_map = {c.claim.id: c.fused_score for c in pool}
+        final = [(cid, reason, score_map.get(cid, 0.0)) for cid, reason in picks[:k]]
+    else:
+        final = _topup(picks, pool, k)
     by_id = {c.claim.id: c for c in pool}
     out: list[RetrievalHit] = []
     for cid, reason, score in final[:k]:

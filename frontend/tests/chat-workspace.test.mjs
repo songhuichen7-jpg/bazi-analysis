@@ -104,3 +104,12 @@ test('chat turns expose edit and regenerate controls', () => {
   assert.match(source, /修改问题/);
   assert.match(source, /重新回答/);
 });
+
+
+test('chat waiting state uses animated thinking indicator instead of trace receipts', () => {
+  const source = fs.readFileSync(new URL('../src/components/Chat.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /ThinkingIndicator/);
+  assert.doesNotMatch(source, /ChatReceipts/);
+  assert.doesNotMatch(source, /TraceReceipt/);
+});

@@ -214,3 +214,55 @@ async def test_recent_chat_history_respects_limit(db_session, user_and_dek):
         hist = await msg_svc.recent_chat_history(db_session, conversation_id=c.id, limit=4)
         # Last 4 in chronological order: u6, u7, u8, u9
         assert [h["content"] for h in hist] == ["u6", "u7", "u8", "u9"]
+
+
+async def test_context_chat_history_keeps_more_than_eight_when_budget_allows(db_session, user_and_dek):
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        c = await conv_svc.create_conversation(db_session, user, chart.id)
+        await db_session.flush()
+        for i in range(15):
+            role = "user" if i % 2 == 0 else "assistant"
+            await msg_svc.insert(db_session, conversation_id=c.id,
+                                  role=role, content=f"m{i}")
+            await db_session.flush()
+            await asyncio.sleep(0.001)
+
+        hist = await msg_svc.context_chat_history(
+            db_session,
+            conversation_id=c.id,
+            max_messages=60,
+            char_budget=10_000,
+            always_keep=12,
+        )
+
+        assert len(hist) == 15
+        assert [h["content"] for h in hist] == [f"m{i}" for i in range(15)]
+
+
+async def test_context_chat_history_keeps_recent_tail_even_when_budget_is_tight(db_session, user_and_dek):
+    user, dek = user_and_dek
+    with user_dek_context(dek):
+        chart = await _make_chart(db_session, user)
+        c = await conv_svc.create_conversation(db_session, user, chart.id)
+        await db_session.flush()
+        for i in range(10):
+            await msg_svc.insert(
+                db_session,
+                conversation_id=c.id,
+                role="user",
+                content=f"long-{i}-" + ("x" * 120),
+            )
+            await db_session.flush()
+            await asyncio.sleep(0.001)
+
+        hist = await msg_svc.context_chat_history(
+            db_session,
+            conversation_id=c.id,
+            max_messages=20,
+            char_budget=50,
+            always_keep=3,
+        )
+
+        assert [h["content"][:6] for h in hist] == ["long-7", "long-8", "long-9"]

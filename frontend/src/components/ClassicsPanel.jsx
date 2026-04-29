@@ -77,6 +77,9 @@ export default function ClassicsPanel() {
                       {renderMd(paragraph)}
                     </p>
                   ))}
+                  {item.plain ? (
+                    <div className="classics-plain">{renderMd(item.plain)}</div>
+                  ) : null}
                 </div>
                 {item.match ? (
                   <div className="classics-match">对照本盘：{item.match}</div>

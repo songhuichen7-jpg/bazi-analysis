@@ -18,6 +18,7 @@ from app.models.user import User
 from app.prompts import expert as prompts_expert
 from app.retrieval2.service import retrieve_for_chart
 from app.services import message as msg_svc
+from app.services import conversation_memory as memory_svc
 from app.services.chat_router import classify
 from app.services.exceptions import UpstreamLLMError
 from app.services.quota import QuotaTicket
@@ -27,14 +28,17 @@ async def stream_message(
     *, db: AsyncSession, user: User, conversation_id: UUID,
     chart, message: str, bypass_divination: bool,
     ticket: QuotaTicket,
+    client_context: dict | None = None,
 ) -> AsyncIterator[bytes]:
     """Generator yielding SSE-encoded bytes. NOTE: spec §5."""
-    history = await msg_svc.recent_chat_history(db, conversation_id=conversation_id, limit=8)
+    router_history = await msg_svc.recent_chat_history(db, conversation_id=conversation_id, limit=4)
+    history = await msg_svc.context_chat_history(db, conversation_id=conversation_id)
+    memory_summary = await memory_svc.get_summary(db, conversation_id=conversation_id)
     await msg_svc.insert(db, conversation_id=conversation_id, role="user", content=message)
 
     routed = await classify(
         db=db, user=user, chart_id=chart.id,
-        message=message, history=history,
+        message=message, history=router_history,
     )
     yield sse_pack({"type": "intent", "intent": routed["intent"],
                      "reason": routed["reason"], "source": routed["source"]})
@@ -72,6 +76,8 @@ async def stream_message(
         paipan=chart.paipan, history=history,
         user_message=message, intent=effective_intent,
         retrieved=retrieved,
+        client_context=client_context,
+        memory_summary=memory_summary,
     )
 
     accumulator = ""
@@ -83,7 +89,7 @@ async def stream_message(
     try:
         async for ev in chat_stream_with_fallback(
             messages=messages_llm, tier="primary",
-            temperature=0.7, max_tokens=5000,
+            temperature=0.7, max_tokens=9000,
             first_delta_timeout_ms=settings.llm_stream_first_delta_ms,
         ):
             t = ev["type"]
@@ -142,3 +148,9 @@ async def stream_message(
         duration_ms=duration_ms,
     )
     yield sse_pack({"type": "done", "full": accumulator, "tokens_used": total_tok})
+    await memory_svc.maybe_refresh_summary(
+        db,
+        user=user,
+        chart=chart,
+        conversation_id=conversation_id,
+    )

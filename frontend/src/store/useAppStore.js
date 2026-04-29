@@ -7,7 +7,7 @@ import { appendChatMessage, trimChatHistory } from '../lib/chatHistory.js';
 import { clearSession } from '../lib/persistence.js';
 import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
 
-export const CLASSICS_VERSION = 'skill-index-v6';
+export const CLASSICS_VERSION = 'skill-index-v7-polished';
 
 function _serverMsgToUiMsg(m) {
   if (m.role === 'gua') {
@@ -50,6 +50,7 @@ function hydrateVerdicts(verdicts) {
 
 function hydrateClassics(classics) {
   if (!classics) return blankClassics();
+  if (classics.version !== CLASSICS_VERSION) return blankClassics();
   const items = Array.isArray(classics.items) ? classics.items : [];
   return {
     status: classics.status || (items.length ? 'done' : 'idle'),
