@@ -144,6 +144,7 @@ function updateChartClassics(state, chartId, updater) {
 }
 
 const conversationBootstrapPromises = new Map();
+const classicsInFlight = new Map();
 
 const BLANK_CHART = {
   paipan: null, force: [], guards: [], dayun: [], meta: null, birthInfo: null,
@@ -267,6 +268,14 @@ export const useAppStore = create((set, get) => ({
 
   loadClassics: async (chartId) => {
     if (!chartId) return;
+    // Dedup concurrent calls — the polisher does ~40s of LLM work and
+    // overlapping requests would each return slightly different polished
+    // text (LLM is not deterministic at temperature > 0). React StrictMode
+    // double-invokes effects in dev, which without this dedup made the
+    // panel "flash" the first result then overwrite it with the second.
+    const inflight = classicsInFlight.get(chartId);
+    if (inflight) return inflight;
+
     set((s) => updateChartClassics(s, chartId, () => ({
       status: 'loading',
       items: [],
@@ -274,23 +283,29 @@ export const useAppStore = create((set, get) => ({
       version: CLASSICS_VERSION,
     })));
 
-    try {
-      const { fetchClassics } = await import('../lib/api.js');
-      const data = await fetchClassics(chartId);
-      set((s) => updateChartClassics(s, chartId, () => ({
-        status: 'done',
-        items: Array.isArray(data?.items) ? data.items : [],
-        lastError: null,
-        version: CLASSICS_VERSION,
-      })));
-    } catch (e) {
-      const message = e.message || String(e);
-      set((s) => updateChartClassics(s, chartId, (current) => ({
-        ...current,
-        status: 'error',
-        lastError: message,
-      })));
-    }
+    const task = (async () => {
+      try {
+        const { fetchClassics } = await import('../lib/api.js');
+        const data = await fetchClassics(chartId);
+        set((s) => updateChartClassics(s, chartId, () => ({
+          status: 'done',
+          items: Array.isArray(data?.items) ? data.items : [],
+          lastError: null,
+          version: CLASSICS_VERSION,
+        })));
+      } catch (e) {
+        const message = e.message || String(e);
+        set((s) => updateChartClassics(s, chartId, (current) => ({
+          ...current,
+          status: 'error',
+          lastError: message,
+        })));
+      } finally {
+        classicsInFlight.delete(chartId);
+      }
+    })();
+    classicsInFlight.set(chartId, task);
+    return task;
   },
 
   loadVerdicts: async (chartId) => {
