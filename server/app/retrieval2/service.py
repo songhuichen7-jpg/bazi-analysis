@@ -217,7 +217,15 @@ def _diversify_fused(
     return out
 
 
-_BM25_ANCHOR_INTENT_KINDS = frozenset({"combo.day_hour", "user_msg"})
+_BM25_ANCHOR_INTENT_KINDS = frozenset({
+    "combo.day_hour", "user_msg", "liu_qin.specific",
+    "combo.gan_xiang", "combo.nv_ming", "shen_sha.overview",
+})
+
+
+def _is_bm25_anchor_kind(kind: str) -> bool:
+    """Match exact kinds plus the dynamic ``shen_sha.<term>`` variants."""
+    return kind in _BM25_ANCHOR_INTENT_KINDS or kind.startswith("shen_sha.")
 
 
 def _promote_bm25_anchors(
@@ -247,7 +255,7 @@ def _promote_bm25_anchors(
     anchor_ids: list[str] = []
     seen_ids: set[str] = set()
     for it in intents:
-        if it.kind not in _BM25_ANCHOR_INTENT_KINDS:
+        if not _is_bm25_anchor_kind(it.kind):
             continue
         if not it.text:
             continue

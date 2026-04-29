@@ -350,9 +350,25 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("外貌", "性情"),
-            preferred_files=("sanming-tonghui/juan-07.md",),
-            selector_hint="外貌/气质问题优先选《三命通会》性情相貌与滴天髓性情，不选格局富贵泛论。",
-            term_boosts=("性情", "相貌", "形体", "貌"),
+            preferred_files=(
+                "sanming-tonghui/juan-07.md",
+                "yuanhai-ziping/04_gan-zhi-ti-xiang.md",
+            ),
+            selector_hint="外貌/气质问题优先选《三命通会》性情相貌、《渊海子平》干支体象、滴天髓性情；不选格局富贵泛论。",
+            term_boosts=("性情", "相貌", "形体", "貌", "天干体象", "地支体象"),
+        )
+
+    if kind == "personality":
+        return RetrievalPolicy(
+            kind=kind,
+            positive_domains=("性情", "外貌"),
+            preferred_files=(
+                "yuanhai-ziping/04_gan-zhi-ti-xiang.md",
+                "ditian-sui/liu-qin-lun_24_xing-qing.md",
+                "sanming-tonghui/juan-07.md",
+            ),
+            selector_hint="性格问题优先选《渊海子平》干支体象（甲X / Y地支段落）、滴天髓性情、《三命通会》性情相貌；不要只选格局通论。",
+            term_boosts=("性情", "性格", "刚柔", "天干体象", "地支体象"),
         )
 
     return RetrievalPolicy(kind=kind)

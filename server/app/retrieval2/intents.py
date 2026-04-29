@@ -245,6 +245,69 @@ def bazi_chart_to_intents(
             text += f" 时上{hour_shishen}"
         _emit(out, text=text, weight=0.65, kind="combo.day_hour")
 
+    # 9. 六亲专篇 — keyword-triggered. Generic relationship intent finds
+    # marriage/财官 essays but misses the targeted "论父 / 论母 / 论妻妾 /
+    # 论子息" chapters in 渊海子平·卷十. Without these, "我父亲怎么样"
+    # returns marriage essays instead.
+    if user_message:
+        liu_qin_keywords: list[tuple[tuple[str, ...], str]] = [
+            (("父亲", "父"), "论父 父亲 印为父"),
+            (("母亲", "母", "妈"), "论母 母亲 食伤为母"),
+            (("兄弟", "姐妹", "哥", "弟", "姐", "妹"), "论兄弟姐妹 比劫"),
+            (("妻", "老婆", "媳妇", "配偶"), "论妻妾 妻财"),
+            (("丈夫", "老公", "夫君"), "论夫 配偶 官星为夫"),
+            (("子女", "孩子", "儿子", "女儿", "子息"), "论子息 子女"),
+        ]
+        for kws, intent_text in liu_qin_keywords:
+            if any(kw in user_message for kw in kws):
+                _emit(out, text=intent_text, weight=0.7, kind="liu_qin.specific")
+                break  # one anchor is enough
+
+    # 10. 神煞专篇 — keyword-triggered. Asking about 桃花/华盖/羊刃 etc.
+    # needs the dedicated 神煞 chapters (渊海子平·09 / 三命通会·卷三).
+    # The corpus is overwhelmingly 繁体 (華蓋, not 华盖) but users type
+    # 简体 — emit BOTH forms so the BM25 tokenizer (no simp↔trad
+    # normalisation) hits the right segments.
+    if user_message:
+        # (canonical_simp, equivalent_trad) — singletons appear in only one form.
+        shen_sha_pairs: list[tuple[str, str]] = [
+            ("桃花", "桃花"), ("华盖", "華蓋"), ("天乙", "天乙"),
+            ("羊刃", "陽刃"), ("阳刃", "陽刃"),
+            ("魁罡", "魁罡"), ("月德", "月德"), ("天德", "天德"),
+            ("禄神", "祿神"), ("驿马", "驛馬"),
+            ("孤辰", "孤辰"), ("寡宿", "寡宿"),
+            ("金舆", "金轝"), ("三奇", "三奇"), ("贵人", "貴人"),
+        ]
+        seen: set[str] = set()
+        for simp, trad in shen_sha_pairs:
+            if simp in user_message or trad in user_message:
+                if simp in seen:
+                    continue
+                terms = simp if simp == trad else f"{simp} {trad}"
+                _emit(out, text=f"{terms} 神煞", weight=0.7,
+                      kind=f"shen_sha.{simp}")
+                seen.add(simp)
+        if any(kw in user_message for kw in ("神煞", "神殺", "凶煞", "吉神")) and not seen:
+            _emit(out, text="神煞 神杀 吉神凶煞", weight=0.6,
+                  kind="shen_sha.overview")
+
+    # 11. 干支体象 — for personality questions. 渊海子平 04 卷 "天干体象 /
+    # 地支体象" is the canonical reference for "this person looks/acts like…"
+    # but the existing personality intent only routes via domain=性情.
+    _GAN_WUXING = {"甲":"木","乙":"木","丙":"火","丁":"火","戊":"土",
+                    "己":"土","庚":"金","辛":"金","壬":"水","癸":"水"}
+    if kind in {"personality", "appearance"} and day_gan:
+        wuxing = _GAN_WUXING.get(day_gan, "")
+        text = f"{day_gan}{wuxing}天干体象 性情相貌".strip()
+        _emit(out, text=text, weight=0.7, kind="combo.gan_xiang")
+
+    # 12. 女命专论 — when 命主 is female, 渊海子平·11 全卷 are gender-
+    # specific (女命赋, 女命富贵贫贱篇, 女命贵格/贱格). Otherwise women
+    # users get male-frame readings.
+    gender = str((p.get("gender") or "")).lower()
+    if gender in {"female", "女", "f"} and kind in {"meta", "relationship", "career", "wealth", "personality"}:
+        _emit(out, text="女命 阴命 妇人总诀 女命赋", weight=0.7, kind="combo.nv_ming")
+
     return out
 
 
