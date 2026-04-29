@@ -14,7 +14,7 @@ from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT_SECONDS = 40.0
+DEFAULT_TIMEOUT_SECONDS = 75.0
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.S | re.I)
 
@@ -187,7 +187,20 @@ def _format_hits(hits: Sequence[dict[str, Any]]) -> str:
     return "\n\n".join(lines)
 
 
-def _build_messages(chart: dict[str, Any], hits: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+def _build_messages(
+    chart: dict[str, Any],
+    hits: Sequence[dict[str, Any]],
+    *,
+    recovery: bool = False,
+) -> list[dict[str, str]]:
+    if recovery:
+        directive = (
+            "上一轮精选漏掉了下面这几条原本应该展示的古籍锚点。"
+            "请把它们全部输出（不要再删减、合并或丢弃），"
+            "按同一规则补全 quote / plain / match。"
+        )
+    else:
+        directive = "请输出最适合页面展示的古籍旁证 JSON。"
     return [
         {"role": "system", "content": _SYSTEM},
         {
@@ -195,7 +208,7 @@ def _build_messages(chart: dict[str, Any], hits: Sequence[dict[str, Any]]) -> li
             "content": (
                 f"【命盘】\n{_chart_summary(chart)}\n\n"
                 f"【候选古籍锚点】\n{_format_hits(hits)}\n\n"
-                "请输出最适合页面展示的古籍旁证 JSON。"
+                f"{directive}"
             ),
         },
     ]
@@ -283,6 +296,36 @@ def _ensure_book_coverage(
     return out[:max_items]
 
 
+# 6 cards × (quote + plain + match) is ~2000+ tokens of Chinese; budget enough
+# headroom so the JSON is never truncated mid-string (silent parse failure).
+_POLISH_MAX_TOKENS = 4000
+
+
+async def _polish_once_via_llm(
+    chart: dict[str, Any],
+    raw_hits: Sequence[dict[str, Any]],
+    timeout_seconds: float,
+    *,
+    recovery: bool = False,
+) -> list[dict[str, Any]]:
+    """Single LLM polish pass. Returns parsed items or [] on any failure."""
+    try:
+        text, _model = await asyncio.wait_for(
+            chat_once_with_fallback(
+                messages=_build_messages(chart, raw_hits, recovery=recovery),
+                tier="fast",
+                temperature=0.2,
+                max_tokens=_POLISH_MAX_TOKENS,
+                disable_thinking=True,
+            ),
+            timeout=timeout_seconds,
+        )
+        return _parse_items(text, raw_hits, chart)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("classics polish failed: %r", exc)
+        return []
+
+
 async def polish_classics_for_chart(
     chart: dict[str, Any],
     hits: Sequence[dict[str, Any]],
@@ -292,28 +335,30 @@ async def polish_classics_for_chart(
 ) -> list[dict[str, Any]]:
     """Return display-ready classics cards.
 
-    On timeout, invalid JSON, or upstream failure, uses a local quote slicer so
-    the panel still has usable source excerpts.
+    Two-pass LLM polish: the first call may drop entire books (terse 訣文 are
+    often misjudged as low-density). For dropped books we run a second,
+    targeted LLM call so they still get punctuation + 现代汉语 + 命盘对照
+    instead of leaking raw classical text into the UI. Local quote slicer
+    is the last-resort fallback only when both LLM passes fail.
     """
     raw_hits = _normalize_raw_hits(hits)
     if not raw_hits:
         return []
 
-    try:
-        text, _model = await asyncio.wait_for(
-            chat_once_with_fallback(
-                messages=_build_messages(chart, raw_hits),
-                tier="fast",
-                temperature=0.2,
-                max_tokens=1200,
-                disable_thinking=True,
-            ),
-            timeout=timeout_seconds,
-        )
-        items = _parse_items(text, raw_hits, chart) or _fallback_items(chart, raw_hits)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("classics polish failed: %r — using local fallback", exc)
+    items = await _polish_once_via_llm(chart, raw_hits, timeout_seconds)
+    if not items:
         items = _fallback_items(chart, raw_hits)
+        return _ensure_book_coverage(items, raw_hits, chart, max_items=max_items)
+
+    seen_files = {it.get("file") for it in items if it.get("file")}
+    missing = [r for r in raw_hits if r.get("file") and r.get("file") not in seen_files]
+
+    if missing and len(items) < max_items:
+        recovered = await _polish_once_via_llm(
+            chart, missing, timeout_seconds, recovery=True,
+        )
+        if recovered:
+            items.extend(recovered)
 
     return _ensure_book_coverage(items, raw_hits, chart, max_items=max_items)
 
