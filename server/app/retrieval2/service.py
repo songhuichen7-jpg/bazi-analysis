@@ -180,33 +180,40 @@ def _diversify_fused(
     claims: dict[str, ClaimUnit],
     *,
     n: int,
-    per_file: int = 2,
+    per_section: int = 1,
+    per_file: int = 4,
 ) -> list[tuple[str, float, dict[str, float]]]:
-    if per_file <= 0:
+    """Dedup the candidate pool by (chapter_file, section) and cap per chapter_file.
+
+    Per-section cap kills the "two paragraphs from the same passage" case
+    (e.g. two segments of 穷通宝鉴·三秋甲木) without losing meaningfully
+    distinct sections within the same file (e.g. 三命通会 卷四 has 申月,
+    酉月, 论甲乙, 甲乙 — these are different topics in one file)."""
+    if per_section <= 0:
         return fused[:n]
 
-    counts: dict[str, int] = defaultdict(int)
+    section_counts: dict[tuple[str, str], int] = defaultdict(int)
+    file_counts: dict[str, int] = defaultdict(int)
     out: list[tuple[str, float, dict[str, float]]] = []
     seen: set[str] = set()
 
     for item in fused:
         cid = item[0]
         claim = claims.get(cid)
-        if claim is None or counts[claim.chapter_file] >= per_file:
+        if claim is None:
+            continue
+        sec_key = (claim.chapter_file, claim.section or "_full_")
+        if section_counts[sec_key] >= per_section:
+            continue
+        if file_counts[claim.chapter_file] >= per_file:
             continue
         out.append(item)
         seen.add(cid)
-        counts[claim.chapter_file] += 1
+        section_counts[sec_key] += 1
+        file_counts[claim.chapter_file] += 1
         if len(out) >= n:
             return out
 
-    for item in fused:
-        cid = item[0]
-        if cid in seen:
-            continue
-        out.append(item)
-        if len(out) >= n:
-            break
     return out
 
 
