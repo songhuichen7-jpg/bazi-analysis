@@ -228,11 +228,12 @@ def bazi_chart_to_intents(
     # 8. Day-Hour pillar combo — BM25-only intent that unlocks the
     # 三命通会 卷八/卷九 "六X日Y時斷" catalogs. These chapters are
     # organised by day-stem + hour-pillar pairs (e.g. "甲日戊辰時 天財坐庫
-    # 時上偏財遇龍守庫…") and were unreachable from the格局/月令-anchored
-    # intents above. KG cannot help here because ClaimTags has no
-    # hour_pillar field — but the literal text match on BM25 is strong.
+    # 時上偏財遇龍守庫…") — useful for chat questions about wealth /
+    # career / relationships where the time pillar gives concrete advice,
+    # but too narrow for the meta overview panel (which wants 调候 / 格局
+    # / 用神 总论 instead). Skip this in meta kind.
     hour_pillar = str(_sizhu(p).get("hour") or "")
-    if day_gan and len(hour_pillar) >= 2:
+    if kind not in {"meta", "chitchat"} and day_gan and len(hour_pillar) >= 2:
         hour_gan = hour_pillar[0]
         hour_shishen = ""
         try:
