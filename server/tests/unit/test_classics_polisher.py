@@ -49,7 +49,8 @@ async def test_polish_classics_allows_readable_quote_and_preserves_original(monk
         RAW_HITS,
     )
 
-    assert len(out) == 1
+    # Polished item from 穷通 plus a fallback for 三命通会 that the LLM dropped.
+    assert len(out) == 2
     assert out[0]["source"] == "穷通宝鉴 · 论甲木"
     assert out[0]["scope"] == "三秋甲木"
     assert out[0]["text"] == "七月甲木，丁火为尊，庚金次之。"
@@ -58,9 +59,41 @@ async def test_polish_classics_allows_readable_quote_and_preserves_original(monk
     assert out[0]["match"] == "本盘甲木生申月，庚透月干，丁火只藏支内。"
     assert out[0]["original_text"] == RAW_HITS[0]["text"]
     assert out[0]["chars"] == len(out[0]["text"])
+    assert out[1]["source"] == RAW_HITS[1]["source"]
+    assert out[1]["file"] == RAW_HITS[1]["file"]
     prompt = "\n".join(m["content"] for m in seen_messages)
     assert "可以加标点" in prompt
     assert "不要把意译冒充逐字原文" in prompt
+
+
+@pytest.mark.asyncio
+async def test_polish_classics_keeps_dropped_books_via_fallback(monkeypatch):
+    """If the LLM drops every hit from a chapter_file that was in input,
+    the dropped book must come back via local fallback so the panel stays
+    representative of the retrieval anchors."""
+    from app.services import classics_polisher
+
+    async def fake_chat_once_with_fallback(**kwargs):
+        return json.dumps({
+            "items": [
+                {
+                    "id": "0",
+                    "quote": "七月甲木，丁火为尊，庚金次之。",
+                    "plain": "申月先丁后庚。",
+                    "match": "本盘甲木生申月，庚透月干。",
+                }
+            ]
+        }, ensure_ascii=False), "fake-model"
+
+    monkeypatch.setattr(classics_polisher, "chat_once_with_fallback", fake_chat_once_with_fallback)
+
+    out = await classics_polisher.polish_classics_for_chart(
+        {"sizhu": {"month": "庚申", "day": "甲戌"}},
+        RAW_HITS,
+    )
+
+    files_in_out = {item.get("file") for item in out}
+    assert {RAW_HITS[0]["file"], RAW_HITS[1]["file"]} <= files_in_out
 
 
 @pytest.mark.asyncio
