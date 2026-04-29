@@ -57,7 +57,16 @@ def _clean_text(value: Any, *, max_len: int = 260) -> str:
 
 
 def _compact_for_match(value: Any) -> str:
-    text = str(value or "").replace("煞", "杀")
+    """Strip everything except Han chars and 繁→简 fold so the quote
+    membership check works regardless of variant character forms.
+
+    Without 繁→简, an LLM that "corrects" 嵗 → 岁, 實 → 实, 見 → 见 in its
+    polished quote would fail the substring check against the raw 繁体
+    corpus and the polished item would be silently dropped to a raw
+    fallback (which has no plain / match), losing the explanatory text.
+    """
+    import zhconv
+    text = zhconv.convert(str(value or ""), "zh-hans").replace("煞", "杀")
     return re.sub(r"[\W_]+", "", text, flags=re.UNICODE)
 
 
