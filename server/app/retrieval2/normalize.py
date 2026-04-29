@@ -5,10 +5,15 @@ re-running the indexer is the supported way to extend.
 
 Three operations exposed:
 
-    normalize(text)   -> str          # variant-char folding
+    normalize(text)   -> str          # 繁→简 + variant-char folding
     expand(term)      -> set[str]     # all surface forms equivalent to term
     canonical(term)   -> str          # pick the canonical form
     book_label(key)   -> str
+
+``normalize`` first runs zhconv 繁→简 conversion so the corpus (mostly
+繁体) and user queries (mostly 简体) tokenise into the same terms — then
+applies the curated ``variant_chars`` table for character-level edits
+the standard table doesn't cover (e.g. 杀↔煞).
 """
 from __future__ import annotations
 
@@ -17,6 +22,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
+
+import zhconv
 
 _DATA = Path(__file__).resolve().parent / "data" / "synonyms.json"
 
@@ -51,11 +58,13 @@ def _variants(_key: tuple[str, int]) -> dict[str, str]:
 
 
 def normalize(text: str) -> str:
-    """Variant-char fold. Idempotent. Used by both indexer and query."""
+    """繁→简 fold + variant-char fold. Idempotent. Used by both indexer
+    and query so corpus token streams collide regardless of input form."""
     if not text:
         return text
+    folded = zhconv.convert(text, "zh-hans")
     table = _variants(_mtime_key(_DATA))
-    return "".join(table.get(c, c) for c in text)
+    return "".join(table.get(c, c) for c in folded)
 
 
 @lru_cache(maxsize=2)

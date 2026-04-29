@@ -20,7 +20,8 @@ from .tokenizer import encode, encode_query
 from .tokenizer import fingerprint as tokenizer_fingerprint
 from .types import ClaimUnit
 
-BM25_VERSION = "1"
+BM25_VERSION = "2"
+SECTION_TOKEN_REPEAT = 3  # boost section tokens by repeating them in the doc
 DEFAULT_K1 = 1.5
 DEFAULT_B = 0.75
 
@@ -73,7 +74,14 @@ def build_bm25(claims: Iterable[ClaimUnit]) -> BM25Index:
     postings: dict[str, list[tuple[int, int]]] = defaultdict(list)
 
     for doc_idx, claim in enumerate(claims):
-        tokens = encode(claim.text)
+        # Section title is a high-signal label (e.g. "六甲日戊辰時斷",
+        # "論偏官") — fold its tokens into the doc with a repeat factor
+        # so claims under a directly-matching section get a meaningful
+        # tf boost vs. claims that only mention the term in passing.
+        body_tokens = encode(claim.text)
+        section_text = (getattr(claim, "section", "") or "").strip()
+        section_tokens = encode(section_text) if section_text else []
+        tokens = body_tokens + section_tokens * SECTION_TOKEN_REPEAT
         doc_ids.append(claim.id)
         doc_lengths.append(len(tokens))
         if not tokens:

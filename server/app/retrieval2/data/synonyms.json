@@ -1,6 +1,6 @@
 {
   "_comment": "Edit this file (NOT Python) to add synonyms / variants / book labels. _version bumps trigger BM25 rebuild.",
-  "_version": "1",
+  "_version": "2-zhconv",
   "shishen": {
     "七杀": ["七煞", "偏官", "煞", "杀"],
     "正官": ["官星"],

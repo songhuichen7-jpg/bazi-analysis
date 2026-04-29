@@ -263,32 +263,27 @@ def bazi_chart_to_intents(
                 _emit(out, text=intent_text, weight=0.7, kind="liu_qin.specific")
                 break  # one anchor is enough
 
-    # 10. 神煞专篇 — keyword-triggered. Asking about 桃花/华盖/羊刃 etc.
-    # needs the dedicated 神煞 chapters (渊海子平·09 / 三命通会·卷三).
-    # The corpus is overwhelmingly 繁体 (華蓋, not 华盖) but users type
-    # 简体 — emit BOTH forms so the BM25 tokenizer (no simp↔trad
-    # normalisation) hits the right segments.
+    # 10. 神煞专篇 — keyword-triggered. Tokenizer normalises 繁→简 in
+    # both index and query, so a single 简体 form per term suffices and
+    # matches whether the user types 华盖 or 華蓋 and the corpus stores
+    # 華蓋 or 华盖.
     if user_message:
-        # (canonical_simp, equivalent_trad) — singletons appear in only one form.
-        shen_sha_pairs: list[tuple[str, str]] = [
-            ("桃花", "桃花"), ("华盖", "華蓋"), ("天乙", "天乙"),
-            ("羊刃", "陽刃"), ("阳刃", "陽刃"),
-            ("魁罡", "魁罡"), ("月德", "月德"), ("天德", "天德"),
-            ("禄神", "祿神"), ("驿马", "驛馬"),
-            ("孤辰", "孤辰"), ("寡宿", "寡宿"),
-            ("金舆", "金轝"), ("三奇", "三奇"), ("贵人", "貴人"),
+        shen_sha_terms = [
+            "桃花", "华盖", "天乙", "羊刃", "阳刃", "魁罡",
+            "月德", "天德", "禄神", "驿马", "孤辰", "寡宿",
+            "金舆", "三奇", "贵人",
         ]
+        # Normalise the user message once so we hit either form in the input.
+        from .normalize import normalize as _norm  # local import to avoid cycle
+        normalised_msg = _norm(user_message)
         seen: set[str] = set()
-        for simp, trad in shen_sha_pairs:
-            if simp in user_message or trad in user_message:
-                if simp in seen:
-                    continue
-                terms = simp if simp == trad else f"{simp} {trad}"
-                _emit(out, text=f"{terms} 神煞", weight=0.7,
-                      kind=f"shen_sha.{simp}")
-                seen.add(simp)
-        if any(kw in user_message for kw in ("神煞", "神殺", "凶煞", "吉神")) and not seen:
-            _emit(out, text="神煞 神杀 吉神凶煞", weight=0.6,
+        for term in shen_sha_terms:
+            if _norm(term) in normalised_msg and term not in seen:
+                _emit(out, text=f"{term} 神煞", weight=0.7,
+                      kind=f"shen_sha.{term}")
+                seen.add(term)
+        if any(kw in normalised_msg for kw in ("神煞", "凶煞", "吉神")) and not seen:
+            _emit(out, text="神煞 吉神凶煞", weight=0.6,
                   kind="shen_sha.overview")
 
     # 11. 干支体象 — for personality questions. 渊海子平 04 卷 "天干体象 /
@@ -307,6 +302,29 @@ def bazi_chart_to_intents(
     gender = str((p.get("gender") or "")).lower()
     if gender in {"female", "女", "f"} and kind in {"meta", "relationship", "career", "wealth", "personality"}:
         _emit(out, text="女命 阴命 妇人总诀 女命赋", weight=0.7, kind="combo.nv_ming")
+
+    # 13. 当前流年 / 当前大运 — when the user asks "今年/最近/这两年" or
+    # the intent is timing-flavoured, auto-anchor to the current 流年
+    # ganzhi and current 大运 ganzhi. paipan ships these as todayYearGz
+    # and xingyun.dayun[*].isCurrent. Without this, "今年怎么样" only
+    # gets generic 行运 chapters and never the specific 太岁/大运
+    # combination that's actually live.
+    today_year_gz = str(p.get("todayYearGz") or "")
+    current_dayun_gz = ""
+    xingyun = p.get("xingyun") or {}
+    for du in (xingyun.get("dayun") or []):
+        if isinstance(du, dict) and du.get("isCurrent"):
+            current_dayun_gz = str(du.get("ganzhi") or "")
+            break
+    asks_recent = bool(user_message) and any(
+        kw in (user_message or "")
+        for kw in ("今年", "明年", "最近", "近两年", "近几年", "这两年", "今岁", "近期")
+    )
+    if (asks_recent or kind in {"timing", "liunian", "dayun_step"}) and today_year_gz:
+        text = f"{today_year_gz}流年 太岁"
+        if current_dayun_gz:
+            text += f" {current_dayun_gz}大运"
+        _emit(out, text=text, weight=0.7, kind="combo.current_yun")
 
     return out
 

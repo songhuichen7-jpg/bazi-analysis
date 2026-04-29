@@ -16,6 +16,7 @@ dependencies = [
     "openai>=1.40",
     "paipan",
     "pillow>=10",
+    "zhconv>=1.4",
 ]
 
 [project.optional-dependencies]

@@ -220,6 +220,7 @@ def _diversify_fused(
 _BM25_ANCHOR_INTENT_KINDS = frozenset({
     "combo.day_hour", "user_msg", "liu_qin.specific",
     "combo.gan_xiang", "combo.nv_ming", "shen_sha.overview",
+    "combo.current_yun",
 })
 
 
