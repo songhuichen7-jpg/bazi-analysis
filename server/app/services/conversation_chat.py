@@ -65,7 +65,11 @@ async def stream_message(
     retrieved: list[dict] = []
     if effective_intent != "chitchat":
         try:
-            retrieved = await retrieve_for_chart(chart.paipan, effective_intent, user_message=message)
+            paipan_for_retrieval = dict(chart.paipan or {})
+            paipan_for_retrieval["gender"] = (chart.birth_input or {}).get("gender", "")
+            retrieved = await retrieve_for_chart(
+                paipan_for_retrieval, effective_intent, user_message=message,
+            )
         except Exception:  # noqa: BLE001 — retrieval is best-effort
             retrieved = []
     if retrieved:

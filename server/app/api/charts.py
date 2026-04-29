@@ -137,8 +137,10 @@ async def get_chart_classics_endpoint(
     except ServiceError as e:
         raise _http_error(e)
 
-    raw_items = await retrieval_service.retrieve_for_chart(chart.paipan, "meta")
-    items = await classics_polisher.polish_classics_for_chart(chart.paipan, raw_items)
+    paipan = dict(chart.paipan or {})
+    paipan["gender"] = (chart.birth_input or {}).get("gender", "")
+    raw_items = await retrieval_service.retrieve_for_chart(paipan, "meta")
+    items = await classics_polisher.polish_classics_for_chart(paipan, raw_items)
     return ChartClassicsResponse(items=items)
 
 

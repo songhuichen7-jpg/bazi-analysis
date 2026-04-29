@@ -50,6 +50,7 @@ _SYSTEM = """你是八字检索结果的精排器。给你一个命盘+用户问
 - 偏门神煞 / 杂格权重低；但訣文/口诀体（如三命通会"甲日X月為偏官..."）信号密度高，不要因为短就丢
 - 与命盘强弱、格局、月令、用神不对应的，直接淘汰
 - 同一 chapter_file + section（古籍同一章节）最多挑 1 条；优先跨古籍、跨章节铺开
+- 命盘块附带的「事实表」是后端规则计算的，十神身份、透藏状态、干合关系全部以事实表为准；不要凭记忆把伤官当食神、把藏支说成透干。判断候选与命盘是否对应时以事实表为唯一依据
 
 只输出 JSON：
 {"picks":[{"id":"<claim_id>","reason":"<10-20字>"}]}
@@ -68,7 +69,16 @@ def _format_chart(chart: dict) -> str:
         f"强弱: {p.get('dayStrength','')}",
         f"用神: {p.get('yongshen','')}",
     ]
-    return "  ".join(s for s in parts if s.split(": ", 1)[-1])
+    head = "  ".join(s for s in parts if s.split(": ", 1)[-1])
+    # Pin authoritative ten-god / 透藏 / 干合 facts so the selector doesn't
+    # mislabel candidates by recall (same gap polisher had — when scoring
+    # "this claim mentions 食神制杀" relevance, the model needs to know whether
+    # the chart's 用神 is actually 食神 or 伤官).
+    from .chart_facts import ten_god_facts
+    facts = ten_god_facts(chart)
+    if facts:
+        return head + "\n  事实表（必须严格遵循）：\n  " + "\n  ".join(facts)
+    return head
 
 
 def _format_intents(intents: Sequence[QueryIntent]) -> str:

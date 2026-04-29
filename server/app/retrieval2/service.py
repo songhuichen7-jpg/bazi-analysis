@@ -67,6 +67,17 @@ def _bundle(root_str: str):
         "retrieval2 loaded: %d claims, %d tags, bm25=%s, kg fields=%d",
         len(claims), len(tags), bool(bm25_idx), len(kg_idx.field_index),
     )
+    if bm25_idx is None and claims:
+        # BM25 silently falling back to KG-only is the most common cause of
+        # mysterious recall regressions after pulling new code (tokenizer
+        # fingerprint changed → load_bm25 returned None → BM25 channel off,
+        # but the rest of retrieval keeps working). Fail loud so devs notice.
+        logger.error(
+            "retrieval2 BM25 index is missing or stale at %s — BM25 channel "
+            "is OFF (KG + policy only). Rebuild with: "
+            "uv run --package server python -m server.scripts.build_classics_index --no-tag",
+            p.bm25,
+        )
     return claims, tags, bm25_idx, kg_idx
 
 
@@ -76,9 +87,16 @@ def reset_cache() -> None:
 
 
 def _v1_shape(hit: RetrievalHit) -> V1Hit:
-    parts = [book_label(hit.claim.book), hit.claim.chapter_title]
+    # Some books store chapter_title with the book name already prefixed
+    # (e.g. 三命通会 · 卷四). Avoid emitting "三命通会 · 三命通会 · 卷四".
+    book = book_label(hit.claim.book) or ""
+    chapter = hit.claim.chapter_title or ""
+    if book and chapter.startswith(book):
+        source = chapter
+    else:
+        source = " · ".join(p for p in (book, chapter) if p)
     return V1Hit(
-        source=" · ".join(p for p in parts if p),
+        source=source,
         file=hit.claim.chapter_file,
         scope=hit.claim.section or "full",
         text=hit.claim.text,
