@@ -862,6 +862,130 @@
     background: rgba(250, 246, 236, 0.7);
     border-left: 2px solid #c8a24b;
   }
+  /* ── 古籍翻检 loader: 五本古籍依次被取下、微倾、发光、放回 ────── */
+  .classics-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 36px 0 28px;
+  }
+  .classics-loader-shelf {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 116px;
+    perspective: 720px;
+  }
+  /* 书架横线: 一条淡淡的木纹 */
+  .classics-loader-shelf::after {
+    content: "";
+    position: absolute;
+    bottom: -7px;
+    left: -14px;
+    right: -14px;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent, rgba(164, 136, 86, 0.32) 16%,
+      rgba(164, 136, 86, 0.42) 50%, rgba(164, 136, 86, 0.32) 84%, transparent);
+  }
+  .classics-loader-book {
+    position: relative;
+    width: 24px;
+    height: 102px;
+    border-radius: 1px 3px 3px 1px;
+    background: var(--cb-fill, linear-gradient(180deg, #d2b48a 0%, #a07e4f 100%));
+    border-left: 2px solid var(--cb-spine, #6e4f25);
+    box-shadow:
+      inset -1px 0 0 rgba(0, 0, 0, 0.06),
+      1px 2px 3px rgba(0, 0, 0, 0.13);
+    transform-origin: bottom center;
+    animation: classicsBookPick 7s infinite ease-in-out both;
+    animation-delay: var(--cb-delay, 0s);
+    will-change: transform, box-shadow;
+  }
+  /* 书脊上下封头小金线 — 古籍线装质感 */
+  .classics-loader-book::before,
+  .classics-loader-book::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, rgba(0,0,0,.18), rgba(0,0,0,.05));
+  }
+  .classics-loader-book::before { top: 0; border-radius: 1px 3px 0 0; }
+  .classics-loader-book::after  { bottom: 0; border-radius: 0 0 3px 1px; }
+  .classics-loader-book span {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Songti SC", "STSongti", "PingFang SC", serif;
+    font-size: 11px;
+    color: var(--cb-fg, #faedd0);
+    letter-spacing: 2px;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1.05;
+    user-select: none;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  }
+  /* 五本不同色调的古籍 — 给每本独立的颜色与延时 */
+  .classics-loader-book:nth-child(1) {
+    --cb-fill: linear-gradient(180deg, #c8a880 0%, #9a7848 100%);
+    --cb-spine: #6e4f25; --cb-fg: #faedd0; --cb-delay: 0s;
+  }
+  .classics-loader-book:nth-child(2) {
+    --cb-fill: linear-gradient(180deg, #b8967a 0%, #8a623c 100%);
+    --cb-spine: #5a3a16; --cb-fg: #f4e4c4; --cb-delay: 1.4s;
+  }
+  .classics-loader-book:nth-child(3) {
+    --cb-fill: linear-gradient(180deg, #d8be94 0%, #ad8956 100%);
+    --cb-spine: #7a5a2c; --cb-fg: #fcf2dc; --cb-delay: 2.8s;
+  }
+  .classics-loader-book:nth-child(4) {
+    --cb-fill: linear-gradient(180deg, #a98860 0%, #7a5832 100%);
+    --cb-spine: #4f3414; --cb-fg: #ecdab4; --cb-delay: 4.2s;
+  }
+  .classics-loader-book:nth-child(5) {
+    --cb-fill: linear-gradient(180deg, #ccab84 0%, #97754a 100%);
+    --cb-spine: #6a4a20; --cb-fg: #f8e8c8; --cb-delay: 5.6s;
+  }
+  @keyframes classicsBookPick {
+    0%, 75%, 100% {
+      transform: translateY(0) rotateX(0) scale(1);
+      box-shadow:
+        inset -1px 0 0 rgba(0, 0, 0, 0.06),
+        1px 2px 3px rgba(0, 0, 0, 0.13);
+    }
+    9% {
+      transform: translateY(-13px) rotateX(-14deg) scale(1.05);
+      box-shadow:
+        inset -1px 0 0 rgba(0, 0, 0, 0.06),
+        2px 7px 16px rgba(0, 0, 0, 0.18),
+        0 0 18px rgba(212, 168, 106, 0.45);
+    }
+    18% {
+      transform: translateY(-13px) rotateX(-14deg) scale(1.05);
+      box-shadow:
+        inset -1px 0 0 rgba(0, 0, 0, 0.06),
+        2px 7px 16px rgba(0, 0, 0, 0.18),
+        0 0 18px rgba(212, 168, 106, 0.45);
+    }
+    27% {
+      transform: translateY(0) rotateX(0) scale(1);
+    }
+  }
+  .classics-loader-text {
+    font-family: "Songti SC", "STSongti", serif;
+    font-size: 13px;
+    color: #6a604c;
+    letter-spacing: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .classics-loader-book { animation: none; }
+  }
   .classics-list { display: grid; gap: 18px; }
   .classics-item {
     position: relative;

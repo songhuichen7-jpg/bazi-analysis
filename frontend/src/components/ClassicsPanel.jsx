@@ -53,8 +53,15 @@ export default function ClassicsPanel() {
       ) : null}
 
       {isPending ? (
-        <div className="classics-pending-note" role="status">
-          正在翻检古籍…
+        <div className="classics-loader" role="status" aria-label="正在翻检古籍">
+          <div className="classics-loader-shelf" aria-hidden="true">
+            <div className="classics-loader-book"><span>滴 天 髓</span></div>
+            <div className="classics-loader-book"><span>穷通宝鉴</span></div>
+            <div className="classics-loader-book"><span>三命通会</span></div>
+            <div className="classics-loader-book"><span>渊海子平</span></div>
+            <div className="classics-loader-book"><span>子平真诠</span></div>
+          </div>
+          <div className="classics-loader-text">翻检古籍…</div>
         </div>
       ) : null}
 
