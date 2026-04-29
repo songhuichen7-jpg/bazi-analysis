@@ -225,6 +225,26 @@ def bazi_chart_to_intents(
     if user_message:
         _emit(out, text=user_message[:200], weight=0.75, kind="user_msg")
 
+    # 8. Day-Hour pillar combo — BM25-only intent that unlocks the
+    # 三命通会 卷八/卷九 "六X日Y時斷" catalogs. These chapters are
+    # organised by day-stem + hour-pillar pairs (e.g. "甲日戊辰時 天財坐庫
+    # 時上偏財遇龍守庫…") and were unreachable from the格局/月令-anchored
+    # intents above. KG cannot help here because ClaimTags has no
+    # hour_pillar field — but the literal text match on BM25 is strong.
+    hour_pillar = str(_sizhu(p).get("hour") or "")
+    if day_gan and len(hour_pillar) >= 2:
+        hour_gan = hour_pillar[0]
+        hour_shishen = ""
+        try:
+            from paipan.shi_shen import get_shi_shen
+            hour_shishen = get_shi_shen(day_gan, hour_gan) or ""
+        except Exception:  # noqa: BLE001
+            pass
+        text = f"{day_gan}日{hour_pillar}時"
+        if hour_shishen:
+            text += f" 时上{hour_shishen}"
+        _emit(out, text=text, weight=0.65, kind="combo.day_hour")
+
     return out
 
 

@@ -217,6 +217,67 @@ def _diversify_fused(
     return out
 
 
+_BM25_ANCHOR_INTENT_KINDS = frozenset({"combo.day_hour", "user_msg"})
+
+
+def _promote_bm25_anchors(
+    fused: list[tuple[str, float, dict[str, float]]],
+    claims: dict[str, ClaimUnit],
+    bm25_idx,
+    intents,
+    *,
+    n: int,
+    per_intent_k: int = 2,
+) -> list[tuple[str, float, dict[str, float]]]:
+    """Reserve slots in the candidate pool for top BM25 hits of high-signal
+    pure-text intents (user question, day-pillar + hour-pillar combos).
+
+    The fused score weights BM25 at 0.35 and KG/policy higher, which is the
+    right call for the typical 格局/月令/十神 retrieval — but it buries text
+    matches that have **no** structural tag overlap. The classic example:
+    三命通会 卷八/卷九 organise advice by 六X日Y時 catalogs, and ClaimTags
+    has no hour_pillar field, so those entries can only ever surface via
+    BM25 text match. Without this anchor, "甲日戊辰時 偏财" queries lose
+    to generic 财 essays despite being a literal substring match.
+
+    Idempotent: anchors that are already in ``fused`` are not duplicated."""
+    if bm25_idx is None or not intents:
+        return fused[:n]
+
+    anchor_ids: list[str] = []
+    seen_ids: set[str] = set()
+    for it in intents:
+        if it.kind not in _BM25_ANCHOR_INTENT_KINDS:
+            continue
+        if not it.text:
+            continue
+        for cid, _score in bm25_idx.query(it.text, k=per_intent_k):
+            if cid in claims and cid not in seen_ids:
+                anchor_ids.append(cid)
+                seen_ids.add(cid)
+
+    if not anchor_ids:
+        return fused[:n]
+
+    fused_by_id = {item[0]: item for item in fused}
+    out: list[tuple[str, float, dict[str, float]]] = []
+    placed: set[str] = set()
+    for cid in anchor_ids:
+        item = fused_by_id.get(cid) or (cid, 0.5, {"bm25_anchor": 1.0})
+        out.append(item)
+        placed.add(cid)
+        if len(out) >= n:
+            return out
+
+    for item in fused:
+        if item[0] in placed:
+            continue
+        out.append(item)
+        if len(out) >= n:
+            break
+    return out
+
+
 def _ensure_preferred_hits(
     hits: list[RetrievalHit],
     candidates: list[selector_mod.Candidate],
@@ -309,6 +370,9 @@ async def retrieve_for_chart(
         fused = _fuse(raw_scores, n=max(fused_top_n, len(raw_scores)))
     fused = _promote_preferred_files(fused, claims, policy, n=fused_top_n)
     fused = _diversify_fused(fused, claims, n=fused_top_n)
+    fused = _promote_bm25_anchors(
+        fused, claims, bm25_idx, intents, n=fused_top_n,
+    )
     candidates = [
         selector_mod.Candidate(
             claim=claims[cid],
