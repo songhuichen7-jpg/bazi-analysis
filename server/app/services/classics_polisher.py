@@ -60,11 +60,30 @@ def _compact_for_match(value: Any) -> str:
     return re.sub(r"[\W_]+", "", text, flags=re.UNICODE)
 
 
+_ELLIPSIS_RE = re.compile(r"…+|\.{3,}")
+
+
 def _quote_belongs_to_raw(quote: str, raw_text: str) -> bool:
-    compact_quote = _compact_for_match(quote)
-    if not compact_quote:
+    """True iff every ellipsis-delimited segment of the quote is a substring
+    of the raw text (after stripping non-Chinese characters).
+
+    The polisher prompt allows the LLM to "delete unrelated neighbouring
+    sentences from the same paragraph", which some models (notably MiMo)
+    realise as multi-segment quotes joined by …… ellipses. A naive single-
+    substring check would reject these legitimate excerpts and force the
+    panel into raw fallback. Splitting on the ellipsis recovers them while
+    still rejecting any segment the LLM hallucinated."""
+    compact_raw = _compact_for_match(raw_text)
+    if not compact_raw:
         return False
-    return compact_quote in _compact_for_match(raw_text)
+    segments = [seg for seg in _ELLIPSIS_RE.split(quote) if seg.strip()]
+    if not segments:
+        return False
+    for seg in segments:
+        compact_seg = _compact_for_match(seg)
+        if not compact_seg or compact_seg not in compact_raw:
+            return False
+    return True
 
 
 def _strip_fence(text: str) -> str:

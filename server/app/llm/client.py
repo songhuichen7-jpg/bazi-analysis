@@ -28,10 +28,15 @@ _log = logging.getLogger(__name__)
 # NOTE: max_retries=0 — fallback semantics require we control retry ourselves.
 # api_key falls back to a dummy value so module import doesn't crash in test envs
 # where the LLM API key isn't set (integration tests monkeypatch _client directly).
+#
+# Xiaomi MiMo Token Plan endpoints expect ``api-key: tp-…`` (Azure-style)
+# rather than ``Authorization: Bearer …``. We always send both headers — DeepSeek
+# / OpenAI ignore the unknown ``api-key`` header, so this is provider-neutral.
 _client = AsyncOpenAI(
     api_key=settings.llm_api_key or "dummy-for-test",
     base_url=settings.llm_base_url,
     max_retries=0,
+    default_headers={"api-key": settings.llm_api_key} if settings.llm_api_key else None,
 )
 
 
