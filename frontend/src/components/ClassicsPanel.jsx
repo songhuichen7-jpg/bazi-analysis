@@ -35,7 +35,7 @@ export default function ClassicsPanel() {
           <div className="section-num">古 籍 旁 证</div>
           {/* 副标题作为结果态文案, 只在数据真到达后才出现, 避免 loading 态误导 */}
           {hasContent ? (
-            <div className="serif classics-title">对照这张盘的整体框架 —— 调候、格局、用神三条主线，具体细节留给对话里继续问</div>
+            <div className="serif classics-title">整体框架 —— 调候、格局、用神</div>
           ) : null}
         </div>
         {status === 'error' && currentId && uiError?.retryable ? (
@@ -64,7 +64,7 @@ export default function ClassicsPanel() {
               </div>
             ))}
           </div>
-          <div className="classics-loader-text">翻检古籍…</div>
+          <div className="classics-loader-text">正在翻阅古籍</div>
         </div>
       ) : null}
 
