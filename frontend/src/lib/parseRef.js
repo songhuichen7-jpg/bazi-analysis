@@ -1,17 +1,32 @@
 import { useAppStore } from '../store/useAppStore.js';
 
-// [[ref.id|label]] → segments [{type:'text',value}|{type:'ref',id,label}]
-const REF_RE = /\[\[([\w.\u4e00-\u9fff]+)\|([^\]]+)\]\]/g;
+// Two token shapes share the [[…]] syntax:
+//   [[ref.id|label]]                 — chart-internal cross-references
+//   [[song:title|subtitle?]]         — pop-culture media cards (song / movie / book)
+//   [[movie:title|director?]]
+//   [[book:title|author?]]
+// Subtitle is optional for media tokens (artist/director/author can be absent
+// when the LLM isn't sure).
+const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]/g;
 
 export function parseRef(text) {
   if (!text) return [];
   const out = [];
   let last = 0;
-  REF_RE.lastIndex = 0;
+  TOKEN_RE.lastIndex = 0;
   let m;
-  while ((m = REF_RE.exec(text)) !== null) {
+  while ((m = TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) out.push({ type: 'text', value: text.slice(last, m.index) });
-    out.push({ type: 'ref', id: m[1], label: m[2] });
+    if (m[1]) {
+      out.push({
+        type: 'media',
+        kind: m[1],
+        title: (m[2] || '').trim(),
+        subtitle: (m[3] || '').trim(),
+      });
+    } else {
+      out.push({ type: 'ref', id: m[4], label: m[5] });
+    }
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push({ type: 'text', value: text.slice(last) });

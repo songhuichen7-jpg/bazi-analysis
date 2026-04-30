@@ -1,0 +1,61 @@
+/** Helpers for rendering pop-culture media cards (song / movie / book).
+ *
+ *  - Search jump URLs (网易云 / 豆瓣)
+ *  - Cover fetch via backend /api/media/cover (only for songs in Phase 2;
+ *    movies and books fall back to icon-only cards).
+ */
+
+export const MEDIA_LABELS = {
+  song: '歌曲',
+  movie: '电影',
+  book: '书籍',
+};
+
+export function buildSearchUrl(kind, title, subtitle) {
+  const q = (subtitle ? `${title} ${subtitle}` : title).trim();
+  const enc = encodeURIComponent(q);
+  if (kind === 'song') {
+    return {
+      url: `https://music.163.com/#/search/m/?s=${enc}&type=1`,
+      label: '网易云搜索',
+    };
+  }
+  if (kind === 'movie') {
+    return {
+      url: `https://search.douban.com/movie/subject_search?search_text=${enc}`,
+      label: '豆瓣搜索',
+    };
+  }
+  if (kind === 'book') {
+    return {
+      url: `https://search.douban.com/book/subject_search?search_text=${enc}`,
+      label: '豆瓣搜索',
+    };
+  }
+  return { url: '', label: '' };
+}
+
+const coverCache = new Map();
+
+/** Fetch a song cover (url + dominant colors) from the backend.
+ *  Returns null on any failure so the caller can render the icon-only fallback.
+ *  Memoised across the session so repeated mentions don't re-hit the backend. */
+export async function fetchSongCover(title, subtitle) {
+  const q = `${title}|${subtitle || ''}`;
+  if (coverCache.has(q)) return coverCache.get(q);
+
+  const params = new URLSearchParams({ type: 'song', title, ...(subtitle ? { artist: subtitle } : {}) });
+  const promise = (async () => {
+    try {
+      const r = await fetch(`/api/media/cover?${params.toString()}`, { credentials: 'include' });
+      if (!r.ok) return null;
+      const data = await r.json();
+      if (!data || !data.url) return null;
+      return data;
+    } catch {
+      return null;
+    }
+  })();
+  coverCache.set(q, promise);
+  return promise;
+}

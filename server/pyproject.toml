@@ -17,6 +17,7 @@ dependencies = [
     "paipan",
     "pillow>=10",
     "zhconv>=1.4",
+    "colorthief>=0.2.1",
 ]
 
 [project.optional-dependencies]

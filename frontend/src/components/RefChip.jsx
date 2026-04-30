@@ -1,4 +1,5 @@
 import { parseRef } from '../lib/parseRef';
+import { MediaCard } from './MediaCard';
 
 export function RefChip({ id, label }) {
   const onClick = (e) => {
@@ -60,7 +61,8 @@ export function renderMd(text) {
   return renderInlineMd(processed, 0);
 }
 
-/** Render a string that may contain [[ref|label]] markers as a mix of text + RefChip. */
+/** Render a string that may contain [[ref|label]] or [[song:…|…]] markers
+ *  as a mix of text + RefChip + MediaCard. */
 export function RichText({ text }) {
   const segs = parseRef(text);
   if (!segs.length) return null;
@@ -68,6 +70,16 @@ export function RichText({ text }) {
   return segs.flatMap((s, i) => {
     if (s.type === 'ref') {
       return [<RefChip key={`ref-${i}`} id={s.id} label={s.label} />];
+    }
+    if (s.type === 'media') {
+      return [
+        <MediaCard
+          key={`media-${i}`}
+          kind={s.kind}
+          title={s.title}
+          subtitle={s.subtitle}
+        />,
+      ];
     }
     return renderInlineMd(
       String(s.value || '')

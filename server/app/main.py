@@ -16,6 +16,7 @@ from app.api.auth import router as auth_router
 from app.api.card import router as card_router
 from app.api.hepan import router as hepan_router
 from app.api.charts import router as charts_router
+from app.api.media import router as media_router
 from app.api.conversations import charts_router as conversations_charts_router
 from app.api.conversations import router as conversations_router
 from app.api.quota import router as quota_router
@@ -60,6 +61,13 @@ app.mount(
     StaticFiles(directory=str(_CARDS_DATA_DIR)),
     name="card_static",
 )
+_MEDIA_CACHE_DIR = Path(__file__).resolve().parents[1] / "var" / "media-cache"
+_MEDIA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static/media-cache",
+    StaticFiles(directory=str(_MEDIA_CACHE_DIR)),
+    name="media_cache_static",
+)
 
 app.include_router(admin_router)
 app.include_router(auth_router)
@@ -67,6 +75,7 @@ app.include_router(card_router)
 app.include_router(hepan_router)
 app.include_router(sessions_router)
 app.include_router(charts_router)
+app.include_router(media_router)
 app.include_router(conversations_charts_router)
 app.include_router(conversations_router)
 app.include_router(quota_router)
