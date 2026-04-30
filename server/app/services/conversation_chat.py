@@ -16,6 +16,7 @@ from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
 from app.models.user import User
 from app.prompts import expert as prompts_expert
+from app.prompts.router import looks_like_followup
 from app.retrieval2.service import retrieve_for_chart
 from app.services import message as msg_svc
 from app.services import conversation_memory as memory_svc
@@ -34,12 +35,30 @@ async def stream_message(
     router_history = await msg_svc.recent_chat_history(db, conversation_id=conversation_id, limit=4)
     history = await msg_svc.context_chat_history(db, conversation_id=conversation_id)
     memory_summary = await memory_svc.get_summary(db, conversation_id=conversation_id)
+
+    # Follow-up fast path: short messages with continuation cues ("再来一部",
+    # "为什么", "具体讲讲", "换一个" …) inherit the previous assistant turn's
+    # intent and skip the LLM router entirely. This kills the parse_failed →
+    # "other" → re-retrieval drift that made follow-up replies switch topics.
+    inherited_intent: str | None = None
+    if looks_like_followup(message):
+        inherited_intent = await msg_svc.latest_assistant_intent(
+            db, conversation_id=conversation_id,
+        )
+
     await msg_svc.insert(db, conversation_id=conversation_id, role="user", content=message)
 
-    routed = await classify(
-        db=db, user=user, chart_id=chart.id,
-        message=message, history=router_history,
-    )
+    if inherited_intent:
+        routed = {
+            "intent": inherited_intent,
+            "reason": "follow-up of previous turn",
+            "source": "follow-up",
+        }
+    else:
+        routed = await classify(
+            db=db, user=user, chart_id=chart.id,
+            message=message, history=router_history,
+        )
     yield sse_pack({"type": "intent", "intent": routed["intent"],
                      "reason": routed["reason"], "source": routed["source"]})
 
@@ -63,7 +82,13 @@ async def stream_message(
         await msg_svc.delete_last_cta(db, conversation_id=conversation_id)
 
     retrieved: list[dict] = []
-    if effective_intent != "chitchat":
+    # Skip retrieval on follow-ups: history already carries the previous turn's
+    # 古籍 quotes inside the LLM context, so a fresh retrieval would just
+    # introduce drift and force the UI to show "翻阅古籍 6 段" twice in a
+    # short exchange. The model can still cite the earlier classics through
+    # conversation history.
+    skip_retrieval = bool(inherited_intent)
+    if effective_intent != "chitchat" and not skip_retrieval:
         try:
             paipan_for_retrieval = dict(chart.paipan or {})
             paipan_for_retrieval["gender"] = (chart.birth_input or {}).get("gender", "")

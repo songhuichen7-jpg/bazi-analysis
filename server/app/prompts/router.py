@@ -101,6 +101,32 @@ def build_messages(history: list[dict], user_message: str) -> list[dict]:
     return [{"role": "system", "content": sys}, *hist, {"role": "user", "content": user_message}]
 
 
+# Heuristic follow-up detector — short messages with "再/还/为什么/换/具体/
+# 举例/接下来/继续" etc. should inherit the previous turn's intent instead
+# of being re-classified, since those messages are pure context-dependent
+# (no chart-side keywords) and the LLM router frequently parse-fails on
+# them. See live audit in chat session that started this fix.
+_FOLLOWUP_PATTERNS: list[str] = [
+    "再来", "再说", "再讲", "再",
+    "还有", "还", "为什么", "为啥",
+    "换一", "换个", "换部", "换",
+    "另外", "另一", "其他",
+    "举例", "具体", "细说", "详细",
+    "接下来", "继续", "接着",
+    "那呢", "那么呢", "那啊",
+    "更多", "嗯", "哦", "明白", "了解",
+    "怎么说", "咋说", "如何",
+]
+
+
+def looks_like_followup(message: Optional[str]) -> bool:
+    """True if the message is short and contains a follow-up signal word."""
+    s = str(message or "").strip()
+    if not s or len(s) > 20:
+        return False
+    return any(p in s for p in _FOLLOWUP_PATTERNS)
+
+
 def parse_router_json(raw: Optional[str]) -> dict:
     """Defensive parser. Returns {intent, reason}; falls back to 'other' on any failure.
 

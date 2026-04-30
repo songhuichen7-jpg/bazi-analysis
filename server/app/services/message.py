@@ -108,6 +108,30 @@ async def recent_chat_history(
     return [{"role": m.role, "content": m.content or ""} for m in rows]
 
 
+async def latest_assistant_intent(
+    db: AsyncSession, *, conversation_id: UUID,
+) -> str | None:
+    """Return the intent stored on the most recent assistant message in this
+    conversation, or None if there isn't one (or it has no intent meta).
+
+    Used by the follow-up detector in conversation_chat to inherit intent on
+    short follow-up messages instead of re-classifying from scratch."""
+    stmt = (
+        select(Message)
+        .where(
+            Message.conversation_id == conversation_id,
+            Message.role == "assistant",
+        )
+        .order_by(desc(Message.created_at), desc(Message.id))
+        .limit(1)
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if not row or not row.meta:
+        return None
+    intent = row.meta.get("intent") if isinstance(row.meta, dict) else None
+    return intent if isinstance(intent, str) and intent else None
+
+
 def _prompt_message_cost(item: dict) -> int:
     return len(str(item.get("role") or "")) + len(str(item.get("content") or ""))
 
