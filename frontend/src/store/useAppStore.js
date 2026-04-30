@@ -555,8 +555,11 @@ export const useAppStore = create((set, get) => ({
     if (nextId === convId) {
       nextId = list[0]?.id || null;
       if (!nextId) {
-        set({ conversations: [] });   // clear the deleted item before recursive call
-        await get().newConversationOnServer(chartId, '对话 1');
+        // 删除的是最后一个对话 → 自动新建一个空白对话。命名故意
+        // 跟"对话 N"序列脱钩，否则用户会看到"我刚删的对话 1 又出现了"，
+        // 误以为删除没生效。'新对话' 是中性占位，留给用户自行重命名。
+        set({ conversations: [] });
+        await get().newConversationOnServer(chartId, '新对话');
         return;
       }
       try { sessionStorage.setItem('currentConversationId:' + chartId, nextId); } catch { /* SSR/private mode */ }

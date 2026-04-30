@@ -539,6 +539,38 @@
   .conv-icon:hover { background: #efece2; color: var(--ink); }
   .conv-icon-danger:hover { background: #f8e8e8; color: #933; }
 
+  /* Shell 顶栏"清空所有"两段式确认：按钮自身变红 + 4 秒进度条 */
+  .shell-reset-pending {
+    position: relative;
+    padding: 2px 6px !important;
+    border: 1px solid #d4a48d !important;
+    background: #fdf3f1 !important;
+    overflow: hidden;
+    animation: shell-reset-pulse 1.6s ease-in-out infinite;
+  }
+  .shell-reset-pending::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 1.5px;
+    width: 100%;
+    background: #c0653a;
+    transform-origin: left center;
+    animation: shell-reset-countdown 4s linear forwards;
+  }
+  @keyframes shell-reset-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(192, 101, 58, .15); }
+    50%      { box-shadow: 0 0 0 4px rgba(192, 101, 58, .04); }
+  }
+  @keyframes shell-reset-countdown {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shell-reset-pending { animation: none; }
+    .shell-reset-pending::after { animation-duration: 0s; transform: scaleX(0); }
+  }
+
   /* Inline 二次确认条 — 替代浏览器原生 confirm()，保住衬线沉浸感 */
   .conv-item-pending {
     background: linear-gradient(0deg, #fdf3f1 0%, #fdf3f1 100%) !important;
@@ -648,13 +680,45 @@
   .chat-context-pill {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     margin-bottom: 10px;
-    padding: 4px 10px;
+    padding: 4px 4px 4px 10px;
     border: 1px solid #ddd4c6;
     background: #faf5ea;
     font-size: 11px;
     letter-spacing: .08em;
     color: #6a5c45;
+    border-radius: 999px;
+    transition: border-color .15s, background .15s;
+  }
+  .chat-context-pill-prefix {
+    font-size: 10px;
+    letter-spacing: .24em;
+    color: #9d8a66;
+    margin-right: 2px;
+  }
+  .chat-context-pill-label { color: #4d3f24; font-weight: 500; }
+  .chat-context-pill-close {
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 2px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #a8957a;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .chat-context-pill-close:hover {
+    background: #ede1c8;
+    color: #4d3f24;
+  }
+  .chat-context-pill-close:disabled {
+    opacity: .4;
+    cursor: not-allowed;
   }
   .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .tag { display: inline-block; padding: 4px 10px; font-size: 11px; border: 1px solid var(--line); color: var(--ink-2); background: #fff; cursor: pointer; transition: all .15s; }

@@ -195,6 +195,8 @@ export default function Chat() {
   const dayun = useAppStore(s => s.dayun);
   const dayunOpenIdx = useAppStore(s => s.dayunOpenIdx);
   const liunianOpenKey = useAppStore(s => s.liunianOpenKey);
+  const setDayunOpenIdx = useAppStore(s => s.setDayunOpenIdx);
+  const setLiunianOpenKey = useAppStore(s => s.setLiunianOpenKey);
   const classics = useAppStore(s => s.classics);
   const currentConversationId = useAppStore(s => s.currentConversationId);
   const ensureConversation = useAppStore(s => s.ensureConversation);
@@ -214,6 +216,9 @@ export default function Chat() {
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
+  // 每个对话保留各自的输入草稿。在 A 输了一半切到 B，再切回 A，
+  // 应该能看到原文还在；不会"打了一半的内容突然没了"。
+  const inputDraftRef = useRef(new Map());
 
   // 滚动管理：
   //   - stuckToBottom: 用户当前是否"贴在底部"。流式 delta 只在贴底时跟随，
@@ -251,12 +256,24 @@ export default function Chat() {
   }
 
   // 一个 layout effect 同时处理"切对话恢复"和"流式跟随"。在 paint 前完成
-  // scrollTop 写入，避免 jitter。
+  // scrollTop / 输入框草稿 的写入，避免 jitter。
   useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    const idChanged = prevConvIdRef.current !== currentConversationId;
+    const prevId = prevConvIdRef.current;
+    const idChanged = prevId !== currentConversationId;
     if (idChanged) {
+      // 1. 把旧对话的输入草稿存起来（空字符串则删除条目，避免 Map 膨胀）
+      if (prevId) {
+        if (input && input.trim()) inputDraftRef.current.set(prevId, input);
+        else inputDraftRef.current.delete(prevId);
+      }
+      // 2. 切到新对话时还原草稿（没有就清空）
+      const incomingDraft = currentConversationId
+        ? (inputDraftRef.current.get(currentConversationId) || '')
+        : '';
+      setInput(incomingDraft);
+      // 3. 滚动位置恢复
       prevConvIdRef.current = currentConversationId;
       const mem = currentConversationId
         ? scrollMemoryRef.current.get(currentConversationId)
@@ -384,6 +401,7 @@ export default function Chat() {
         replaceLastAssistant('（未配置 LLM，当前回到预设回复）');
       } else {
         setInput('');
+        if (currentConversationId) inputDraftRef.current.delete(currentConversationId);
         pushChat({ role: 'user', content: q });
         pushChat({ role: 'assistant', content: '' });
         replaceLastAssistant('（未配置 LLM，当前回到预设回复）');
@@ -398,6 +416,7 @@ export default function Chat() {
       replaceLastAssistant('');
     } else {
       setInput('');
+      if (convId) inputDraftRef.current.delete(convId);
       pushChat({ role: 'user', content: q });
       pushChat({ role: 'assistant', content: '' });
     }
@@ -750,12 +769,42 @@ export default function Chat() {
 
       <div className="chat-input-wrap">
         {workspace.contextLabel ? (
-          <div className="chat-context-pill">{workspace.contextLabel}</div>
+          <div className="chat-context-pill" role="status">
+            <span className="chat-context-pill-prefix" aria-hidden="true">聚焦</span>
+            <span className="chat-context-pill-label">{workspace.contextLabel}</span>
+            <button
+              type="button"
+              className="chat-context-pill-close"
+              onClick={() => {
+                // 同时清掉 dayun + liunian focus，回到"整盘对话"模式
+                if (liunianOpenKey) setLiunianOpenKey(null);
+                if (dayunOpenIdx != null) setDayunOpenIdx(null);
+              }}
+              aria-label="退出当前聚焦"
+              title="退出当前聚焦，回到整盘对话"
+              disabled={busy}
+            >×</button>
+          </div>
         ) : null}
         {history.length > 0 ? (
           <div className="chat-chips">
             {composerChips.map((chip) => (
-              <button key={chip} className="chip" onClick={() => send(chip)} disabled={busy}>{chip}</button>
+              <button
+                key={chip}
+                className="chip"
+                onClick={() => {
+                  // 输入框已有内容时，chip 只填到输入框里，不替换、不直接发送，
+                  // 避免一键清空用户已经打的字。空输入时一键直发，保留原有快捷感。
+                  if (String(input).trim()) {
+                    setInput(chip);
+                    inputRef.current?.focus();
+                  } else {
+                    send(chip);
+                  }
+                }}
+                disabled={busy}
+                title={String(input).trim() ? '点击替换为这条提问（你的草稿仍可继续编辑）' : '点击直接发送'}
+              >{chip}</button>
             ))}
           </div>
         ) : null}

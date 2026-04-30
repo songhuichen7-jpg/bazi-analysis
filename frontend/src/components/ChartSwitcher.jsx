@@ -14,12 +14,26 @@ export default function ChartSwitcher({ onNewChart }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editVal, setEditVal] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const pendingTimerRef = useRef(null);
   const ref = useRef(null);
+
+  function clearPendingDelete() {
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = null;
+    setPendingDeleteId(null);
+  }
+  useEffect(() => () => clearPendingDelete(), []);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        clearPendingDelete();
+      }
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
@@ -37,12 +51,24 @@ export default function ChartSwitcher({ onNewChart }) {
     setEditingId(null);
   }
 
-  function onDelete(id, e) {
+  function askDelete(id, e) {
     e.stopPropagation();
-    if (!confirm(`删除"${charts[id]?.label}"？`)) return;
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    setPendingDeleteId(id);
+    pendingTimerRef.current = setTimeout(() => clearPendingDelete(), 4000);
+  }
+
+  function confirmDeleteChart(id, e) {
+    e.stopPropagation();
+    clearPendingDelete();
     if (Object.keys(charts).length === 1) clearSession({ onError: setAppNotice });
     deleteChart(id);
     setOpen(false);
+  }
+
+  function cancelDeleteChart(e) {
+    e.stopPropagation();
+    clearPendingDelete();
   }
 
   return (
@@ -94,18 +120,47 @@ export default function ChartSwitcher({ onNewChart }) {
           {sortedIds.map(id => {
             const c = charts[id];
             const isCur = id === currentId;
+            const isPending = pendingDeleteId === id;
             return (
               <div
                 key={id}
-                onClick={() => { if (editingId !== id) { switchChart(id); setOpen(false); } }}
+                onClick={() => {
+                  if (editingId !== id && !isPending) { switchChart(id); setOpen(false); }
+                }}
+                className={isPending ? 'chart-item-pending' : ''}
                 style={{
-                  padding:'10px 14px', cursor:'pointer', minHeight:44,
-                  background: isCur ? '#f7f5f0' : '#fff',
+                  padding:'10px 14px', cursor: isPending ? 'default' : 'pointer', minHeight:44,
+                  background: isPending ? '#fdf3f1' : (isCur ? '#f7f5f0' : '#fff'),
+                  borderLeft: isPending ? '2px solid #c0653a' : (isCur ? '2px solid var(--ink)' : '2px solid transparent'),
                   borderBottom:'1px solid var(--line)',
                   display:'flex', alignItems:'center', gap:8,
+                  position:'relative', overflow:'hidden',
                 }}
               >
-                {editingId === id ? (
+                {isPending ? (
+                  <div onClick={e => e.stopPropagation()}
+                       style={{ display:'flex', alignItems:'center', gap:8, width:'100%' }}>
+                    <span style={{ flex:1, fontSize:12, color:'#6b3a26', lineHeight:1.4 }}>
+                      删除"{c.label}"？此命盘和它的所有对话都会被清空。
+                    </span>
+                    <button
+                      type="button"
+                      onClick={e => confirmDeleteChart(id, e)}
+                      style={{
+                        border:'1px solid #c0653a', background:'#c0653a', color:'#fff',
+                        fontSize:11, padding:'3px 10px', borderRadius:2, cursor:'pointer',
+                      }}
+                    >删除</button>
+                    <button
+                      type="button"
+                      onClick={cancelDeleteChart}
+                      style={{
+                        border:'1px solid #d4a48d', background:'transparent', color:'#6b3a26',
+                        fontSize:11, padding:'3px 10px', borderRadius:2, cursor:'pointer',
+                      }}
+                    >取消</button>
+                  </div>
+                ) : editingId === id ? (
                   <input
                     autoFocus
                     value={editVal}
@@ -139,7 +194,7 @@ export default function ChartSwitcher({ onNewChart }) {
                     >✎</button>
                     <button
                       type="button"
-                      onClick={e => onDelete(id, e)}
+                      onClick={e => askDelete(id, e)}
                       aria-label="删除命盘"
                       style={{ background:'none', border:'none', cursor:'pointer', fontSize:13, opacity:.4, padding:'2px 4px', color:'#c66', minHeight:28 }}
                     >×</button>
