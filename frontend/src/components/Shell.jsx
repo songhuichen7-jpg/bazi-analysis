@@ -14,8 +14,9 @@ import ClassicsPanel from './ClassicsPanel';
 import { CardWorkspace } from './card/CardWorkspace';
 
 const MIN_RIGHT = 320;
-const MAX_RIGHT = 780;
-const DEFAULT_RIGHT = 560;
+const MAX_RIGHT = 900;
+// 默认占比加大 — 用户主要在右侧聊天，左边命盘是参考、不是主舞台
+const DEFAULT_RIGHT = 720;
 
 export default function Shell() {
   const view = useAppStore(s => s.view);
