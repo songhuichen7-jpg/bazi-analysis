@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { streamMessage, streamGua, fetchChips } from '../lib/api';
 import { finalizeChatTurn, resolveConversationIdForSend, startBootstrapChipsRefresh } from '../lib/chatFlow';
@@ -215,9 +215,70 @@ export default function Chat() {
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
 
-  useEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [history]);
+  // 滚动管理：
+  //   - stuckToBottom: 用户当前是否"贴在底部"。流式 delta 只在贴底时跟随，
+  //     否则保留用户的位置，避免阅读上文时被新内容拽走。
+  //   - showJumpToBottom: 离底超过阈值时显示一个 ↓ 浮动按钮，点了立刻吸底。
+  //   - scrollMemoryRef: { convId → {top, stuck} } 切换对话时把上一会话的
+  //     滚动位置存住、新会话进入时按记忆恢复，否则默认贴底。
+  const scrollMemoryRef = useRef(new Map());
+  const prevConvIdRef = useRef(currentConversationId);
+  const [stuckToBottom, setStuckToBottom] = useState(true);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+
+  function distanceFromBottom(el) {
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+  }
+
+  function onChatScroll() {
+    const el = bodyRef.current;
+    if (!el) return;
+    const dist = distanceFromBottom(el);
+    const stuck = dist < 12;
+    setStuckToBottom(stuck);
+    setShowJumpToBottom(dist > 120);
+    if (currentConversationId) {
+      scrollMemoryRef.current.set(currentConversationId, { top: el.scrollTop, stuck });
+    }
+  }
+
+  function jumpToBottom() {
+    const el = bodyRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    setStuckToBottom(true);
+    setShowJumpToBottom(false);
+  }
+
+  // 一个 layout effect 同时处理"切对话恢复"和"流式跟随"。在 paint 前完成
+  // scrollTop 写入，避免 jitter。
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const idChanged = prevConvIdRef.current !== currentConversationId;
+    if (idChanged) {
+      prevConvIdRef.current = currentConversationId;
+      const mem = currentConversationId
+        ? scrollMemoryRef.current.get(currentConversationId)
+        : null;
+      if (mem) {
+        el.scrollTop = mem.top;
+        setStuckToBottom(mem.stuck);
+      } else {
+        el.scrollTop = el.scrollHeight;
+        setStuckToBottom(true);
+      }
+      setShowJumpToBottom(distanceFromBottom(el) > 120);
+      return;
+    }
+    if (stuckToBottom) {
+      el.scrollTop = el.scrollHeight;
+      setShowJumpToBottom(false);
+    } else {
+      // 不在底部时，新内容来了 → 提示用户"下面有新内容"
+      if (distanceFromBottom(el) > 120) setShowJumpToBottom(true);
+    }
+  }, [history, currentConversationId, stuckToBottom]);
 
   useEffect(() => {
     if (!inputRef.current) return;
@@ -542,7 +603,7 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="chat-body" ref={bodyRef}>
+      <div className="chat-body" ref={bodyRef} onScroll={onChatScroll}>
         {history.length === 0 && (
           <div className="chat-welcome fade-in">
             <div className="chat-opening-guide">
@@ -673,6 +734,19 @@ export default function Chat() {
           );
         })}
       </div>
+
+      {showJumpToBottom ? (
+        <button
+          type="button"
+          className="chat-jump-bottom"
+          onClick={jumpToBottom}
+          aria-label="回到底部"
+          title="回到底部"
+        >
+          <span className="chat-jump-bottom-arrow" aria-hidden="true">↓</span>
+          <span className="chat-jump-bottom-label">新内容</span>
+        </button>
+      ) : null}
 
       <div className="chat-input-wrap">
         {workspace.contextLabel ? (

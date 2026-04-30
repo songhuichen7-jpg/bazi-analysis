@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import DayunStepBody from './DayunStepBody';
 
@@ -6,6 +7,18 @@ export default function Dayun() {
   const openIdx = useAppStore(s => s.dayunOpenIdx);
   const setOpenIdx = useAppStore(s => s.setDayunOpenIdx);
   const streaming = useAppStore(s => s.dayunStreaming);
+
+  // mountedIdx 比 openIdx 多挂 ~360ms — 让收起动画跑完再卸载内部 body，
+  // 否则一关就消失，CSS 的 grid-template-rows 过渡看不到下半场。
+  const [mountedIdx, setMountedIdx] = useState(openIdx);
+  useEffect(() => {
+    if (openIdx !== null) {
+      setMountedIdx(openIdx);
+      return undefined;
+    }
+    const t = setTimeout(() => setMountedIdx(null), 360);
+    return () => clearTimeout(t);
+  }, [openIdx]);
 
   const onClick = (i) => {
     if (streaming) return;
@@ -40,7 +53,11 @@ export default function Dayun() {
             </div>
           );
         })}
-        {openIdx !== null && <DayunStepBody idx={openIdx} />}
+        <div className="dayun-collapse" data-open={openIdx !== null ? 'true' : 'false'}>
+          <div className="dayun-collapse-inner">
+            {mountedIdx !== null && <DayunStepBody idx={mountedIdx} />}
+          </div>
+        </div>
       </div>
     </div>
   );

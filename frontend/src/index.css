@@ -353,8 +353,38 @@
   .back-link:hover { color: var(--ink); }
 
   .loading-stages { display: flex; gap: 8px; justify-content: center; }
-  .loading-stages span { width: 24px; height: 2px; background: var(--line); transition: background .3s; }
+  .loading-stages span {
+    width: 24px; height: 2px; background: var(--line);
+    transition: background .35s ease-out, transform .35s ease-out;
+    transform-origin: left center;
+  }
   .loading-stages span.on { background: var(--ink); }
+  /* current 用 keyframe 让墨色"流动"过去，比 on/off 二态多一点呼吸感 */
+  .loading-stages span.current {
+    background: var(--ink);
+    animation: loading-stage-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes loading-stage-pulse {
+    0%, 100% { opacity: 1; transform: scaleX(1); }
+    50%      { opacity: 0.55; transform: scaleX(0.85); }
+  }
+  /* 阶段文案 phase-aware fade — 跟 hero mockup 同节奏 */
+  .loading-stage-label {
+    transition:
+      opacity 280ms cubic-bezier(.22,.61,.36,1),
+      transform 280ms cubic-bezier(.22,.61,.36,1),
+      filter 280ms cubic-bezier(.22,.61,.36,1);
+  }
+  .loading-stage-label[data-phase='out'] {
+    opacity: 0; transform: translateY(-4px); filter: blur(1.5px);
+  }
+  .loading-stage-label[data-phase='in']  {
+    opacity: 1; transform: translateY(0);   filter: blur(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loading-stages span.current { animation: none; }
+    .loading-stage-label { transition: opacity 180ms linear; transform: none !important; filter: none !important; }
+  }
 
   /* ============ SHELL: split layout ============ */
   .shell-layout {
@@ -372,7 +402,51 @@
   }
   .resize-handle:hover { background: var(--line); }
   .resize-handle:active { background: #c8c8c8; }
-  .right-pane { overflow-y: auto; background: #fff; display: flex; flex-direction: column; }
+  .right-pane { overflow-y: auto; background: #fff; display: flex; flex-direction: column; position: relative; }
+
+  /* 浮动"回到底部" — 用户离底滚动时出现，提示有新内容、点击吸底 */
+  .chat-jump-bottom {
+    position: absolute;
+    right: 18px;
+    /* 底部紧贴 input-wrap 上方。input-wrap 自身会"撑高"页面，
+     * 这里用一个保守的固定值；不同高度的 chips 也仍可见。 */
+    bottom: 92px;
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px 10px;
+    background: #1f1b16;
+    color: #faf7ee;
+    border: none;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: .04em;
+    cursor: pointer;
+    box-shadow: 0 6px 22px rgba(31, 27, 22, .28);
+    animation: chat-jump-in 240ms cubic-bezier(.22,.61,.36,1) both;
+    transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+  }
+  .chat-jump-bottom:hover {
+    background: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 26px rgba(31, 27, 22, .35);
+  }
+  .chat-jump-bottom:active { transform: translateY(0); }
+  .chat-jump-bottom-arrow {
+    display: inline-block;
+    line-height: 1;
+    font-size: 13px;
+    transform: translateY(-0.5px);
+  }
+  .chat-jump-bottom-label { line-height: 1; }
+  @keyframes chat-jump-in {
+    from { opacity: 0; transform: translateY(8px) scale(.92); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chat-jump-bottom { animation: none; }
+  }
 
   /* Shell 内两栏的 scrollbar 调薄 + 低对比 — 接近 macOS overlay 风格 */
   .left-pane,
@@ -461,9 +535,72 @@
   .conv-item-preview { font-size: 11px; color: var(--mute); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .conv-item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
   .conv-item:hover .conv-item-actions, .conv-item.active .conv-item-actions { opacity: 1; }
-  .conv-icon { width: 22px; height: 22px; border: none; background: transparent; color: var(--mute); font-size: 13px; cursor: pointer; border-radius: 2px; }
+  .conv-icon { width: 22px; height: 22px; border: none; background: transparent; color: var(--mute); font-size: 13px; cursor: pointer; border-radius: 2px; transition: background .18s ease, color .18s ease; }
   .conv-icon:hover { background: #efece2; color: var(--ink); }
   .conv-icon-danger:hover { background: #f8e8e8; color: #933; }
+
+  /* Inline 二次确认条 — 替代浏览器原生 confirm()，保住衬线沉浸感 */
+  .conv-item-pending {
+    background: linear-gradient(0deg, #fdf3f1 0%, #fdf3f1 100%) !important;
+    border-left-color: #c0653a !important;
+    cursor: default !important;
+    position: relative;
+    overflow: hidden;
+    animation: conv-pending-in 220ms cubic-bezier(.22,.61,.36,1) both;
+  }
+  .conv-item-pending::after {
+    /* 4 秒倒计时进度条 — 视觉上"时间在走"，不解释也能 get 到 */
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 1.5px;
+    background: #c0653a;
+    width: 100%;
+    transform-origin: left center;
+    animation: conv-pending-countdown 4s linear forwards;
+  }
+  @keyframes conv-pending-in {
+    from { background-color: transparent; }
+    to   { background-color: #fdf3f1; }
+  }
+  @keyframes conv-pending-countdown {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
+  .conv-confirm-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 2px 0;
+  }
+  .conv-confirm-text {
+    flex: 1;
+    font-size: 12px;
+    color: #6b3a26;
+    line-height: 1.4;
+  }
+  .conv-confirm-btn {
+    border: 1px solid #d4a48d;
+    background: transparent;
+    color: #6b3a26;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .conv-confirm-btn:hover { background: #f1d8cd; }
+  .conv-confirm-yes {
+    background: #c0653a;
+    border-color: #c0653a;
+    color: #fff;
+  }
+  .conv-confirm-yes:hover { background: #a8552f; border-color: #a8552f; }
+  @media (prefers-reduced-motion: reduce) {
+    .conv-item-pending,
+    .conv-item-pending::after { animation: none; }
+  }
   .conv-rename-input { width: 100%; font-size: 13px; padding: 3px 6px; border: 1px solid var(--ink); background: #fff; box-sizing: border-box; }
   .chat-body {
     flex: 1;
@@ -1190,8 +1327,34 @@
   .ycell.current.disabled:hover { background: var(--ink); }
   .ln-chip.disabled { cursor: not-allowed !important; opacity: .45 !important; }
   .fallback-hint { font-size: 12px; color: #999; margin-bottom: 6px; font-style: italic; }
-  .ref-chip { display: inline; background: #fff3c4; border-bottom: 1px dashed #b99; color: inherit; text-decoration: none; padding: 0 3px; cursor: pointer; transition: background .15s; }
-  .ref-chip:hover { background: #ffe58a; }
+  .ref-chip {
+    display: inline;
+    background: #fff3c4;
+    border-bottom: 1px dashed #b99;
+    color: inherit;
+    text-decoration: none;
+    padding: 0 3px;
+    cursor: pointer;
+    transition:
+      background .22s cubic-bezier(.22,.61,.36,1),
+      border-color .22s cubic-bezier(.22,.61,.36,1),
+      color .22s ease,
+      transform .12s ease;
+  }
+  .ref-chip:hover {
+    background: #ffe58a;
+    border-bottom-color: #8a6d2c;
+    border-bottom-style: solid;
+  }
+  .ref-chip:active {
+    transform: translateY(1px);
+    background: #ffd866;
+  }
+  .ref-chip:focus-visible {
+    outline: 2px solid #e9b949;
+    outline-offset: 1px;
+    background: #ffe58a;
+  }
   @keyframes refPulse { 0% { box-shadow: 0 0 0 0 rgba(233,185,73,.8); } 100% { box-shadow: 0 0 0 12px rgba(233,185,73,0); } }
   .ref-highlight { background: #fff3c4 !important; outline: 2px solid #e9b949; animation: refPulse 1.4s ease-out; }
   .ycell.good { border-width: 2px; border-color: var(--ink); }
@@ -1200,6 +1363,43 @@
   .ycell .gz { font-family: "Songti SC", serif; font-size: 16px; margin: 3px 0; }
   .ycell .ss { font-size: 9px; color: var(--mute); }
   .ycell.current .ss { color: rgba(255,255,255,.7); }
+
+  /* 大运点开后的内容容器 — 用 grid-template-rows 0fr→1fr 做"高度动画"，
+   * 不需要 JS 测量。inner 的 overflow:hidden 把内容裁掉，避免溢出闪烁。 */
+  .dayun-collapse {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 360ms cubic-bezier(.22,.61,.36,1);
+  }
+  .dayun-collapse[data-open='true'] { grid-template-rows: 1fr; }
+  .dayun-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity 320ms cubic-bezier(.22,.61,.36,1),
+      transform 320ms cubic-bezier(.22,.61,.36,1);
+  }
+  .dayun-collapse[data-open='true'] .dayun-collapse-inner {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 80ms;     /* 等 grid-rows 走过一半再淡入，更自然 */
+  }
+  /* 卡片右上角的 ▸/▾ 三角随展开微旋转 */
+  .dayun-cell .dayun-caret {
+    transition: transform 240ms cubic-bezier(.22,.61,.36,1), opacity 240ms;
+  }
+  .dayun-cell:hover .dayun-caret { opacity: .9; }
+  @media (prefers-reduced-motion: reduce) {
+    .dayun-collapse,
+    .dayun-collapse-inner,
+    .dayun-cell .dayun-caret {
+      transition: none;
+    }
+  }
+
   .timing-panel {
     grid-column: 1 / -1;
     margin-top: 12px;

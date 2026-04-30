@@ -161,15 +161,41 @@ export default function FormScreen() {
 
 export function LoadingScreen() {
   const loadingStage = useAppStore(s => s.loadingStage);
+  // 阶段文案用 displayedStage + phase（out → swap → in）实现淡入淡出，
+  // 跟 hero mockup 的轮播同款节奏，避免 280ms 一刀切的硬感。
+  const [displayedStage, setDisplayedStage] = useState(loadingStage);
+  const [phase, setPhase] = useState('in');
+  useEffect(() => {
+    if (loadingStage === displayedStage) return;
+    setPhase('out');
+    const t = setTimeout(() => {
+      setDisplayedStage(loadingStage);
+      setPhase('in');
+    }, 280);
+    return () => clearTimeout(t);
+  }, [loadingStage, displayedStage]);
+
   return (
     <div className="screen active">
       <div className="center-wrap">
         <div style={{ textAlign:'center' }} className="fade-in">
           <div className="section-num" style={{ marginBottom:24 }}>计算中</div>
-          <div className="serif" style={{ fontSize:22, marginBottom:48, height:28 }}>{LOADING_STAGES[loadingStage] || ''}</div>
+          <div
+            className="serif loading-stage-label"
+            data-phase={phase}
+            style={{ fontSize:22, marginBottom:48, height:28 }}
+          >
+            {LOADING_STAGES[displayedStage] || ''}
+          </div>
           <div className="loading-stages">
             {LOADING_STAGES.map((_, i) => (
-              <span key={i} className={i <= loadingStage ? 'on' : ''} />
+              <span
+                key={i}
+                className={
+                  (i < loadingStage ? 'on' : '')
+                  + (i === loadingStage ? ' current' : '')
+                }
+              />
             ))}
           </div>
         </div>
