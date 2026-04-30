@@ -10,6 +10,7 @@ import ConversationSwitcher from './ConversationSwitcher';
 import { buildChatWorkspace, mergePromptChips } from '../lib/chatWorkspace';
 import { buildChatClientContext } from '../lib/chatClientContext';
 import { applyChatProgressEvent, createChatProgress, intentLabel } from '../lib/chatProgress';
+import { PROMPT_EXAMPLES, PROMPT_ROTATE_INTERVAL_MS } from '../lib/chatPromptExamples';
 
 /** Compact phase-aware progress: shows real backend SSE events as a vertical
  *  step list (intent → retrieval → model → streaming). Each step appears
@@ -205,6 +206,11 @@ export default function Chat() {
   const [chatTrace, setChatTrace] = useState(null);
   const [editingUserIndex, setEditingUserIndex] = useState(null);
   const [editingText, setEditingText] = useState('');
+  // Rotating placeholder example: random first index per session, advance
+  // every PROMPT_ROTATE_INTERVAL_MS while the input is empty + idle.
+  const [exampleIdx, setExampleIdx] = useState(
+    () => Math.floor(Math.random() * PROMPT_EXAMPLES.length),
+  );
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
@@ -500,6 +506,20 @@ export default function Chat() {
   const composerChips = mergePromptChips(workspace.starterQuestions, chips, 4);
   const busy = chatStreaming || guaStreaming;
   const traceVisible = !!chatTrace && !chatTrace.hasOutput && (chatStreaming || chatTrace.phase === 'stopped');
+  // Rotate the placeholder only when idle + empty + no contextual override.
+  const placeholderRotating = !busy && !input && !workspace.contextLabel;
+  useEffect(() => {
+    if (!placeholderRotating) return undefined;
+    const handle = setInterval(() => {
+      setExampleIdx((i) => (i + 1) % PROMPT_EXAMPLES.length);
+    }, PROMPT_ROTATE_INTERVAL_MS);
+    return () => clearInterval(handle);
+  }, [placeholderRotating]);
+  const placeholderText = busy
+    ? '生成中…可点停止'
+    : workspace.contextLabel
+      ? '继续追问这一点…'
+      : PROMPT_EXAMPLES[exampleIdx];
 
   return (
     <div className="right-pane">
@@ -661,15 +681,26 @@ export default function Chat() {
           </div>
         ) : null}
         <div className="chat-input">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKey}
-            rows={1}
-            placeholder={busy ? '生成中，按停止可中断当前输出' : (workspace.contextLabel ? '继续追问这一点…' : '把你最在意的问题直接告诉我')}
-            disabled={busy}
-          />
+          <div className="chat-textarea-wrap">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKey}
+              rows={1}
+              placeholder=""
+              disabled={busy}
+            />
+            {!input ? (
+              <div
+                className="chat-placeholder-overlay"
+                aria-hidden="true"
+                key={placeholderRotating ? exampleIdx : placeholderText}
+              >
+                {placeholderText}
+              </div>
+            ) : null}
+          </div>
           <button
             className="btn-primary chat-send-btn"
             onClick={busy ? stopStreaming : () => send()}
