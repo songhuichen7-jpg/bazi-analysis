@@ -8,12 +8,13 @@ import { useAppStore } from '../store/useAppStore.js';
 // Subtitle is optional for media tokens (artist/director/author can be absent
 // when the LLM isn't sure).
 const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]/g;
-// Media cards render as their own paragraph, so a trailing 。/！/？ that
-// only existed to terminate the sentence around the card looks like an
-// orphan. Eat one such char immediately after a media token, but only if
-// nothing else follows on that line (i.e. the card IS the sentence).
-// Chart refs are inline labels and don't get this treatment.
-const MEDIA_TRAILING_PUNCT_RE = /[。！？.!?](?=\s*$|\s*\n)/y;
+// Media cards render as their own paragraph; the LLM almost always wraps
+// them in \n\n which our pre-wrap parent renders as visible blank lines,
+// stacking on top of the card's own margin. Strip the surrounding
+// whitespace + an optional sentence-ending 。/！/？ at the parser level
+// so the card sits flush against the adjacent text. Chart refs (inline
+// labels) keep their punctuation/whitespace untouched.
+const MEDIA_TRAILING_RE = /^[。！？.!?]?[\s ]*/;
 
 // LLMs occasionally serialise our token in malformed shapes — single brackets,
 // markdown-link syntax, etc. Repair the common ones BEFORE the strict parser
@@ -80,7 +81,14 @@ export function parseRef(text, options = {}) {
   TOKEN_RE.lastIndex = 0;
   let m;
   while ((m = TOKEN_RE.exec(text)) !== null) {
-    if (m.index > last) out.push({ type: 'text', value: text.slice(last, m.index) });
+    if (m.index > last) {
+      let preceding = text.slice(last, m.index);
+      // Trim trailing newlines/spaces from the segment before a media card —
+      // the card has its own margin and doesn't need the LLM's "\n\n"
+      // padding rendered as a visible blank line above it.
+      if (m[1]) preceding = preceding.replace(/[\s ]+$/, '');
+      if (preceding) out.push({ type: 'text', value: preceding });
+    }
     let cursor = m.index + m[0].length;
     if (m[1]) {
       out.push({
@@ -89,10 +97,13 @@ export function parseRef(text, options = {}) {
         title: (m[2] || '').trim(),
         subtitle: (m[3] || '').trim(),
       });
-      // Eat at most one orphaned end-of-sentence punct after the card.
-      MEDIA_TRAILING_PUNCT_RE.lastIndex = cursor;
-      if (MEDIA_TRAILING_PUNCT_RE.test(text)) {
-        cursor = MEDIA_TRAILING_PUNCT_RE.lastIndex;
+      // Eat trailing sentence punct + any whitespace that follows the card,
+      // for the same reason: card margin handles spacing, raw \n\n adds
+      // a visible blank line on top.
+      const tail = text.slice(cursor);
+      const tm = tail.match(MEDIA_TRAILING_RE);
+      if (tm && tm[0]) {
+        cursor += tm[0].length;
         TOKEN_RE.lastIndex = cursor;
       }
     } else {

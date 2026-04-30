@@ -656,7 +656,7 @@
     gap: 10px;
     align-items: center;
     padding: 10px 12px 10px 8px;         /* 上下增 = 更高 */
-    margin: 6px 0 0 0;                   /* 上 6 / 下 0,贴住下文 */
+    margin: 8px 0;                       /* 上下对称呼吸,因为周围空白已被 parser 吞 */
     border-radius: 10px;
     color: rgba(255, 255, 255, 0.96);
     text-decoration: none;
