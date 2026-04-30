@@ -650,7 +650,12 @@ export default function Chat() {
                   <ThinkingIndicator trace={chatTrace} />
                 ) : null}
                 <div className="msg-ai-body">
-                  {m.content ? <RichText text={m.content} /> : null}
+                  {m.content ? (
+                    <RichText
+                      text={m.content}
+                      context={history[findPreviousUserIndex(history, i)]?.content || ''}
+                    />
+                  ) : null}
                 </div>
               </div>
               {(() => {

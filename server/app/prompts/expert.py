@@ -289,6 +289,22 @@ def build_messages(
         if anchor:
             parts.append(anchor)
 
+    # Media-token reminder placed last in system so its recency bias keeps the
+    # LLM from defaulting to 书名号 / markdown links when mentioning specific
+    # songs / movies / books. The full rule lives in shards/core.md but core
+    # is buried mid-prompt and gets ignored.
+    parts.append(
+        "【最后强调 — 提到歌曲/电影/书籍时】\n"
+        "如果回答中要提到具体歌曲、电影或书籍，**必须**用结构化标记：\n"
+        "  歌曲 → [[song:歌名|艺人]]\n"
+        "  电影 → [[movie:片名|导演]]，导演拿不准时 [[movie:片名]]\n"
+        "  书籍 → [[book:书名|作者]]\n"
+        "**绝不要**用《XX》、《XX - 艺人》、markdown 链接 [X](Y) 或单层 [...] 替代。"
+        "用户问\"用一首歌/电影/书形容\"这类时尤其要遵守。例：\n"
+        "  ✓ 推荐 [[movie:肖申克的救赎|弗兰克·德拉邦特]]\n"
+        "  ✗ 推荐《肖申克的救赎》"
+    )
+
     # Time anchor — prepended to user msg (highest-attention slot)
     # Flat paipan carries todayYmd / todayYearGz / todayMonthGz directly.
     year_gz = (paipan or {}).get("todayYearGz") or ""

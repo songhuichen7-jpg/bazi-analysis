@@ -38,9 +38,32 @@ function repairTokens(text) {
   return out;
 }
 
-export function parseRef(text) {
+// When the user explicitly asked "用一首歌/一部电影/一本书 形容…" but the LLM
+// fell back to 《XX》 instead of our token format, infer the media kind from
+// the question and rewrite. Only fires when the question STRONGLY signals a
+// kind, so we don't accidentally turn 古籍《滴天髓》into a movie card.
+function inferMediaKind(context) {
+  const c = String(context || '');
+  if (/(一首|一支)?\s*(歌|曲)/.test(c)) return 'song';
+  if (/(一部|一本)?\s*(电影|影片|片|纪录片|剧)/.test(c)) return 'movie';
+  if (/(一本)?\s*(书|小说|散文|诗集|诗)/.test(c)) return 'book';
+  return null;
+}
+
+const TITLE_QUOTE_RE = /《([^《》]{1,40})》(?:\s*[—-]+\s*([^，。；,;.!\n\s]{1,20}))?/g;
+
+function rescueQuotedTitles(text, kind) {
+  if (!kind) return text;
+  return text.replace(TITLE_QUOTE_RE, (_m, title, sub) => {
+    return `[[${kind}:${title.trim()}${sub ? '|' + sub.trim() : ''}]]`;
+  });
+}
+
+export function parseRef(text, options = {}) {
   if (!text) return [];
   text = repairTokens(text);
+  const inferredKind = inferMediaKind(options.context);
+  if (inferredKind) text = rescueQuotedTitles(text, inferredKind);
   const out = [];
   let last = 0;
   TOKEN_RE.lastIndex = 0;
