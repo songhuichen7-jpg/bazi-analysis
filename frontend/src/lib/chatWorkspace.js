@@ -74,10 +74,10 @@ export function buildChatWorkspace({
       badges: compact([step?.gz ? `所属 ${step.gz}大运` : null, year?.ss]),
       contextLabel: `${year.year} ${year.gz}`,
       starterQuestions: [
-        '这一年最该抓住什么机会',
-        '这一年最大的压力点在哪',
-        '这一年做决定要注意什么',
-        '这一年感情/学业/工作怎么看',
+        '这一年最大的机会',
+        '这一年最大的压力',
+        '用一句话总结这一年',
+        '这一年怎么取舍',
       ],
     };
   }
@@ -89,10 +89,10 @@ export function buildChatWorkspace({
       badges: compact([dayunFocus.age != null ? `${dayunFocus.age}岁起` : null, dayunFocus.ss]),
       contextLabel: `${dayunFocus.gz}大运`,
       starterQuestions: [
-        '这步大运的主线是什么',
+        '这十年的主线',
         '这十年最该避开什么',
-        '这步大运和原局哪里最冲',
-        '这步大运对学业/事业意味着什么',
+        '用一句话形容这十年',
+        '大运和原局哪里最冲',
       ],
     };
   }
@@ -108,10 +108,10 @@ export function buildChatWorkspace({
     contextLabel: null,
     openingGuide: DEFAULT_OPENING_GUIDE,
     starterQuestions: [
-      '这张盘的核心矛盾是什么',
-      '我最该先补哪一块',
-      '接下来两年重点看什么',
-      '感情和事业哪边更该先看',
+      '这盘像哪部电影',
+      '这盘的核心矛盾',
+      '接下来两年的关键节点',
+      '我天生擅长什么',
     ],
   };
 }
