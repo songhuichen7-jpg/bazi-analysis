@@ -30,6 +30,21 @@ function ThinkingIndicator({ trace }) {
     return order.indexOf(phase) > order.indexOf(target);
   };
 
+  // 整体已经等了多少秒 — 当前 active 步骤超过 5s 就在它旁边附一个时长
+  // hint，超过 12s 在底部出一行"还在算，可能要再等几秒"的友好兜底。
+  const startedAt = trace?.startedAt;
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!startedAt || stopped || hasOutput) return undefined;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [startedAt, stopped, hasOutput]);
+  const elapsedSec = startedAt
+    ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+    : 0;
+  // tick 仅用来触发重渲染，elapsedSec 才是真值
+  void tick;
+
   const steps = [];
   // Step 1: intent
   steps.push({
@@ -95,9 +110,16 @@ function ThinkingIndicator({ trace }) {
     });
   }
 
+  // 给 active 步骤附上耗时 — 超过 5s 才显示，避免快回复时干扰。
+  const stepsWithTiming = steps.map((step) => {
+    if (step.state !== 'active' || elapsedSec < 5 || stopped || hasOutput) return step;
+    return { ...step, label: `${step.label}  · ${elapsedSec}s` };
+  });
+  const showSlowHint = !stopped && !hasOutput && !redirected && elapsedSec >= 12;
+
   return (
     <div className="thinking-steps" role="status" aria-live="polite">
-      {steps.map((step) => (
+      {stepsWithTiming.map((step) => (
         <div className={`thinking-step thinking-step-${step.state}`} key={step.key}>
           <span className="thinking-step-marker" aria-hidden="true">
             {step.state === 'done' ? '✓' : step.state === 'stopped' ? '×' : ''}
@@ -108,6 +130,11 @@ function ThinkingIndicator({ trace }) {
           </div>
         </div>
       ))}
+      {showSlowHint ? (
+        <div className="thinking-slow-hint">
+          模型还在思考，比平时多用了点时间，再稍等几秒。
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -583,7 +610,13 @@ export default function Chat() {
     liunianOpenKey,
   });
   const clientContext = buildChatClientContext({ view, workspace, classics });
-  const composerChips = mergePromptChips(workspace.starterQuestions, chips, 4);
+  // 把"已经问过的问题"传给 mergePromptChips，避免 chip 列表里还杵着
+  // "这盘的核心矛盾"这种刚刚已经被回答的兜底。
+  const askedQuestions = history
+    .filter((m) => m?.role === 'user')
+    .map((m) => String(m?.content || '').trim())
+    .filter(Boolean);
+  const composerChips = mergePromptChips(workspace.starterQuestions, chips, 4, askedQuestions);
   const busy = chatStreaming || guaStreaming;
   const traceVisible = !!chatTrace && !chatTrace.hasOutput && (chatStreaming || chatTrace.phase === 'stopped');
   // Rotate the placeholder only when idle + empty + no contextual override.
@@ -758,6 +791,7 @@ export default function Chat() {
         <button
           type="button"
           className="chat-jump-bottom"
+          data-above-chips={history.length > 0 ? 'true' : 'false'}
           onClick={jumpToBottom}
           aria-label="回到底部"
           title="回到底部"
@@ -788,24 +822,28 @@ export default function Chat() {
         ) : null}
         {history.length > 0 ? (
           <div className="chat-chips">
-            {composerChips.map((chip) => (
-              <button
-                key={chip}
-                className="chip"
-                onClick={() => {
-                  // 输入框已有内容时，chip 只填到输入框里，不替换、不直接发送，
-                  // 避免一键清空用户已经打的字。空输入时一键直发，保留原有快捷感。
-                  if (String(input).trim()) {
-                    setInput(chip);
-                    inputRef.current?.focus();
-                  } else {
+            {composerChips.map((chip) => {
+              const hasDraft = !!String(input).trim();
+              return (
+                <button
+                  key={chip}
+                  className={'chip' + (hasDraft ? ' chip-soft-disabled' : '')}
+                  onClick={() => {
+                    // 草稿非空时 chip 不响应（避免静默清空打了一半的字）。
+                    // tooltip 解释：先发出或清空草稿，chip 才会再次可点。
+                    if (hasDraft) return;
                     send(chip);
+                  }}
+                  disabled={busy}
+                  aria-disabled={hasDraft || busy}
+                  title={
+                    hasDraft
+                      ? '正在编辑草稿，先发出或清空后才会响应'
+                      : '点击直接发送'
                   }
-                }}
-                disabled={busy}
-                title={String(input).trim() ? '点击替换为这条提问（你的草稿仍可继续编辑）' : '点击直接发送'}
-              >{chip}</button>
-            ))}
+                >{chip}</button>
+              );
+            })}
           </div>
         ) : null}
         <div className="chat-input">

@@ -133,7 +133,7 @@ export function CardWorkspace() {
                 <figure className="share-card-illustration share-card-illustration-empty" aria-hidden="true" />
                 <h1 className="share-card-name">??</h1>
                 <p className="share-card-suffix">· 等你的卡片 ·</p>
-                <p className="share-card-oneliner">输入生日，3 秒生成你的人格卡片。</p>
+                <p className="share-card-oneliner">点右上角『生成卡片』，3 秒看到你的人格卡片。</p>
                 <ul className="share-card-subtags share-card-subtags-empty" aria-hidden="true">
                   <li />
                   <li />

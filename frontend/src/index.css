@@ -26,6 +26,10 @@
     padding: 8px 2px; width: 100%;
     transition: border-color .2s;
   }
+  /* 让 checkbox / radio 用墨色，跟 app 整体黑/暖灰调性统一，避免浏览器默认蓝跳出来 */
+  input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--ink);
+  }
   textarea { border: 1px solid var(--line); padding: 12px; line-height: 1.7; resize: vertical; }
   input:focus, select:focus, textarea:focus { border-color: var(--ink); }
 
@@ -352,6 +356,31 @@
   .back-link { color: var(--mute); font-size: 12px; margin-bottom: 48px; display: inline-block; cursor: pointer; }
   .back-link:hover { color: var(--ink); }
 
+  /* form 内 <details> 的 disclosure 标题 — 给 hover/open 状态视觉反馈 */
+  .form-disclosure > summary {
+    cursor: pointer;
+    padding: 6px 0;
+    color: var(--mute);
+    border-bottom: 1px solid transparent;
+    width: fit-content;
+    list-style: none;
+    transition: color .15s ease, border-color .15s ease, letter-spacing .2s ease;
+  }
+  .form-disclosure > summary::-webkit-details-marker { display: none; }
+  .form-disclosure > summary::before {
+    content: '▸ ';
+    display: inline-block;
+    color: #b8b3a8;
+    transition: transform .2s ease, color .15s ease;
+    margin-right: 4px;
+  }
+  .form-disclosure[open] > summary::before { transform: rotate(90deg); }
+  .form-disclosure > summary:hover {
+    color: var(--ink);
+    border-bottom-color: rgba(0, 0, 0, 0.18);
+  }
+  .form-disclosure > summary:hover::before { color: var(--ink); }
+
   .loading-stages { display: flex; gap: 8px; justify-content: center; }
   .loading-stages span {
     width: 24px; height: 2px; background: var(--line);
@@ -404,12 +433,11 @@
   .resize-handle:active { background: #c8c8c8; }
   .right-pane { overflow-y: auto; background: #fff; display: flex; flex-direction: column; position: relative; }
 
-  /* 浮动"回到底部" — 用户离底滚动时出现，提示有新内容、点击吸底 */
+  /* 浮动"回到底部" — 用户离底滚动时出现，提示有新内容、点击吸底。
+   * data-has-chips=true 时往上挪一行，避免压住 chip 排。 */
   .chat-jump-bottom {
     position: absolute;
     right: 18px;
-    /* 底部紧贴 input-wrap 上方。input-wrap 自身会"撑高"页面，
-     * 这里用一个保守的固定值；不同高度的 chips 也仍可见。 */
     bottom: 92px;
     z-index: 6;
     display: inline-flex;
@@ -440,6 +468,10 @@
     transform: translateY(-0.5px);
   }
   .chat-jump-bottom-label { line-height: 1; }
+  /* chips 可见时，给 jump-bottom 让出 chip 行的空间 */
+  .chat-jump-bottom[data-above-chips='true'] {
+    bottom: 138px;
+  }
   @keyframes chat-jump-in {
     from { opacity: 0; transform: translateY(8px) scale(.92); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -961,6 +993,15 @@
     font-size: 13px;
     line-height: 1.55;
   }
+  /* 超过 12s 仍未拿到首个 delta 时出现的"还在算"友好兜底 */
+  .thinking-slow-hint {
+    margin-top: 10px;
+    padding-left: 28px;
+    color: #8a7e63;
+    font-size: 12px;
+    line-height: 1.6;
+    animation: thinking-step-in 0.32s ease both;
+  }
   .thinking-step {
     display: grid;
     grid-template-columns: 18px minmax(0, 1fr);
@@ -1304,6 +1345,11 @@
     color: #6a604c;
     letter-spacing: 4px;
   }
+  .classics-loader-retry {
+    margin-top: 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
   @media (prefers-reduced-motion: reduce) {
     .classics-loader-book { animation: none; opacity: 1; }
     .classics-loader-book:not(:first-child) { display: none; }
@@ -1386,9 +1432,33 @@
   .ycell:hover { border-color: var(--ink); background: #faf8f4; }
   .ycell.current { background: var(--ink); color: #fff; border: 2px solid #e9b949; }
   .ycell.current:hover { background: #000; }
+  /* dayun/liunian cell 被用户"点开"时的活跃态 — 比 hover 强、比 current
+   * 弱。1.5px 暖色描边 + 浅米底，让"我现在正在看的是哪一步"一目了然。 */
+  .ycell.active:not(.current) {
+    border: 1.5px solid #6b5a3c;
+    background: #faf5e8;
+    box-shadow: inset 0 0 0 1px rgba(107, 90, 60, 0.06);
+  }
+  .ycell.active:not(.current):hover { background: #f5edd6; }
+  /* current + active 同时（点开了当前年那一格）：在黑底上额外加一层暖晕 */
+  .ycell.current.active { box-shadow: 0 0 0 2px rgba(233, 185, 73, .35); }
   .ycell.disabled { cursor: not-allowed; opacity: .45; }
   .ycell.disabled:hover { border-color: var(--line); background: #fff; }
   .ycell.current.disabled:hover { background: var(--ink); }
+  /* disabled cell 被强行点击时：抖一下提示"现在不能点"。
+   * .ycell-shake 由 React 在 click 时 ~400ms 临时挂载。 */
+  .ycell-shake {
+    animation: ycell-shake 380ms cubic-bezier(.36,.07,.19,.97);
+  }
+  @keyframes ycell-shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-3px); }
+    40%, 60% { transform: translateX(3px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ycell-shake { animation: none; }
+  }
   .ln-chip.disabled { cursor: not-allowed !important; opacity: .45 !important; }
   .fallback-hint { font-size: 12px; color: #999; margin-bottom: 6px; font-style: italic; }
   .ref-chip {

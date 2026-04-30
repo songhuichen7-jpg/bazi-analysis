@@ -382,12 +382,12 @@
    * 用 calc 把 lane 0..4 映射到 -10/-3/+4/-6/+8 一类的小幅 */
   padding-top: calc(var(--lane) * 6px);
 }
-/* 5 条 lane 的具体起始 Y，让 5 行人不在同一直线上 */
+/* 5 条 lane 的具体起始 Y，让 5 行人格不在同一水平直线上 */
 .landing-persona-item[style*="--lane:0"] { padding-top: 0; }
-.landing-persona-item[style*="--lane:1"] { padding-top: 16px; }
-.landing-persona-item[style*="--lane:2"] { padding-top: 6px; }
-.landing-persona-item[style*="--lane:3"] { padding-top: 22px; }
-.landing-persona-item[style*="--lane:4"] { padding-top: 10px; }
+.landing-persona-item[style*="--lane:1"] { padding-top: 28px; }
+.landing-persona-item[style*="--lane:2"] { padding-top: 10px; }
+.landing-persona-item[style*="--lane:3"] { padding-top: 38px; }
+.landing-persona-item[style*="--lane:4"] { padding-top: 18px; }
 
 /* halo —— 真正承载"内部呼吸"的层 */
 .landing-persona-halo {
@@ -611,8 +611,33 @@
   letter-spacing: 0.04em;
 }
 
+/* 收尾段的低声 CTA — 不抢风头但给"看完想动手"的访客一个出口 */
+.landing-final-cta {
+  margin: 24px 0 0;
+}
+
+.landing-cta-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border: 1px solid var(--landing-ink);
+  background: transparent;
+  color: var(--landing-ink);
+  font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease, transform .12s ease;
+}
+.landing-cta-quiet:hover {
+  background: var(--landing-ink);
+  color: #fff;
+}
+.landing-cta-quiet:active { transform: translateY(1px); }
+
 .landing-final-foot {
-  margin: 64px 0 0;
+  margin: 56px 0 0;
   color: var(--landing-mute);
   font-size: 11px;
   letter-spacing: 0.42em;

@@ -117,6 +117,9 @@ _DOMAIN_TABLE: dict[str, tuple[dict[str, tuple[str, ...]], str]] = {
     "dayun_step":   ({"domain": ("行运", "用神取舍")}, "大运 用神"),
     "liunian":      ({"domain": ("行运",)}, "流年 岁运 太岁 行运"),
     "special_geju": ({"domain": ("格局成败",)}, "特殊格局 外格"),
+    # 用户问"用一首歌/电影/书形容这盘"——本质是性情+表达层面的比喻，
+    # 走 personality 同款 domain，让 LLM 既有性情材料又能援引五行刚柔
+    "media":        ({"domain": ("性情", "外貌")}, "性情 性格 比喻 形容"),
     "other":        ({"domain": ("用神取舍",)}, ""),
 }
 

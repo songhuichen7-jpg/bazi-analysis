@@ -16,6 +16,7 @@ INTENTS: list[str] = [
     "dayun_step", "liunian",
     "appearance", "special_geju",
     "divination",
+    "media",
 ]
 
 # NOTE: prompts.js:375-387 — keyword sets (order within list does not matter)
@@ -30,14 +31,20 @@ KEYWORDS: dict[str, list[str]] = {
     "special_geju": ['特殊格局','飞天禄马','倒冲','井栏叉','朝阳格','六乙鼠贵','六阴朝阳','金神格','魁罡','日刃','从格','化格','专旺','曲直'],
     "meta":         ['七杀','正官','正财','偏财','食神','伤官','正印','偏印','比肩','劫财','格局','用神','日主','十神','什么意思','怎么理解','是什么'],
     "personality":  ['性格','脾气','我这个人','我是不是','我是不是太','自我','待自己'],
+    # 用户问"用一首歌/一部电影/一本书形容我/这盘"等比喻型问题。前端会
+    # 把回答里的 [[song:...]] / [[movie:...]] / [[book:...]] token 渲染成
+    # 媒体卡片，所以这条 intent 主要是给 UI 一个更准确的标签。
+    "media":        ['用一首歌','用一支歌','用一首曲','用一部电影','用一部影片','用一部剧','用一部纪录片','用一本书','用一本小说','用一本散文','形容我','形容这盘','形容这种','像哪首歌','像哪部电影','像哪本书'],
     "chitchat":     ['你好','您好','hi','hello','谢谢','多谢','辛苦了','感谢','再见'],
 }
 
 # NOTE: prompts.js:391 — divination must come before timing/relationship
+# media 放在 personality 前 — "用一首歌形容我" 同时含"形容我"和"我"，
+# 媒体框架更具体；如果只是问"我是什么样的人"还会走 personality
 PRIORITY: list[str] = [
     "divination", "timing", "relationship", "appearance",
     "career", "wealth", "health", "special_geju",
-    "meta", "personality", "chitchat",
+    "meta", "media", "personality", "chitchat",
 ]
 
 

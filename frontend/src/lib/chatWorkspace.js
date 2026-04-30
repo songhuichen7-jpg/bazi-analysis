@@ -41,12 +41,21 @@ const DEFAULT_OPENING_GUIDE = {
   closing: '也可以什么都不选，我先从整体聊起，后面你随时追问。',
 };
 
-export function mergePromptChips(primary = [], secondary = [], max = 4) {
+export function mergePromptChips(primary = [], secondary = [], max = 4, askedQuestions = []) {
+  // askedQuestions: 当前对话里已经发出的用户问题原文。本来 chip 就是
+  // "你可能想问"的捷径，已问过的还在显示是浪费 + 误导。这里做一次
+  // soft 去重：同字面、或差不多就跳过（短问句很容易完整匹配）。
+  const askedNorm = new Set(
+    (askedQuestions || [])
+      .map((q) => String(q || '').trim())
+      .filter(Boolean),
+  );
   const seen = new Set();
   const merged = [];
   for (const value of [...primary, ...secondary]) {
     const normalized = String(value || '').trim();
     if (!normalized || seen.has(normalized)) continue;
+    if (askedNorm.has(normalized)) continue;
     seen.add(normalized);
     merged.push(normalized);
     if (merged.length >= max) break;

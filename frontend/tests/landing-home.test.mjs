@@ -29,16 +29,17 @@ test('LandingHome covers the editorial single-page narrative', () => {
   assert.match(source, /坐下来谈一谈/);
 });
 
-test('LandingHome CTA is single (Hero only) — Final 段是纯诗意收束, 不重复', () => {
+test('LandingHome 主 CTA 在 Hero, Final 段只有低声 CTA (不与 Hero 同款)', () => {
   const source = fs.readFileSync(new URL('../src/components/landing/LandingHome.jsx', import.meta.url), 'utf8');
-  const matches = source.match(/onClick=\{handleStart\}/g) || [];
-  // 唯一 CTA 在 Hero, Final 段不应再出现
-  assert.equal(matches.length, 1, `expected exactly 1 CTA button, got ${matches.length}`);
+  const handlers = source.match(/onClick=\{handleStart\}/g) || [];
+  // 两处入口：Hero 主 CTA + Final 收束段的低声 CTA。
+  assert.equal(handlers.length, 2, `expected 2 CTA handlers (hero + final), got ${handlers.length}`);
 
-  // Final 段不应再有 CTA 按钮 (纯诗意收尾)
+  // Hero 用 landing-cta-primary（黑底白字），Final 用 landing-cta-quiet（轮廓款）
   const finalSection = source.match(/landing-final[\s\S]*?<\/section>/);
   assert.ok(finalSection, 'expected to find landing-final section');
   assert.doesNotMatch(finalSection[0], /landing-cta-primary/);
+  assert.match(finalSection[0], /landing-cta-quiet/);
 });
 
 test('LandingHome shows user-facing breadth metrics (no dev-internal numbers)', () => {

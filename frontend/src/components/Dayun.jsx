@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import DayunStepBody from './DayunStepBody';
 
@@ -20,7 +20,20 @@ export default function Dayun() {
     return () => clearTimeout(t);
   }, [openIdx]);
 
-  const onClick = (i) => {
+  // 点击 disabled cell 时短暂"摇一下"，避免静默无反馈。
+  const [shakeIdx, setShakeIdx] = useState(null);
+  const shakeTimerRef = useRef(null);
+  useEffect(() => () => {
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+  }, []);
+
+  const onClick = (i, isDisabled) => {
+    if (isDisabled) {
+      if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+      setShakeIdx(i);
+      shakeTimerRef.current = setTimeout(() => setShakeIdx(null), 420);
+      return;
+    }
     if (streaming) return;
     setOpenIdx(openIdx === i ? null : i);
   };
@@ -37,10 +50,12 @@ export default function Dayun() {
               key={i}
               className={'ycell dayun-cell'
                 + (d.current ? ' current' : '')
-                + (isDisabled ? ' disabled' : '')}
+                + (isOpen ? ' active' : '')
+                + (isDisabled ? ' disabled' : '')
+                + (shakeIdx === i ? ' ycell-shake' : '')}
               data-idx={i}
               data-ref={`dayun.${i}`}
-              onClick={() => onClick(i)}
+              onClick={() => onClick(i, isDisabled)}
               title={isDisabled ? '正在生成中，请稍候' : ''}
               style={{ position:'relative' }}
             >

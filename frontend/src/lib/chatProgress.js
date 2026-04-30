@@ -11,6 +11,8 @@ export function createChatProgress({ contextLabel = null, seed = Date.now(), pre
     redirectTo: null,
     seed,
     previousFirst,
+    // 用于显示"已经等了 N 秒"和超过 12s 的"还在算"友好提示
+    startedAt: Date.now(),
   };
 }
 
@@ -94,6 +96,7 @@ export const INTENT_LABELS = {
   special_geju: '特殊格局',
   chitchat: '闲聊',
   divination: '占卜',
+  media: '形容比喻',
   other: '综合',
 };
 

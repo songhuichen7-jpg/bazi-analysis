@@ -272,6 +272,11 @@ export function LandingHome() {
           和自己的时间，<br />
           坐下来谈一谈。
         </h2>
+        <div className="landing-final-cta">
+          <button type="button" className="landing-cta-quiet" onClick={handleStart}>
+            开始排盘 →
+          </button>
+        </div>
         <p className="landing-final-foot">有时 · youshi.app</p>
       </section>
 

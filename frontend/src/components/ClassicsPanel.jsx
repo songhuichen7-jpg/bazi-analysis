@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { renderMd } from './RefChip';
 import ErrorState from './ErrorState';
@@ -6,6 +6,9 @@ import { friendlyError } from '../lib/errorMessages';
 import { buildClassicsDisplayItem } from '../lib/classics';
 
 const DEFAULT_VISIBLE_ITEMS = 2;
+// 古籍 retrieval + LLM 抛光串起来比较慢；超过这个阈值给用户一个
+// "还在翻 / 可重试"的兜底，不要让翻书 loader 永远转。
+const SLOW_HINT_AFTER_MS = 22000;
 
 export default function ClassicsPanel() {
   const classics = useAppStore((s) => s.classics);
@@ -13,9 +16,14 @@ export default function ClassicsPanel() {
   const loadClassics = useAppStore((s) => s.loadClassics);
 
   const [expanded, setExpanded] = useState(false);
+  // 当 isPending 进入第 22s 时切到 true，文案 + 重试出现
+  const [isSlow, setIsSlow] = useState(false);
+  const pendingStartRef = useRef(null);
 
   useEffect(() => {
     setExpanded(false);
+    setIsSlow(false);
+    pendingStartRef.current = null;
   }, [currentId]);
 
   const status = classics?.status || 'idle';
@@ -27,6 +35,23 @@ export default function ClassicsPanel() {
 
   const isPending = (status === 'idle' || status === 'loading') && !items.length;
   const hasContent = items.length > 0;
+
+  useEffect(() => {
+    if (!isPending) {
+      pendingStartRef.current = null;
+      setIsSlow(false);
+      return undefined;
+    }
+    if (pendingStartRef.current == null) pendingStartRef.current = Date.now();
+    const elapsed = Date.now() - pendingStartRef.current;
+    const remaining = Math.max(0, SLOW_HINT_AFTER_MS - elapsed);
+    if (remaining === 0) {
+      setIsSlow(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setIsSlow(true), remaining);
+    return () => clearTimeout(t);
+  }, [isPending, currentId]);
 
   return (
     <div className="classics-panel">
@@ -64,7 +89,20 @@ export default function ClassicsPanel() {
               </div>
             ))}
           </div>
-          <div className="classics-loader-text">正在翻阅古籍</div>
+          <div className="classics-loader-text">
+            {isSlow ? '古籍检索较慢，可点右侧重试' : '正在翻阅古籍'}
+          </div>
+          {isSlow && currentId ? (
+            <button
+              type="button"
+              className="btn-inline classics-loader-retry"
+              onClick={() => {
+                pendingStartRef.current = null;
+                setIsSlow(false);
+                loadClassics(currentId);
+              }}
+            >再试一次</button>
+          ) : null}
         </div>
       ) : null}
 

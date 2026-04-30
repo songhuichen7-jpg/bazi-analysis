@@ -127,8 +127,8 @@ export default function FormScreen() {
           </div>
         </div>
 
-        <details style={{ marginTop:12, fontSize:12, color:'#666' }}>
-          <summary style={{ cursor:'pointer', padding:'4px 0' }}>高级选项</summary>
+        <details className="form-disclosure" style={{ marginTop:12, fontSize:12, color:'#666' }}>
+          <summary>高级选项</summary>
           <div className="form-row" style={{ marginTop:12 }}>
             <label className="form-label">子时派</label>
             <div style={{ display:'flex', gap:24, paddingTop:8 }}>

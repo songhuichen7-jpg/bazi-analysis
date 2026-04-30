@@ -126,16 +126,29 @@
   color: #2a1f12;
   font-size: 13px;
   line-height: 1.6;
+  /* 防止"1993-07-15"被侧栏宽度挤断；min-width:0 给 grid 子元素一个可缩界 */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .share-link-box {
   margin-top: 16px;
-  padding: 12px 0 0;
+  padding: 10px 0 0;
   border-top: 1px solid #ecdfc8;
-  color: #6d665c;
+  color: #9a8866;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.7;
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  /* 长 URL 优先显示前 + 后两段，中间省略；用 css mask 实现"右端柔和淡出" */
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 80%, transparent 100%);
+  /* 兜底：极窄屏下还是允许换行 */
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 

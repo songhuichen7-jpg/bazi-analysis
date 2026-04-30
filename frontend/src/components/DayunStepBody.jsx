@@ -121,10 +121,21 @@ function LiunianChips({ dayunIdx, years }) {
   const setOpenKey = useAppStore((s) => s.setLiunianOpenKey);
   const dayunStreaming = useAppStore((s) => s.dayunStreaming);
   const liunianStreaming = useAppStore((s) => s.liunianStreaming);
+  const [shakeKey, setShakeKey] = useState(null);
+  const shakeTimerRef = useRef(null);
+  useEffect(() => () => {
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+  }, []);
 
-  const onChipClick = (yearIndex) => {
-    if (dayunStreaming || liunianStreaming) return;
+  const onChipClick = (yearIndex, isDisabled) => {
     const key = `${dayunIdx}-${yearIndex}`;
+    if (isDisabled) {
+      if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+      setShakeKey(key);
+      shakeTimerRef.current = setTimeout(() => setShakeKey(null), 420);
+      return;
+    }
+    if (dayunStreaming || liunianStreaming) return;
     setOpenKey(openKey === key ? null : key);
   };
 
@@ -155,9 +166,10 @@ function LiunianChips({ dayunIdx, years }) {
                 + (isCached ? ' ln-cached' : '')
                 + (isOpen ? ' active' : '')
                 + (isDisabled ? ' disabled' : '')
+                + (shakeKey === key ? ' ycell-shake' : '')
               }
               data-ref={`liunian.${year.year}`}
-              onClick={() => onChipClick(yearIndex)}
+              onClick={() => onChipClick(yearIndex, isDisabled)}
               title={isDisabled ? '正在生成中，请稍候' : ''}
             >
               {year.year} {year.gz}
