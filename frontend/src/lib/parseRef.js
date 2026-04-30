@@ -9,8 +9,38 @@ import { useAppStore } from '../store/useAppStore.js';
 // when the LLM isn't sure).
 const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]/g;
 
+// LLMs occasionally serialise our token in malformed shapes — single brackets,
+// markdown-link syntax, etc. Repair the common ones BEFORE the strict parser
+// runs so users don't see "[label](url)" leak into the reply.
+const FIXUP_PATTERNS = [
+  // [label](url) where url looks like a chart-ref id (pillar./shishen./dayun./liunian.)
+  // → [[id|label]]. Caught even when the LLM stuffed extra text into the URL.
+  {
+    re: /\[([^\]]+)\]\(([^)]*?(?:pillar|shishen|dayun|liunian)\.[\w.一-鿿]*)\)/g,
+    repl: (_m, label, urlish) => {
+      const id = String(urlish).match(/(?:pillar|shishen|dayun|liunian)\.[\w.一-鿿]+/)?.[0];
+      return id ? `[[${id}|${label}]]` : _m;
+    },
+  },
+  // Single-bracket media token: [song:歌|艺] → [[song:歌|艺]]
+  {
+    re: /(^|[^\[])\[(song|movie|book):([^|\]]+)(?:\|([^\]]+))?\](?!\])/g,
+    repl: (_m, head, kind, title, sub) =>
+      `${head}[[${kind}:${title}${sub ? '|' + sub : ''}]]`,
+  },
+];
+
+function repairTokens(text) {
+  let out = String(text);
+  for (const { re, repl } of FIXUP_PATTERNS) {
+    out = out.replace(re, repl);
+  }
+  return out;
+}
+
 export function parseRef(text) {
   if (!text) return [];
+  text = repairTokens(text);
   const out = [];
   let last = 0;
   TOKEN_RE.lastIndex = 0;
