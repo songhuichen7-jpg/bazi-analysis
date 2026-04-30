@@ -73,28 +73,38 @@ function Eyebrow({ children }) {
   return <p className="landing-eyebrow">{children}</p>;
 }
 
-// 二十种人格 — 无限左右轮播 (marquee)。轨道里把 PERSONA_POOL 拼两遍，
-// translateX(-50%) 走完后回到原点，CSS 看不出接缝；hover 暂停。这样
-// 20 张插画始终在缓慢流动，访客无需点击就能看到全貌。
+// 二十种人格 — 无限左右轮播。轨道把 PERSONA_POOL 拼两遍 → translate
+// 到 -50% 后回到原点，看不到接缝。每个 item 用 nth-child 拿到一个
+// "lane"（0..4），不同 lane 走不同的 Y-bob / 旋转 / 入场延迟，整列
+// 不再是一条直线，而是"五条略微错位的呼吸线"。中心 spotlight 由
+// CSS 浮层负责，让经过中央的人格感官上更亮、更近。
 function PersonaMarquee() {
-  // 拼两遍以实现无缝循环；React 渲染层不必感知动画，全部交给 CSS。
+  // 拼两遍以实现无缝循环；React 不参与动画，全交给 CSS。
   const looped = [...PERSONA_POOL, ...PERSONA_POOL];
   return (
     <div className="landing-persona-marquee" aria-hidden="true">
+      {/* 中央 spotlight: 顶层一个柔光带，给经过中心的项视觉权重 */}
+      <div className="landing-persona-spotlight" />
       <div className="landing-persona-track">
         {looped.map((p, i) => (
           <div
             key={`${p.id}-${i}`}
             className="landing-persona-item"
-            style={{ '--persona-accent': p.theme }}
+            style={{
+              '--persona-accent': p.theme,
+              // lane 0..4 — 每张图属于一条"高度线"，错峰 Y-bob
+              '--lane': (i % 5),
+            }}
           >
-            <div className="landing-persona-illust">
-              <img
-                src={`/static/cards/illustrations/${p.illustration}`}
-                alt={p.name}
-                loading="lazy"
-                draggable="false"
-              />
+            <div className="landing-persona-halo">
+              <div className="landing-persona-illust">
+                <img
+                  src={`/static/cards/illustrations/${p.illustration}`}
+                  alt={p.name}
+                  loading="lazy"
+                  draggable="false"
+                />
+              </div>
             </div>
             <div className="landing-persona-name serif">{p.name}</div>
             <div className="landing-persona-suffix">{p.suffix}</div>

@@ -298,38 +298,63 @@
   letter-spacing: 0.04em;
 }
 
-/* ── 2. Gallery (二十种人格) — 无限左右轮播 ─────────────────────────
- * 内容只有"真实卡片插画 + 名 + 后缀"，没有卡片框。
- * 轨道把 PERSONA_POOL 拼两遍，CSS 平移 -50% 后视觉上回到原点，
- * 形成永不停的水平流动。两端用 mask-image 做柔和淡出。 */
+/* ── 2. Gallery (二十种人格) — 高级走马灯 ──────────────────────────
+ *
+ * 三层动画叠加，避免"扁平 logo 墙"感：
+ *
+ *   1. 轨道 (.landing-persona-track) 90s 线性平移 → 整列水平流动
+ *   2. 每个 item 按 lane 走 8s 的 Y-bob + 微 rotate → 5 条错峰呼吸
+ *   3. 中央 spotlight 浮层 → 经过中心的人格被柔光"提亮"一层
+ *
+ * 两端 mask 渐隐 + 中心高光 = 一种"舞台聚光"语义，远比单纯横向
+ * 滚动有重量感。 */
 .landing-persona-marquee {
   position: relative;
-  margin-top: 56px;
+  margin-top: 64px;
+  padding: 24px 0;
   overflow: hidden;
-  /* 两侧各留 8% 渐隐区，让人格"从远处来 / 向远处去" */
+  /* 两端各留 12% 渐隐区，比之前更宽，"远处来远处去"感更强 */
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0,
-    #000 9%,
-    #000 91%,
+    #000 12%,
+    #000 88%,
     transparent 100%
   );
   mask-image: linear-gradient(
     90deg,
     transparent 0,
-    #000 9%,
-    #000 91%,
+    #000 12%,
+    #000 88%,
     transparent 100%
   );
 }
 
+/* 中央 spotlight — 一束柔光，宽度约视口的 28%，落在轨道上方
+ * 充当"舞台中心"。pointer-events:none 不挡 hover。 */
+.landing-persona-spotlight {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 28% 78% at 50% 52%,
+    rgba(255, 248, 230, 0.32) 0%,
+    rgba(255, 248, 230, 0.10) 38%,
+    transparent 72%
+  );
+  mix-blend-mode: soft-light;
+}
+
 .landing-persona-track {
+  position: relative;
+  z-index: 1;
   display: flex;
-  gap: 56px;
+  gap: 64px;
   width: max-content;
-  /* 两份 PERSONA_POOL，平移 -50% 即可无缝衔接。
-   * 60s 走一周；hover 暂停，方便用户细看其中一个。 */
-  animation: persona-marquee 60s linear infinite;
+  /* 慢一档：90s 一周 → 平均每张约 4.5s 在视野中央，足够沉淀 */
+  animation: persona-marquee 90s linear infinite;
+  will-change: transform;
 }
 
 .landing-persona-marquee:hover .landing-persona-track {
@@ -341,31 +366,84 @@
   to   { transform: translate3d(-50%, 0, 0); }
 }
 
+/* item 本体不携带任何动画，把动画放到子元素上，避免和 marquee
+ * 的 transform 打架。bob/rotate 都给到 .landing-persona-halo。 */
 .landing-persona-item {
   --persona-accent: #b07a3c;
+  --lane: 0;
   flex-shrink: 0;
-  width: 144px;
+  width: 156px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
+  gap: 18px;
+  /* 每条 lane 的额外起点 Y 偏移（不动画，只是错位）。
+   * 用 calc 把 lane 0..4 映射到 -10/-3/+4/-6/+8 一类的小幅 */
+  padding-top: calc(var(--lane) * 6px);
 }
+/* 5 条 lane 的具体起始 Y，让 5 行人不在同一直线上 */
+.landing-persona-item[style*="--lane:0"] { padding-top: 0; }
+.landing-persona-item[style*="--lane:1"] { padding-top: 16px; }
+.landing-persona-item[style*="--lane:2"] { padding-top: 6px; }
+.landing-persona-item[style*="--lane:3"] { padding-top: 22px; }
+.landing-persona-item[style*="--lane:4"] { padding-top: 10px; }
 
-.landing-persona-illust {
-  width: 132px;
-  height: 132px;
+/* halo —— 真正承载"内部呼吸"的层 */
+.landing-persona-halo {
+  width: 144px;
+  height: 144px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  /* 跟卡片同款光晕，色调由当前人格驱动 */
+  position: relative;
+  /* 双层光晕：里层亮、外层晕开 — 比单层 radial 更"有空气" */
+  background:
+    radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--persona-accent) 28%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 50% 56%,
+      color-mix(in srgb, var(--persona-accent) 14%, transparent) 0%,
+      transparent 78%
+    );
+  /* 8s 的 Y-bob + 微旋转，每条 lane 起始相位错开 → 整列波动 */
+  animation:
+    persona-halo-bob 8.4s ease-in-out infinite,
+    persona-halo-tilt 11s ease-in-out infinite;
+  animation-delay:
+    calc(var(--lane) * -1.7s),
+    calc(var(--lane) * -2.3s);
+  transition: transform 520ms cubic-bezier(.22,.61,.36,1);
+  will-change: transform;
+}
+
+/* 高光环 — 在 halo 外围加一圈极淡的描边光，提升精致感 */
+.landing-persona-halo::before {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  border-radius: 50%;
   background: radial-gradient(
     closest-side,
-    color-mix(in srgb, var(--persona-accent) 22%, transparent),
-    transparent 74%
+    transparent 65%,
+    color-mix(in srgb, var(--persona-accent) 8%, transparent) 78%,
+    transparent 92%
   );
-  transition: transform 520ms cubic-bezier(.22,.61,.36,1);
+  pointer-events: none;
+}
+
+.landing-persona-illust {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .landing-persona-illust img {
@@ -374,30 +452,52 @@
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+  /* 让插画轮廓投出一层与主题色同源的暖光，比 box-shadow 更贴形状 */
+  filter: drop-shadow(
+    0 6px 14px color-mix(in srgb, var(--persona-accent) 32%, transparent)
+  );
 }
 
-.landing-persona-item:hover .landing-persona-illust {
-  transform: scale(1.06);
+@keyframes persona-halo-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+@keyframes persona-halo-tilt {
+  0%, 100% { rotate: -1.2deg; }
+  50%      { rotate:  1.2deg; }
+}
+
+/* hover —— 不放大，反而"把 spotlight 拉到这一项上"：halo 增强 +
+ * 文案抬头。比单纯 scale(1.06) 更有"被点名"的仪式感。 */
+.landing-persona-item:hover .landing-persona-halo {
+  transform: translateY(-4px) scale(1.04);
 }
 
 .landing-persona-name {
   font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
   font-size: 20px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--landing-ink);
   line-height: 1.1;
+  transition: opacity .4s ease;
 }
 
 .landing-persona-suffix {
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 10px;
+  letter-spacing: 0.32em;
   color: var(--landing-mute);
+  /* 全大写感的轴心字号，和大字宋体的名字形成"主题 / 注脚"层次 */
+  text-transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-persona-track { animation: none; }
-  .landing-persona-illust { transition: none; }
+  .landing-persona-track,
+  .landing-persona-halo {
+    animation: none;
+  }
+  .landing-persona-halo,
+  .landing-persona-name { transition: none; }
 }
 
 /* ── 3. Hepan ─────────────────────────────────────────────────────── */
@@ -549,10 +649,11 @@
     gap: 40px;
   }
 
-  .landing-persona-track { gap: 36px; animation-duration: 50s; }
-  .landing-persona-item { width: 116px; gap: 10px; }
-  .landing-persona-illust { width: 104px; height: 104px; }
-  .landing-persona-name { font-size: 18px; }
+  .landing-persona-track { gap: 40px; animation-duration: 70s; }
+  .landing-persona-item { width: 124px; gap: 12px; }
+  .landing-persona-halo { width: 112px; height: 112px; }
+  .landing-persona-name { font-size: 17px; }
+  .landing-persona-suffix { letter-spacing: 0.2em; }
 
   .landing-trust-grid {
     grid-template-columns: repeat(2, 1fr);
