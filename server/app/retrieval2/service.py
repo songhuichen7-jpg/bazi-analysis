@@ -241,10 +241,30 @@ _BM25_ANCHOR_INTENT_KINDS = frozenset({
     "combo.current_yun",
 })
 
+# 锚位优先级 — 数字越小越靠前。combo.day_hour 之类高度具体的诀文匹配
+# 应该排在 user_msg 之前，否则用户随便一句"我的财运怎么样"的 BM25 命中
+# 会把"甲日戊辰時 时上偏财"这种字面命名的诀文挤出最终 K 条。
+_ANCHOR_KIND_PRIORITY: dict[str, int] = {
+    "combo.day_hour": 0,
+    "combo.gan_xiang": 1,
+    "combo.nv_ming": 2,
+    "combo.current_yun": 3,
+    "liu_qin.specific": 4,
+    # shen_sha.<term> → 5 (handled below)
+    "shen_sha.overview": 5,
+    "user_msg": 99,
+}
+
 
 def _is_bm25_anchor_kind(kind: str) -> bool:
     """Match exact kinds plus the dynamic ``shen_sha.<term>`` variants."""
     return kind in _BM25_ANCHOR_INTENT_KINDS or kind.startswith("shen_sha.")
+
+
+def _anchor_kind_rank(kind: str) -> int:
+    if kind.startswith("shen_sha."):
+        return 5
+    return _ANCHOR_KIND_PRIORITY.get(kind, 50)
 
 
 def _promote_bm25_anchors(
@@ -271,13 +291,14 @@ def _promote_bm25_anchors(
     if bm25_idx is None or not intents:
         return fused[:n]
 
+    # 按 anchor 优先级排序后再遍历，让具体诀文（combo.day_hour 等）的
+    # 命中先入池，user_msg 兜底锚最后入。这样在尾段被 _ensure_preferred_hits
+    # 截断时，留下来的最末条也是高信号的具体匹配，不是 generic 文本搜。
+    anchor_intents = [it for it in intents if _is_bm25_anchor_kind(it.kind) and it.text]
+    anchor_intents.sort(key=lambda it: _anchor_kind_rank(it.kind))
     anchor_ids: list[str] = []
     seen_ids: set[str] = set()
-    for it in intents:
-        if not _is_bm25_anchor_kind(it.kind):
-            continue
-        if not it.text:
-            continue
+    for it in anchor_intents:
         for cid, _score in bm25_idx.query(it.text, k=per_intent_k):
             if cid in claims and cid not in seen_ids:
                 anchor_ids.append(cid)
@@ -287,11 +308,25 @@ def _promote_bm25_anchors(
         return fused[:n]
 
     fused_by_id = {item[0]: item for item in fused}
+    # 给 anchor 一个不低于"当前 top fused_score"的保底分。原因：
+    # selector LLM 失败时会 fall back 到按 fused_score 排序的 _topup，
+    # 而我们靠的是把 anchor 放到列表前面的"位置语义"。如果 fused_score
+    # 太低（比如 0.35 = 单独 BM25 通道贡献），_topup 会把它排到 KG 富
+    # 的条目下面 → 又一次绕过锚位。
+    # 把 anchor 抬到 top fused_score 等高（不超过它），保证 sort 稳定后
+    # anchor 仍然在 top 区，且不会超过原本 KG/policy 双高的"主力"条目。
+    top_fused_score = max((s for _, s, _ in fused), default=1.0)
     out: list[tuple[str, float, dict[str, float]]] = []
     placed: set[str] = set()
     for cid in anchor_ids:
-        item = fused_by_id.get(cid) or (cid, 0.5, {"bm25_anchor": 1.0})
-        out.append(item)
+        existing = fused_by_id.get(cid)
+        if existing is not None:
+            base_score, meta = existing[1], dict(existing[2])
+        else:
+            base_score, meta = 0.0, {}
+        meta["bm25_anchor"] = 1.0
+        anchor_score = max(base_score, top_fused_score)
+        out.append((cid, anchor_score, meta))
         placed.add(cid)
         if len(out) >= n:
             return out

@@ -608,6 +608,38 @@ def test_meta_jia_shen_qisha_prefers_core_chart_authorities(mini_index):
     assert "甲木生于卯月" not in first_text
 
 
+def test_anchor_priority_combo_day_hour_beats_user_msg():
+    """Regression for the 三命通会·六甲日戊辰時斷 disappearance.
+
+    Setup: a 甲日戊辰時 chart asking about 财运. The intents include both
+    a `combo.day_hour` BM25 anchor (specific to 甲日戊辰時) and a generic
+    `user_msg` BM25 anchor ("我的财运怎么样"). With wealth policy's 4
+    `preferred_files`, only ~2 slots remain for non-preferred hits — so
+    if `user_msg` anchors are placed before `combo.day_hour` anchors,
+    the day-hour-specific 三命通会 chunks get pushed out of the final K.
+
+    The fix ensures combo.day_hour anchors come first in the candidate
+    pool, so the day-hour catalog entry survives the preferred-files cut.
+    """
+    from app.retrieval2.service import _anchor_kind_rank, _is_bm25_anchor_kind
+
+    # The kinds we care about: combo.day_hour ranks lower (= higher priority)
+    # than user_msg.
+    assert _is_bm25_anchor_kind("combo.day_hour")
+    assert _is_bm25_anchor_kind("user_msg")
+    assert _anchor_kind_rank("combo.day_hour") < _anchor_kind_rank("user_msg"), (
+        "combo.day_hour must outrank user_msg, otherwise generic chat-message "
+        "BM25 hits will displace specific 日时诀文 anchors from the final K"
+    )
+    # All other anchor kinds (combo.*, liu_qin.*, shen_sha.*) should also
+    # rank above user_msg.
+    for kind in ("combo.gan_xiang", "combo.nv_ming", "combo.current_yun",
+                 "liu_qin.specific", "shen_sha.overview", "shen_sha.魁罡"):
+        assert _anchor_kind_rank(kind) < _anchor_kind_rank("user_msg"), (
+            f"specific anchor {kind!r} must outrank generic user_msg"
+        )
+
+
 def test_meta_jia_shen_qisha_reinserts_preferred_anchors(mini_index, monkeypatch):
     async def stub_select(chart, intents, user_msg, candidates, *, k=6,
                           max_candidates=30, timeout_seconds=20.0, policy_hint=""):
