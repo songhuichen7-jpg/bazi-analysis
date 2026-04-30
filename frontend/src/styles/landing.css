@@ -217,6 +217,67 @@
   color: var(--landing-ink);
   letter-spacing: 0.04em;
   font-weight: 400;
+  /* 锁定两行高度，避免一行 ↔ 两行问题导致面板跳高 */
+  min-height: calc(2.05em * 2);
+}
+
+/* ── Hero mockup 轮播动画 ──────────────────────────────────────────
+ * data-phase="out": 内容淡出（透明 + 上飘 + 微模糊）
+ * data-phase="in":  新内容淡入（从下飘上来 + 解模糊）
+ * 节奏使用 ease-out（出场快、入场缓），让切换"软"而不"散"。 */
+.landing-mockup-pillars[data-phase],
+.landing-mockup-bubble[data-phase] {
+  transition:
+    opacity 460ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 460ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 460ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.landing-mockup-bubble[data-phase='out'] {
+  opacity: 0;
+  transform: translateY(-6px);
+  filter: blur(2px);
+}
+
+.landing-mockup-bubble[data-phase='in'] {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* 三个干支格子分别独立动画，再用 --cell-delay 错峰
+ * 让 (干 → 支 → 格局) 像被一只手轻轻摆上去。 */
+.landing-mockup-pillars[data-phase] .landing-mockup-cell {
+  transition:
+    opacity 460ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 460ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 460ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: var(--cell-delay, 0ms);
+}
+
+.landing-mockup-pillars[data-phase='out'] .landing-mockup-cell {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.985);
+  filter: blur(2px);
+  /* out 阶段反向错峰（最后一格先走），避免 in/out 看起来对称死板 */
+  transition-delay: calc(140ms - var(--cell-delay, 0ms));
+}
+
+.landing-mockup-pillars[data-phase='in'] .landing-mockup-cell {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-mockup-pillars[data-phase],
+  .landing-mockup-bubble[data-phase],
+  .landing-mockup-pillars[data-phase] .landing-mockup-cell {
+    transition: opacity 180ms linear;
+    transform: none !important;
+    filter: none !important;
+    transition-delay: 0ms !important;
+  }
 }
 
 /* ── Section title (所有非 hero 的大字标题) ───────────────────────── */
