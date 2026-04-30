@@ -50,7 +50,12 @@ function inferMediaKind(context) {
   return null;
 }
 
-const TITLE_QUOTE_RE = /《([^《》]{1,40})》(?:\s*[—-]+\s*([^，。；,;.!\n\s]{1,20}))?/g;
+// Match 《X》 plus optional "—— 艺人/导演" subtitle, plus optionally an
+// orphan sentence-ending punct ([。！？.!?]) ONLY when followed by newline
+// or end-of-string. This eats the dangling 。 next to a card-as-sentence
+// (e.g. "《肖申克的救赎》。\n\n…") without disturbing 《X》 mid-sentence
+// (e.g. "我喜欢《肖申克》。它讲的是…" keeps its sentence break intact).
+const TITLE_QUOTE_RE = /《([^《》]{1,40})》(?:\s*[—-]+\s*([^，。；,;.!\n\s]{1,20}))?(?:[。！？.!?](?=\s*$|\s*\n))?/g;
 
 function rescueQuotedTitles(text, kind) {
   if (!kind) return text;
