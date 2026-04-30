@@ -4,11 +4,21 @@ export function createChatProgress({ contextLabel = null, seed = Date.now(), pre
     phase: 'idle',
     hasOutput: false,
     intent: null,
+    intentReason: null,
     hasRetrieval: false,
+    retrievalSources: [],
+    modelUsed: null,
     redirectTo: null,
     seed,
     previousFirst,
   };
+}
+
+function parseSources(raw) {
+  return String(raw || '')
+    .split(/\s*\+\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function applyChatProgressEvent(progress, event) {
@@ -20,17 +30,23 @@ export function applyChatProgressEvent(progress, event) {
         ...current,
         phase: 'routing',
         intent: event.intent || null,
+        intentReason: event.reason || null,
       };
 
     case 'retrieval':
       return {
         ...current,
-        phase: 'streaming',
+        phase: 'retrieving',
         hasRetrieval: true,
+        retrievalSources: parseSources(event.source),
       };
 
     case 'model':
-      return current;
+      return {
+        ...current,
+        phase: current.hasOutput ? current.phase : 'composing',
+        modelUsed: event.modelUsed || null,
+      };
 
     case 'delta':
       if (current.hasOutput) return current;
@@ -62,4 +78,26 @@ export function applyChatProgressEvent(progress, event) {
     default:
       return current;
   }
+}
+
+export const INTENT_LABELS = {
+  relationship: '感情',
+  career: '事业',
+  wealth: '财运',
+  timing: '时机',
+  liunian: '流年',
+  dayun_step: '大运',
+  personality: '性格',
+  health: '身体',
+  meta: '命理概念',
+  appearance: '外貌',
+  special_geju: '特殊格局',
+  chitchat: '闲聊',
+  divination: '占卜',
+  other: '综合',
+};
+
+export function intentLabel(intent) {
+  if (!intent) return '';
+  return INTENT_LABELS[intent] || intent;
 }

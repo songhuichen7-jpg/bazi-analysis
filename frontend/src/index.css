@@ -620,94 +620,100 @@
     min-width: 0;
   }
   .msg-ai-body { color: #25211b; }
-  .thinking-indicator {
+  /* ── 阶段进度型思考指示器 ───────────────────────────────────
+     intent → retrieval → model → streaming. 每步随 SSE 事件出现,
+     已完成步打 ✓,当前步呼吸,左侧用细线串成时间轴. */
+  .thinking-steps {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 12px;
-    align-items: start;
-    max-width: 34rem;
-    color: #635846;
+    gap: 4px;
+    max-width: 36rem;
+    color: #4d4538;
+    font-size: 13px;
+    line-height: 1.55;
   }
-  .thinking-signal {
+  .thinking-step {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 10px;
+    padding: 4px 0;
     position: relative;
-    width: 34px;
-    height: 28px;
-    margin-top: 2px;
+    animation: thinking-step-in 0.32s ease both;
   }
-  .thinking-dot {
+  .thinking-step:not(:last-child)::after {
+    content: "";
     position: absolute;
-    left: 2px;
-    top: 9px;
+    left: 8px;
+    top: 22px;
+    bottom: -4px;
+    width: 1px;
+    background: rgba(99, 88, 70, 0.18);
+  }
+  .thinking-step-marker {
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    border-radius: 999px;
+    border: 1px solid rgba(99, 88, 70, 0.5);
+    background: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    color: #fff;
+    line-height: 1;
+    z-index: 1;
+  }
+  .thinking-step-done .thinking-step-marker {
+    background: #3b3328;
+    border-color: #3b3328;
+  }
+  .thinking-step-active .thinking-step-marker {
+    border-color: #3b3328;
+    background: #fff;
+    position: relative;
+  }
+  .thinking-step-active .thinking-step-marker::before {
+    content: "";
     width: 8px;
     height: 8px;
     border-radius: 999px;
     background: #3b3328;
-    box-shadow: 0 0 0 0 rgba(59, 51, 40, .16);
-    animation: thinking-breathe 1.6s ease-in-out infinite;
+    animation: thinking-pulse 1.5s ease-in-out infinite;
   }
-  .thinking-line {
-    position: absolute;
-    left: 16px;
-    right: 0;
-    top: 12px;
-    height: 1px;
-    overflow: hidden;
-    background: rgba(99, 88, 70, .18);
+  .thinking-step-stopped .thinking-step-marker {
+    border-color: #9a5a5a;
+    color: #9a5a5a;
+    background: #fff;
   }
-  .thinking-line::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    width: 45%;
-    background: linear-gradient(90deg, transparent, rgba(59, 51, 40, .62), transparent);
-    animation: thinking-scan 1.9s ease-in-out infinite;
+  .thinking-step-label {
+    color: #4d4538;
   }
-  .thinking-copy {
-    display: grid;
-    gap: 4px;
-    padding-top: 1px;
+  .thinking-step-active .thinking-step-label {
+    color: #2c2418;
+    font-weight: 500;
   }
-  .thinking-copy-line {
-    font-size: 13px;
-    line-height: 1.7;
-    color: #6d6353;
-    opacity: 0;
-    transform: translateY(3px);
-    animation: thinking-copy-in .42s ease forwards;
-    animation-delay: calc(var(--line-index) * .72s);
+  .thinking-step-done .thinking-step-label { color: #6d6353; }
+  .thinking-step-stopped .thinking-step-label { color: #9a5a5a; }
+  .thinking-step-detail {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #8a8270;
+    letter-spacing: 0.2px;
   }
-  .thinking-indicator.stopped .thinking-dot {
-    background: #9a5a5a;
-    animation: none;
+  @keyframes thinking-step-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  .thinking-indicator.stopped .thinking-line::after {
-    animation: none;
-    background: rgba(154, 90, 90, .5);
+  @keyframes thinking-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.85); }
+    50%      { opacity: 1;    transform: scale(1); }
   }
   .msg-ai .inline-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   .stream-cursor::after { content: "▎"; margin-left: 2px; opacity: .6; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: 0; } }
-  @keyframes thinking-breathe {
-    0%, 100% { opacity: .45; transform: scale(.84); box-shadow: 0 0 0 0 rgba(59, 51, 40, .16); }
-    45% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 7px rgba(59, 51, 40, 0); }
-  }
-  @keyframes thinking-scan {
-    0% { transform: translateX(-110%); opacity: 0; }
-    24%, 68% { opacity: 1; }
-    100% { transform: translateX(230%); opacity: 0; }
-  }
-  @keyframes thinking-copy-in {
-    to { opacity: 1; transform: translateY(0); }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .thinking-dot,
-    .thinking-line::after,
-    .thinking-copy-line {
+    .thinking-step,
+    .thinking-step-active .thinking-step-marker::before {
       animation: none;
-    }
-    .thinking-copy-line {
-      opacity: 1;
-      transform: none;
     }
   }
 

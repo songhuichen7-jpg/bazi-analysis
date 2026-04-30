@@ -9,30 +9,104 @@ import { friendlyError } from '../lib/errorMessages';
 import ConversationSwitcher from './ConversationSwitcher';
 import { buildChatWorkspace, mergePromptChips } from '../lib/chatWorkspace';
 import { buildChatClientContext } from '../lib/chatClientContext';
-import { applyChatProgressEvent, createChatProgress } from '../lib/chatProgress';
-import { buildThinkingSequence } from '../lib/chatThinking';
+import { applyChatProgressEvent, createChatProgress, intentLabel } from '../lib/chatProgress';
 
-function ThinkingIndicator({ trace, hasClassics, previousFirst }) {
-  const lines = buildThinkingSequence({
-    intent: trace?.intent,
-    hasClassics: !!(hasClassics || trace?.hasRetrieval),
-    previousFirst,
-    seed: trace?.seed || 0,
+/** Compact phase-aware progress: shows real backend SSE events as a vertical
+ *  step list (intent → retrieval → model → streaming). Each step appears
+ *  the moment its event arrives — pending steps are not rendered, so the
+ *  indicator grows downward as the request progresses. */
+function ThinkingIndicator({ trace }) {
+  const phase = trace?.phase || 'idle';
+  const stopped = phase === 'stopped';
+  const redirected = phase === 'redirect';
+  const intent = trace?.intent || null;
+  const sources = Array.isArray(trace?.retrievalSources) ? trace.retrievalSources : [];
+  const model = trace?.modelUsed || '';
+  const hasOutput = !!trace?.hasOutput;
+  const skipRetrieval = intent === 'chitchat' || redirected;
+  const past = (target) => {
+    const order = ['idle', 'routing', 'retrieving', 'composing', 'streaming', 'done'];
+    return order.indexOf(phase) > order.indexOf(target);
+  };
+
+  const steps = [];
+  // Step 1: intent
+  steps.push({
+    key: 'intent',
+    state: intent ? (past('routing') || phase === 'routing' && hasOutput ? 'done' : (phase === 'routing' && !past('routing') ? 'done' : 'done')) : 'active',
+    label: intent ? `已识别意图  ${intentLabel(intent)}` : '正在识别意图…',
   });
-  const stopped = trace?.phase === 'stopped';
+  // Step 2: retrieval (skip for chitchat / divination redirect)
+  if (!skipRetrieval) {
+    if (trace?.hasRetrieval) {
+      const hint = sources.length > 3
+        ? sources.slice(0, 3).join('  ·  ') + `  …等 ${sources.length} 条`
+        : sources.join('  ·  ');
+      steps.push({
+        key: 'retrieval',
+        state: past('retrieving') ? 'done' : 'done',
+        label: `翻阅古籍  ${sources.length} 段`,
+        detail: hint,
+      });
+    } else if (intent && !redirected) {
+      steps.push({
+        key: 'retrieval',
+        state: 'active',
+        label: '翻阅古籍中…',
+      });
+    }
+  }
+  // Step 3: model
+  if (!redirected) {
+    if (model) {
+      steps.push({
+        key: 'model',
+        state: hasOutput ? 'done' : 'done',
+        label: '起笔',
+        detail: model,
+      });
+    } else if (trace?.hasRetrieval || skipRetrieval) {
+      steps.push({
+        key: 'model',
+        state: 'active',
+        label: '调用模型中…',
+      });
+    }
+  }
+  // Step 4: streaming / done / stopped / redirect
+  if (redirected) {
+    steps.push({
+      key: 'redirect',
+      state: 'active',
+      label: '此问题适合起卦,已为你转入占卜流程',
+    });
+  } else if (stopped) {
+    steps.push({
+      key: 'stopped',
+      state: 'stopped',
+      label: '已停止',
+    });
+  } else if (hasOutput || phase === 'streaming') {
+    steps.push({
+      key: 'streaming',
+      state: 'active',
+      label: '正在回复',
+    });
+  }
+
   return (
-    <div className={'thinking-indicator' + (stopped ? ' stopped' : '')} role="status" aria-live="polite">
-      <div className="thinking-signal" aria-hidden="true">
-        <span className="thinking-dot" />
-        <span className="thinking-line" />
-      </div>
-      <div className="thinking-copy">
-        {(stopped ? ['已停止'] : lines).map((line, index) => (
-          <div className="thinking-copy-line" style={{ '--line-index': index }} key={`${line}-${index}`}>
-            {line}
+    <div className="thinking-steps" role="status" aria-live="polite">
+      {steps.map((step) => (
+        <div className={`thinking-step thinking-step-${step.state}`} key={step.key}>
+          <span className="thinking-step-marker" aria-hidden="true">
+            {step.state === 'done' ? '✓' : step.state === 'stopped' ? '×' : ''}
+          </span>
+          <div className="thinking-step-body">
+            <div className="thinking-step-label">{step.label}</div>
+            {step.detail ? <div className="thinking-step-detail">{step.detail}</div> : null}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -134,7 +208,6 @@ export default function Chat() {
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const streamAbortRef = useRef(null);
-  const lastThinkingFirstRef = useRef('');
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -183,15 +256,7 @@ export default function Chat() {
   }
 
   function beginTrace() {
-    const seed = Date.now();
-    const previousFirst = lastThinkingFirstRef.current;
-    const initialLines = buildThinkingSequence({
-      hasClassics: !!(classics?.items || []).length,
-      previousFirst,
-      seed,
-    });
-    lastThinkingFirstRef.current = initialLines[0] || previousFirst;
-    setChatTrace(createChatProgress({ contextLabel: workspace.contextLabel, seed, previousFirst }));
+    setChatTrace(createChatProgress({ contextLabel: workspace.contextLabel, seed: Date.now() }));
   }
 
   function updateTrace(event) {
@@ -562,11 +627,7 @@ export default function Chat() {
             <div className="msg msg-ai" key={i}>
               <div className={'msg-ai-card' + (!m.content && !(isLast && traceVisible) ? ' loading' : '')}>
                 {isLast && traceVisible ? (
-                  <ThinkingIndicator
-                    trace={chatTrace}
-                    hasClassics={!!(classics?.items || []).length}
-                    previousFirst={chatTrace?.previousFirst}
-                  />
+                  <ThinkingIndicator trace={chatTrace} />
                 ) : null}
                 <div className="msg-ai-body">
                   {m.content ? <RichText text={m.content} /> : null}
