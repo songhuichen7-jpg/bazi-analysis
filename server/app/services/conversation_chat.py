@@ -16,7 +16,7 @@ from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
 from app.models.user import User
 from app.prompts import expert as prompts_expert
-from app.prompts.router import looks_like_followup
+from app.prompts.router import classify_by_keywords, looks_like_followup
 from app.retrieval2.service import retrieve_for_chart
 from app.services import message as msg_svc
 from app.services import conversation_memory as memory_svc
@@ -36,19 +36,28 @@ async def stream_message(
     history = await msg_svc.context_chat_history(db, conversation_id=conversation_id)
     memory_summary = await memory_svc.get_summary(db, conversation_id=conversation_id)
 
-    # Follow-up fast path: short messages with continuation cues ("再来一部",
-    # "为什么", "具体讲讲", "换一个" …) inherit the previous assistant turn's
-    # intent and skip the LLM router entirely. This kills the parse_failed →
-    # "other" → re-retrieval drift that made follow-up replies switch topics.
+    # Resolution order — first match wins:
+    #   1. keyword fast-path  ("我的财运怎么样" → wealth)
+    #         · A clear topic word ALWAYS beats a follow-up cue. "那财运呢"
+    #           contains the cue 那 but is a topic switch, so we route as
+    #           wealth (re-retrieve), not as a follow-up.
+    #   2. follow-up fast-path ("再来一部" / "具体讲讲" / "嗯,继续")
+    #         · Only fires when the message has no recognised topic keyword.
+    #         · Inherits the previous assistant turn's intent and skips
+    #           retrieval so the conversation feels continuous.
+    #   3. LLM router fallback (anything left)
     inherited_intent: str | None = None
-    if looks_like_followup(message):
+    keyword_routed = classify_by_keywords(message)
+    if not keyword_routed and looks_like_followup(message):
         inherited_intent = await msg_svc.latest_assistant_intent(
             db, conversation_id=conversation_id,
         )
 
     await msg_svc.insert(db, conversation_id=conversation_id, role="user", content=message)
 
-    if inherited_intent:
+    if keyword_routed:
+        routed = keyword_routed
+    elif inherited_intent:
         routed = {
             "intent": inherited_intent,
             "reason": "follow-up of previous turn",
