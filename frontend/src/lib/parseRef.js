@@ -8,6 +8,12 @@ import { useAppStore } from '../store/useAppStore.js';
 // Subtitle is optional for media tokens (artist/director/author can be absent
 // when the LLM isn't sure).
 const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]/g;
+// Media cards render as their own paragraph, so a trailing 。/！/？ that
+// only existed to terminate the sentence around the card looks like an
+// orphan. Eat one such char immediately after a media token, but only if
+// nothing else follows on that line (i.e. the card IS the sentence).
+// Chart refs are inline labels and don't get this treatment.
+const MEDIA_TRAILING_PUNCT_RE = /[。！？.!?](?=\s*$|\s*\n)/y;
 
 // LLMs occasionally serialise our token in malformed shapes — single brackets,
 // markdown-link syntax, etc. Repair the common ones BEFORE the strict parser
@@ -75,6 +81,7 @@ export function parseRef(text, options = {}) {
   let m;
   while ((m = TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) out.push({ type: 'text', value: text.slice(last, m.index) });
+    let cursor = m.index + m[0].length;
     if (m[1]) {
       out.push({
         type: 'media',
@@ -82,10 +89,16 @@ export function parseRef(text, options = {}) {
         title: (m[2] || '').trim(),
         subtitle: (m[3] || '').trim(),
       });
+      // Eat at most one orphaned end-of-sentence punct after the card.
+      MEDIA_TRAILING_PUNCT_RE.lastIndex = cursor;
+      if (MEDIA_TRAILING_PUNCT_RE.test(text)) {
+        cursor = MEDIA_TRAILING_PUNCT_RE.lastIndex;
+        TOKEN_RE.lastIndex = cursor;
+      }
     } else {
       out.push({ type: 'ref', id: m[4], label: m[5] });
     }
-    last = m.index + m[0].length;
+    last = cursor;
   }
   if (last < text.length) out.push({ type: 'text', value: text.slice(last) });
   return out;
