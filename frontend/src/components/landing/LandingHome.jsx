@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
-import { CosmicCardPreview } from './CosmicCardPreview.jsx';
+import { ILLUSTRATIONS } from './CosmicCardPreview.jsx';
 import { HepanCardPreview } from './HepanCardPreview.jsx';
 
 // Hero mockup 轮播：左边一柱日干 + 日支 + 格局，右边配一句"有意思"的问题。
@@ -29,12 +29,18 @@ const HERO_SCENES = [
 const HERO_SCENE_INTERVAL_MS = 4200;
 const HERO_FADE_MS = 460;
 
-const SHOWCASE_TYPES = [
-  { id: '01', name: '春笋', suffix: '反脆弱型', oneLiner: '越压越往上长', theme: '#2D6A4F', illust: 'bamboo' },
-  { id: '03', name: '萨摩耶', suffix: '天生享乐家', oneLiner: '看着随和，底线焊死', theme: '#52B788', illust: 'samoye' },
-  { id: '08', name: '小夜灯', suffix: '灵感深潜者', oneLiner: '光不大，但一直亮着', theme: '#2B6CB0', illust: 'lamp' },
-  { id: '20', name: '蒲公英', suffix: '风一吹就上路', oneLiner: '轻得像没事', theme: '#4AC4C0', illust: 'dandelion' },
+// 第二屏的人格池 — 5 种意象，每个 slot 独立轮播。每次只动一个 slot，
+// 整体看起来像"四张画在自己呼吸"，而不是排队换班。
+const PERSONA_POOL = [
+  { name: '春笋',   suffix: '反脆弱型',     theme: '#2D6A4F', illust: 'bamboo' },
+  { name: '萨摩耶', suffix: '天生享乐家',   theme: '#52B788', illust: 'samoye' },
+  { name: '小夜灯', suffix: '灵感深潜者',   theme: '#2B6CB0', illust: 'lamp' },
+  { name: '河豚',   suffix: '看着萌但有刺', theme: '#3F8D8C', illust: 'puffer' },
+  { name: '蒲公英', suffix: '风一吹就上路', theme: '#4AC4C0', illust: 'dandelion' },
 ];
+const PERSONA_SLOT_COUNT = 4;
+const PERSONA_TICK_MS = 1300;   // 每 tick 推进一个 slot, round-robin
+const PERSONA_FADE_MS = 520;    // out → swap → in 之间的 fade 时长
 
 const RELATION_CATEGORIES = [
   { emoji: '🤝', label: '天作' },
@@ -53,6 +59,96 @@ const TRUST_METRICS = [
 
 function Eyebrow({ children }) {
   return <p className="landing-eyebrow">{children}</p>;
+}
+
+// 二十种人格 — 4 个 slot 错峰独立轮换。每个 slot 维护自己的 phase
+// (in / out)，全局 tick 计数 round-robin 推进，下一个 slot 在前一个
+// fade-in 之后才开始 fade-out，看起来像一个"波"扫过去。
+function PersonaCarousel() {
+  const [indices, setIndices] = useState(() =>
+    Array.from({ length: PERSONA_SLOT_COUNT }, (_, i) => i % PERSONA_POOL.length),
+  );
+  const [displayed, setDisplayed] = useState(() =>
+    Array.from({ length: PERSONA_SLOT_COUNT }, (_, i) => i % PERSONA_POOL.length),
+  );
+  const [phases, setPhases] = useState(
+    () => Array(PERSONA_SLOT_COUNT).fill('in'),
+  );
+
+  // 全局轮询 — 每 tick 只让一个 slot 换身。挑下一个 persona 时
+  // 排除"自己当前的"+"其它 slot 正在显示的"，保证四个 slot 永远不撞图。
+  useEffect(() => {
+    let tick = 0;
+    const timer = setInterval(() => {
+      const slot = tick % PERSONA_SLOT_COUNT;
+      tick += 1;
+      setIndices((prev) => {
+        const next = [...prev];
+        const otherIndices = next.filter((_, s) => s !== slot);
+        const choices = PERSONA_POOL.map((_, i) => i).filter(
+          (i) => i !== next[slot] && !otherIndices.includes(i),
+        );
+        if (choices.length === 0) return prev; // 池太小时保底，不换
+        next[slot] = choices[Math.floor(Math.random() * choices.length)];
+        return next;
+      });
+    }, PERSONA_TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  // indices 某个 slot 变了 → 该 slot phase=out → 等 fade → 把 displayed
+  // 写到新 idx → phase=in。其它 slot 不动。
+  useEffect(() => {
+    const timeouts = [];
+    indices.forEach((idx, slot) => {
+      if (idx === displayed[slot]) return;
+      setPhases((prev) => {
+        if (prev[slot] === 'out') return prev;
+        const next = [...prev];
+        next[slot] = 'out';
+        return next;
+      });
+      const t = setTimeout(() => {
+        setDisplayed((prev) => {
+          const next = [...prev];
+          next[slot] = idx;
+          return next;
+        });
+        setPhases((prev) => {
+          const next = [...prev];
+          next[slot] = 'in';
+          return next;
+        });
+      }, PERSONA_FADE_MS);
+      timeouts.push(t);
+    });
+    return () => timeouts.forEach((t) => clearTimeout(t));
+  }, [indices, displayed]);
+
+  return (
+    <div className="landing-persona-carousel" aria-hidden="true">
+      {displayed.map((poolIdx, slot) => {
+        const persona = PERSONA_POOL[poolIdx];
+        const Illust = ILLUSTRATIONS[persona.illust] || ILLUSTRATIONS.bamboo;
+        const phase = phases[slot];
+        return (
+          <div
+            key={slot}
+            className="landing-persona-slot"
+            style={{ '--persona-accent': persona.theme }}
+          >
+            <div className="landing-persona-illust" data-phase={phase}>
+              <Illust />
+            </div>
+            <div className="landing-persona-caption" data-phase={phase}>
+              <div className="landing-persona-name serif">{persona.name}</div>
+              <div className="landing-persona-suffix">{persona.suffix}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function LandingHome() {
@@ -146,23 +242,8 @@ export function LandingHome() {
           二十种意象，让命理结构变成可以被记住的人。
         </p>
 
-        <div id="gallery" className="landing-gallery-row">
-          {SHOWCASE_TYPES.map((t, i) => (
-            <div
-              key={t.id}
-              className={`landing-gallery-item ${i % 2 === 1 ? 'landing-gallery-offset' : ''}`}
-            >
-              <CosmicCardPreview
-                id={t.id}
-                name={t.name}
-                suffix={t.suffix}
-                oneLiner={t.oneLiner}
-                theme={t.theme}
-                illustKind={t.illust}
-                size="small"
-              />
-            </div>
-          ))}
+        <div id="gallery">
+          <PersonaCarousel />
         </div>
       </section>
 

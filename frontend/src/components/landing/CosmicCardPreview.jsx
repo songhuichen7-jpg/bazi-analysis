@@ -7,7 +7,7 @@
 //   'hero'  — 240px 宽 (Hero 区主角)
 //   'small' — 自适应 flex (Gallery 4 张并排)
 
-const ILLUSTRATIONS = {
+export const ILLUSTRATIONS = {
   bamboo: () => (
     <svg viewBox="0 0 100 100" fill="none">
       <path d="M50 86 L50 36" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />

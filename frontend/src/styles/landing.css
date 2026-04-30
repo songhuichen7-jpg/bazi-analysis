@@ -298,30 +298,115 @@
   letter-spacing: 0.04em;
 }
 
-/* ── 2. Gallery (二十种人格) ─────────────────────────────────────── */
-.landing-gallery-row {
+/* ── 2. Gallery (二十种人格) — 四 slot 错峰轮换的插画带 ─────────────
+ * 卡片去掉了，只剩"圆形光晕 + SVG 意象 + 名 + 后缀"。每个 slot 的
+ * 内容由 React 状态驱动，用 [data-phase=in/out] 做 520ms 的 crossfade。 */
+.landing-persona-carousel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 36px;
+  margin-top: 48px;
+  align-items: start;
+}
+
+.landing-persona-slot {
+  --persona-accent: #b07a3c;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 18px;
-  align-items: flex-start;
-  margin-top: 24px;
 }
 
-.landing-gallery-item {
-  flex: 1 1 0;
-  min-width: 0;
-  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+.landing-persona-illust {
+  width: 112px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* 光晕背景跟着 persona-accent 走，crossfade 同时换色 */
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--persona-accent) 20%, transparent),
+    transparent 72%
+  );
+  color: var(--persona-accent);
+  transition:
+    opacity 520ms cubic-bezier(.22,.61,.36,1),
+    transform 520ms cubic-bezier(.22,.61,.36,1),
+    filter 520ms cubic-bezier(.22,.61,.36,1),
+    background 520ms cubic-bezier(.22,.61,.36,1);
 }
 
-.landing-gallery-offset {
-  transform: translateY(-16px);
+.landing-persona-illust svg {
+  width: 70%;
+  height: 70%;
+  /* SVG 自身轻微浮动，缓慢的 6s 上下呼吸 */
+  animation: persona-illust-breathe 6s ease-in-out infinite;
 }
 
-.landing-gallery-item:hover {
-  transform: translateY(-26px);
+/* phase=out: 上飘 + 缩 + 模糊 + 透明
+ * phase=in:  归位                                             */
+.landing-persona-illust[data-phase='out'] {
+  opacity: 0;
+  transform: scale(.94) translateY(-3px);
+  filter: blur(2.5px);
+}
+.landing-persona-illust[data-phase='in'] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  filter: blur(0);
 }
 
-.landing-gallery-offset:hover {
-  transform: translateY(-38px);
+.landing-persona-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition:
+    opacity 520ms cubic-bezier(.22,.61,.36,1),
+    transform 520ms cubic-bezier(.22,.61,.36,1);
+  /* 比 illust 稍晚一点跟上来，给"画先到，名再到"的层次感 */
+  transition-delay: 60ms;
+}
+.landing-persona-caption[data-phase='out'] {
+  opacity: 0;
+  transform: translateY(2px);
+  transition-delay: 0ms;
+}
+.landing-persona-caption[data-phase='in'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-persona-name {
+  font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--landing-ink);
+  line-height: 1.1;
+}
+
+.landing-persona-suffix {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--landing-mute);
+}
+
+@keyframes persona-illust-breathe {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-persona-illust,
+  .landing-persona-caption {
+    transition: opacity 200ms linear;
+    transform: none !important;
+    filter: none !important;
+  }
+  .landing-persona-illust svg { animation: none; }
 }
 
 /* ── 3. Hepan ─────────────────────────────────────────────────────── */
@@ -473,18 +558,14 @@
     gap: 40px;
   }
 
-  .landing-gallery-row {
-    flex-wrap: wrap;
-    gap: 12px;
+  .landing-persona-carousel {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 36px 24px;
+    margin-top: 36px;
   }
 
-  .landing-gallery-item {
-    flex: 1 1 calc(50% - 6px);
-    min-width: calc(50% - 6px);
-  }
-
-  .landing-gallery-offset {
-    transform: translateY(0);
+  .landing-persona-illust {
+    width: 96px;
   }
 
   .landing-trust-grid {

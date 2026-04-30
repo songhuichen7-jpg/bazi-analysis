@@ -50,7 +50,8 @@ test('LandingHome shows user-facing breadth metrics (no dev-internal numbers)', 
   assert.match(source, /210.*?关系组合/);
   assert.doesNotMatch(source, /632/);
   assert.doesNotMatch(source, /单元测试/);
-  assert.match(source, /SHOWCASE_TYPES/);
+  // 老 gallery 用 SHOWCASE_TYPES，新轮播用 PERSONA_POOL；任一存在都算合格
+  assert.match(source, /SHOWCASE_TYPES|PERSONA_POOL/);
 });
 
 test('LandingHome 不暴露内部方法论给用户 ("正面重构"/"LLM"/"反幻觉")', () => {
