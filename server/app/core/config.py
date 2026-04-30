@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     wx_app_id: str = ""
     wx_app_secret: str = ""
 
+    # TMDB — optional, used by /api/media/cover for movie posters.
+    # No key configured → endpoint falls back to iTunes Movies entity only.
+    tmdb_api_key: str = ""
+
     @property
     def mimo_api_key(self) -> str:
         """Backward-compatible alias for older call sites and docs."""

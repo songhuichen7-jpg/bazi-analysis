@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { buildSearchUrl, fetchSongCover, MEDIA_LABELS } from '../lib/mediaCard';
+import { buildSearchUrl, fetchMediaCover, MEDIA_LABELS } from '../lib/mediaCard';
 
 const KIND_ICON = {
   song: '♪',
@@ -22,13 +22,17 @@ export function MediaCard({ kind, title, subtitle }) {
   const [cover, setCover] = useState(null);
 
   useEffect(() => {
-    if (kind !== 'song') return undefined;
     let cancelled = false;
-    fetchSongCover(safeTitle, safeSub).then((data) => {
+    fetchMediaCover(kind, safeTitle, safeSub).then((data) => {
       if (!cancelled) setCover(data || null);
     });
     return () => { cancelled = true; };
   }, [kind, safeTitle, safeSub]);
+
+  // For movies: when the LLM gave no director (subtitle empty) but TMDB
+  // returned a release year, surface that as the subtitle instead so the
+  // card has more than just a one-line title.
+  const displaySub = safeSub || (cover?.year ? cover.year : '');
 
   const colors = cover?.dominantHex && cover?.secondaryHex
     ? [cover.dominantHex, cover.secondaryHex]
@@ -56,7 +60,7 @@ export function MediaCard({ kind, title, subtitle }) {
       </div>
       <div className="media-card-meta">
         <div className="media-card-title">{safeTitle}</div>
-        {safeSub ? <div className="media-card-sub">{safeSub}</div> : null}
+        {displaySub ? <div className="media-card-sub">{displaySub}</div> : null}
       </div>
       <div className="media-card-cta" aria-hidden="true">
         <span className="media-card-cta-label">{label || `${MEDIA_LABELS[kind] || ''}搜索`}</span>

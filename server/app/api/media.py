@@ -25,6 +25,8 @@ from colorthief import ColorThief
 from fastapi import APIRouter, HTTPException, Query
 from PIL import Image
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/media", tags=["media"])
@@ -66,12 +68,17 @@ def _hex(rgb: tuple[int, int, int] | None) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-async def _itunes_search(title: str, artist: str | None) -> str | None:
-    """Return the best-match artworkUrl100 from iTunes Search API."""
-    term = f"{title} {artist}" if artist else title
+async def _itunes_search(
+    title: str,
+    extra: str | None = None,
+    *,
+    entity: Literal["song", "movie"] = "song",
+) -> dict[str, Any] | None:
+    """Return ``{ url, year? }`` for the best-match iTunes hit."""
+    term = f"{title} {extra}" if extra else title
     params = {
         "term": term,
-        "entity": "song",
+        "entity": entity,
         "limit": "3",
         "country": "CN",
     }
@@ -84,25 +91,79 @@ async def _itunes_search(title: str, artist: str | None) -> str | None:
             results = data.get("results") or []
             if not results:
                 return None
-            return results[0].get("artworkUrl100")
+            best = results[0]
+            url = best.get("artworkUrl100")
+            year = ""
+            release = best.get("releaseDate") or ""
+            if isinstance(release, str) and len(release) >= 4 and release[:4].isdigit():
+                year = release[:4]
+            return {"url": url, "year": year} if url else None
     except Exception as exc:  # noqa: BLE001
-        logger.warning("iTunes search failed for %r: %r", term, exc)
+        logger.warning("iTunes search failed for %r entity=%s: %r", term, entity, exc)
         return None
 
 
+async def _tmdb_search_movie(title: str) -> dict[str, Any] | None:
+    """Search TMDB for a movie and return ``{ url, year? }``. Tries zh-CN
+    first; if zero results, retries with no language hint so English /
+    Japanese / Korean originals still match. Returns None if no API key
+    is configured or TMDB fails / returns nothing."""
+    key = settings.tmdb_api_key
+    if not key:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as cli:
+            for lang in ("zh-CN", None):
+                params: dict[str, Any] = {
+                    "api_key": key,
+                    "query": title,
+                    "include_adult": "false",
+                }
+                if lang:
+                    params["language"] = lang
+                r = await cli.get(
+                    "https://api.themoviedb.org/3/search/movie",
+                    params=params,
+                )
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                results = data.get("results") or []
+                if not results:
+                    continue
+                best = results[0]
+                poster_path = best.get("poster_path")
+                if not poster_path:
+                    continue
+                # w500 is high-enough for our 600x600 normalize step.
+                url = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                year = ""
+                release = best.get("release_date") or ""
+                if isinstance(release, str) and len(release) >= 4 and release[:4].isdigit():
+                    year = release[:4]
+                return {"url": url, "year": year}
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("TMDB search failed for %r: %r", title, exc)
+    return None
+
+
 async def _download(url: str) -> bytes | None:
-    """Bigger size from artworkUrl100 — replace 100x100 with 300x300 for crisper covers."""
-    big = url.replace("100x100bb.jpg", "300x300bb.jpg").replace(
-        "100x100bb.png", "300x300bb.png",
-    )
+    """Download cover bytes. For iTunes URLs, upgrade artworkUrl100 → 300x300.
+    TMDB URLs are passed through unchanged (we ask for w500 already)."""
+    candidates = [url]
+    if "100x100bb." in url:
+        candidates.insert(
+            0,
+            url.replace("100x100bb.jpg", "300x300bb.jpg").replace(
+                "100x100bb.png", "300x300bb.png",
+            ),
+        )
     try:
         async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as cli:
-            r = await cli.get(big)
-            if r.status_code == 200 and r.content:
-                return r.content
-            r = await cli.get(url)
-            if r.status_code == 200 and r.content:
-                return r.content
+            for u in candidates:
+                r = await cli.get(u)
+                if r.status_code == 200 and r.content:
+                    return r.content
     except Exception as exc:  # noqa: BLE001
         logger.warning("cover download failed for %s: %r", url, exc)
     return None
@@ -133,53 +194,70 @@ def _palette_for(path: Path) -> tuple[str, str]:
         return "#3a4d6f", "#7b9ec5"
 
 
+def _entry_response(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "url": f"/static/media-cache/{entry['filename']}",
+        "dominantHex": entry.get("dominantHex"),
+        "secondaryHex": entry.get("secondaryHex"),
+        "year": entry.get("year") or None,
+    }
+
+
+async def _resolve_artwork(kind: str, title: str, extra: str) -> dict[str, Any] | None:
+    """Pick the best upstream source for the kind. Returns ``{ url, year? }``
+    or None if no source has the cover."""
+    if kind == "song":
+        return await _itunes_search(title, extra, entity="song")
+    if kind == "movie":
+        # Try TMDB first (zh-CN coverage is solid); fall back to iTunes Movies.
+        tmdb = await _tmdb_search_movie(title)
+        if tmdb:
+            return tmdb
+        return await _itunes_search(title, extra, entity="movie")
+    return None
+
+
 @router.get("/cover")
 async def get_cover(
-    type: Literal["song"] = Query(..., description="media kind"),
+    type: Literal["song", "movie"] = Query(..., description="media kind"),
     title: str = Query(..., min_length=1, max_length=120),
     artist: str | None = Query(None, max_length=120),
 ) -> dict[str, Any]:
-    """Return ``{ url, dominantHex, secondaryHex }`` for a song cover.
+    """Return ``{ url, dominantHex, secondaryHex, year? }`` for a media cover.
 
-    Currently only song covers are supported (iTunes API). Movies and books
-    rely on the icon-only frontend fallback.
+    ``artist`` is the disambiguation hint — for songs it's the artist name,
+    for movies it's the director (used as a search hint when present).
+    Books rely on the icon-only frontend fallback (no upstream source covers
+    Chinese books reliably).
     """
-    if type != "song":
-        raise HTTPException(status_code=400, detail="only song covers supported")
+    if type not in ("song", "movie"):
+        raise HTTPException(status_code=400, detail="cover type not supported")
 
     title = title.strip()
-    artist_clean = (artist or "").strip()
+    extra = (artist or "").strip()
     if not title:
         raise HTTPException(status_code=400, detail="title required")
 
-    key = _key(type, title, artist_clean)
+    key = _key(type, title, extra)
 
     # Read-side cache hit (no lock — index is read-only here).
     index = _load_index()
     entry = index.get(key)
     if entry and (Path(_CACHE_DIR / entry["filename"]).exists()):
-        return {
-            "url": f"/static/media-cache/{entry['filename']}",
-            "dominantHex": entry.get("dominantHex"),
-            "secondaryHex": entry.get("secondaryHex"),
-        }
+        return _entry_response(entry)
 
     # Miss — fetch + extract under a lock to avoid duplicate writes for the
-    # same (title, artist) pair if two requests race in.
+    # same (kind, title, extra) tuple if two requests race in.
     async with _INDEX_LOCK:
         index = _load_index()
         entry = index.get(key)
         if entry and (Path(_CACHE_DIR / entry["filename"]).exists()):
-            return {
-                "url": f"/static/media-cache/{entry['filename']}",
-                "dominantHex": entry.get("dominantHex"),
-                "secondaryHex": entry.get("secondaryHex"),
-            }
+            return _entry_response(entry)
 
-        artwork = await _itunes_search(title, artist_clean)
-        if not artwork:
+        artwork = await _resolve_artwork(type, title, extra)
+        if not artwork or not artwork.get("url"):
             raise HTTPException(status_code=404, detail="cover not found")
-        raw = await _download(artwork)
+        raw = await _download(artwork["url"])
         if not raw:
             raise HTTPException(status_code=502, detail="cover download failed")
 
@@ -197,15 +275,13 @@ async def get_cover(
             "dominantHex": dominant,
             "secondaryHex": secondary,
             "title": title,
-            "artist": artist_clean,
+            "artist": extra,
+            "kind": type,
+            "year": artwork.get("year") or "",
         }
         _save_index(index)
 
-        return {
-            "url": f"/static/media-cache/{filename}",
-            "dominantHex": dominant,
-            "secondaryHex": secondary,
-        }
+        return _entry_response(index[key])
 
 
 __all__ = ["router"]

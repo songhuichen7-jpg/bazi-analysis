@@ -37,14 +37,20 @@ export function buildSearchUrl(kind, title, subtitle) {
 
 const coverCache = new Map();
 
-/** Fetch a song cover (url + dominant colors) from the backend.
+/** Fetch a media cover (url + dominant colors + optional year) from the backend.
+ *  Supports ``kind`` ∈ { song, movie }. Books fall back to the icon-only card.
  *  Returns null on any failure so the caller can render the icon-only fallback.
  *  Memoised across the session so repeated mentions don't re-hit the backend. */
-export async function fetchSongCover(title, subtitle) {
-  const q = `${title}|${subtitle || ''}`;
+export async function fetchMediaCover(kind, title, subtitle) {
+  if (kind !== 'song' && kind !== 'movie') return null;
+  const q = `${kind}|${title}|${subtitle || ''}`;
   if (coverCache.has(q)) return coverCache.get(q);
 
-  const params = new URLSearchParams({ type: 'song', title, ...(subtitle ? { artist: subtitle } : {}) });
+  const params = new URLSearchParams({
+    type: kind,
+    title,
+    ...(subtitle ? { artist: subtitle } : {}),
+  });
   const promise = (async () => {
     try {
       const r = await fetch(`/api/media/cover?${params.toString()}`, { credentials: 'include' });
