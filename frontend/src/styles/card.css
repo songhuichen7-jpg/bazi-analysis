@@ -13,9 +13,7 @@
  */
 
 /* ── Desktop workspace shell ───────────────────────────────────────── */
-.card-content {
-  max-width: 1020px;
-}
+/* 跟着左栏铺满；CardWorkspace 内部用 grid 1fr/240px 自适应宽度 */
 
 .card-workspace {
   width: 100%;
