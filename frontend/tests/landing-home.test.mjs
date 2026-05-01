@@ -135,14 +135,18 @@ test('Landing is responsive at 900px (mockup stacks, gallery wraps)', () => {
   assert.match(css, /\.landing-hero-mockup[\s\S]*?grid-template-columns:\s*1fr/);
 });
 
-test('CosmicCardPreview renders 5 illustration kinds without raw bazi terms', () => {
+test('CosmicCardPreview uses versioned PNG illustrations without raw bazi terms', () => {
   const source = fs.readFileSync(new URL('../src/components/landing/CosmicCardPreview.jsx', import.meta.url), 'utf8');
   const illustrations = fs.readFileSync(new URL('../src/components/landing/landingIllustrations.jsx', import.meta.url), 'utf8');
+  const art = fs.readFileSync(new URL('../src/lib/cardArt.js', import.meta.url), 'utf8');
   assert.match(illustrations, /bamboo/);
   assert.match(illustrations, /samoye/);
   assert.match(illustrations, /lamp/);
   assert.match(illustrations, /puffer/);
   assert.match(illustrations, /dandelion/);
+  assert.match(source, /<img src=\{illustrationSrc\}/);
+  assert.match(art, /CARD_ART_VERSION/);
+  assert.match(art, /\\?v=/);
   assert.doesNotMatch(source, /[>\s]日主[<\s]/);
   assert.doesNotMatch(source, /[>\s]格局[<\s]/);
 });

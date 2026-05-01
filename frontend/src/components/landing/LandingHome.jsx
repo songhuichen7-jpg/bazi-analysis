@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
+import { cardIllustrationSrc } from '../../lib/cardArt.js';
 import { HepanCardPreview } from './HepanCardPreview.jsx';
 
 // Hero mockup 轮播：左边一柱日干 + 日支 + 格局，右边配一句"有意思"的问题。
@@ -100,7 +101,7 @@ function PersonaMarquee() {
             <div className="landing-persona-halo">
               <div className="landing-persona-illust">
                 <img
-                  src={`/static/cards/illustrations/${p.illustration}`}
+                  src={cardIllustrationSrc(p.illustration)}
                   alt={p.name}
                   loading="lazy"
                   draggable="false"

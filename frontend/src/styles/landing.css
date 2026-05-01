@@ -760,9 +760,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 18%, transparent), transparent 75%);
-  color: var(--card-accent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .landing-card-hero .landing-card-illustration {
@@ -773,9 +772,13 @@
   width: 48%;
 }
 
-.landing-card-illustration svg {
-  width: 70%;
-  height: 70%;
+.landing-card-illustration img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: saturate(.98) contrast(1.03);
 }
 
 .landing-card-name {

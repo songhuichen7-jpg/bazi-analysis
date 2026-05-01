@@ -7,7 +7,7 @@
 //   'hero'  — 240px 宽 (Hero 区主角)
 //   'small' — 自适应 flex (Gallery 4 张并排)
 
-import { ILLUSTRATIONS } from './landingIllustrations.jsx';
+import { landingIllustrationAlt, landingIllustrationSrc } from './landingIllustrations.jsx';
 
 export function CosmicCardPreview({
   id,
@@ -20,7 +20,8 @@ export function CosmicCardPreview({
   illustKind,
   size = 'small',
 }) {
-  const Illust = ILLUSTRATIONS[illustKind] || ILLUSTRATIONS.bamboo;
+  const illustrationSrc = landingIllustrationSrc(illustKind);
+  const illustrationAlt = landingIllustrationAlt(illustKind);
   return (
     <article
       className={`landing-card-preview landing-card-${size}`}
@@ -32,8 +33,8 @@ export function CosmicCardPreview({
           {id} <em>/ 20</em>
         </span>
       </header>
-      <div className="landing-card-illustration" aria-hidden="true">
-        <Illust />
+      <div className="landing-card-illustration">
+        <img src={illustrationSrc} alt={illustrationAlt} loading="lazy" draggable="false" />
       </div>
       <h3 className="landing-card-name">{name}</h3>
       <p className="landing-card-suffix">· {suffix} ·</p>
