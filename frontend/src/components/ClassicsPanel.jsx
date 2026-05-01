@@ -89,20 +89,12 @@ export default function ClassicsPanel() {
               </div>
             ))}
           </div>
+          {/* 文案在 22s 后切到"还在翻"耐心安抚版 — 只是慢，不是出错，
+           * 不需要给重试按钮（重试只会再等一次相同时长）。真正的失败
+           * 走上面的 ErrorState 分支，那里才有"再试一次"。 */}
           <div className="classics-loader-text">
-            {isSlow ? '古籍检索较慢，可点右侧重试' : '正在翻阅古籍'}
+            {isSlow ? '古籍较厚，再翻一会儿' : '正在翻阅古籍'}
           </div>
-          {isSlow && currentId ? (
-            <button
-              type="button"
-              className="btn-inline classics-loader-retry"
-              onClick={() => {
-                pendingStartRef.current = null;
-                setIsSlow(false);
-                loadClassics(currentId);
-              }}
-            >再试一次</button>
-          ) : null}
         </div>
       ) : null}
 
