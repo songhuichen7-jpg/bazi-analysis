@@ -41,9 +41,50 @@ export function buildUserMenuProfile(user = {}) {
       : normalizedPhone
         ? `+86 ${normalizedPhone.slice(0, 3)} *** ${normalizedPhone.slice(-4)}`
         : (phoneLast4 ? `+86 *** *** ${phoneLast4}` : ''),
-    plan: user?.plan === 'pro' ? 'pro' : 'free',
+    plan: ['lite', 'standard', 'pro'].includes(user?.plan) ? user.plan : 'lite',
     role: user?.role === 'admin' ? 'admin' : 'user',
   };
+}
+
+// 用户中心标签 / 用量条上展示档位的中文名 — 跟后端 plan 字面值一一对应。
+export function planLabel(plan) {
+  if (plan === 'pro') return 'Pro';
+  if (plan === 'standard') return '标准';
+  return '免费体验';
+}
+
+// 7 个 daily kind + chart 共 8 类配额对应的中文短标签。
+// 用户中心只展示其中 3 条最高频的（chart_message / gua / chart），
+// 其余 regen / sms_send 是后台兜底用的，不进 UI。
+const QUOTA_LABEL = {
+  chat_message: '对话',
+  gua: '起卦',
+  chart: '命盘',
+  section_regen: '解读重写',
+  verdicts_regen: '判语重写',
+  dayun_regen: '大运重写',
+  liunian_regen: '流年重写',
+  sms_send: '短信',
+};
+
+export function quotaKindLabel(kind) {
+  return QUOTA_LABEL[kind] || kind;
+}
+
+// 把后端的 quota_snapshot 摊平成 UI 想画的三条进度条（chart_message / gua / chart）。
+// kind 不在 snapshot 里就跳过 — 老版本后端可能还没填 chart 这条。
+export function pickUserCenterQuotaRows(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return [];
+  const usage = snapshot.usage || {};
+  const rows = [];
+  const chat = usage.chat_message;
+  if (chat) rows.push({ kind: 'chat_message', ...chat, periodic: true });
+  const gua = usage.gua;
+  if (gua) rows.push({ kind: 'gua', ...gua, periodic: true });
+  // 命盘是累计，不在 usage 里 — 后端单独塞在 snapshot.chart 上
+  const chart = snapshot.chart;
+  if (chart) rows.push({ kind: 'chart', ...chart, periodic: false });
+  return rows;
 }
 
 // 生日 / 加入时间 / 套餐期限统一格式化为「YYYY.MM」（中文环境最简洁）。

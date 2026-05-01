@@ -193,8 +193,33 @@ async def logout_endpoint(
 @router.get("/me", response_model=MeResponse)
 async def me_endpoint(
     user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> MeResponse:
-    return MeResponse(user=_user_response(user), quota_snapshot={})
+    """Auth + 当日配额快照。Plan 3 留的 ``quota_snapshot={}`` 占位现在
+    实填了：直接走 services.quota.get_snapshot 拿当日 7 个 kind 的 used/limit/
+    resets_at + 命盘上限。前端的"本月用量" UI 直接读这里。"""
+    from app.services.quota import get_snapshot
+    from sqlalchemy import select as _select, func as _func
+    from app.models.chart import Chart
+    from app.core.quotas import chart_max_for
+
+    snapshot = await get_snapshot(db, user)
+    chart_count = (await db.execute(
+        _select(_func.count(Chart.id)).where(
+            Chart.user_id == user.id,
+            Chart.deleted_at.is_(None),
+        )
+    )).scalar_one()
+
+    snap_dict = snapshot.model_dump(mode="json")
+    # 命盘是累计型上限，不在 daily QuotaResponse 里 — 单独一项塞进去。
+    # 前端把 chart 跟 chat_message / gua 一起渲染成进度条。
+    snap_dict["chart"] = {
+        "used": int(chart_count),
+        "limit": chart_max_for(user.plan),
+        "resets_at": None,    # 命盘不日重置
+    }
+    return MeResponse(user=_user_response(user), quota_snapshot=snap_dict)
 
 
 @router.post("/bind-phone", response_model=UserResponse)

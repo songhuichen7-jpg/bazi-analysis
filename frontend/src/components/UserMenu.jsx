@@ -5,11 +5,15 @@ import {
   buildUserMenuProfile,
   formatYearMonth,
   downloadJsonBlob,
+  planLabel,
+  pickUserCenterQuotaRows,
+  quotaKindLabel,
 } from '../lib/userMenu';
 import {
   bindPhone,
   deleteAccount,
   exportMyData,
+  me as fetchMe,
   sendSmsCode,
   updateProfile,
   uploadAvatar,
@@ -51,6 +55,9 @@ export default function UserMenu() {
   const [dragOver, setDragOver] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  // 配额快照 — 打开菜单时拉一下 /api/auth/me 取最新；不跨菜单缓存，因为
+  // 用量在菜单关着的时候可能涨（用户在主区域聊了两条），下次打开要看到。
+  const [quotaSnapshot, setQuotaSnapshot] = useState(null);
 
   useEffect(() => {
     if (!open) {
@@ -59,13 +66,26 @@ export default function UserMenu() {
       setErrorMsg('');
       return undefined;
     }
+    // 首次打开时 fetch 一遍，保证用量条永远是最新的
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await fetchMe();
+        if (!cancelled && result?.quota_snapshot) {
+          setQuotaSnapshot(result.quota_snapshot);
+        }
+      } catch { /* 静默 — 用量条可以暂时不显示 */ }
+    })();
     function onDocClick(event) {
       if (rootRef.current && !rootRef.current.contains(event.target)) {
         dispatch({ type: 'outside' });
       }
     }
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('mousedown', onDocClick);
+    };
   }, [open]);
 
   if (!user) return null;
@@ -186,6 +206,7 @@ export default function UserMenu() {
               memberSince={memberSince}
               chartCount={chartCount}
               conversationCount={conversationCount}
+              quotaSnapshot={quotaSnapshot}
               uploading={uploading}
               dragOver={dragOver}
               fileInputRef={fileInputRef}
@@ -253,13 +274,15 @@ export default function UserMenu() {
 function MainView(props) {
   const {
     profile, memberSince, chartCount, conversationCount,
+    quotaSnapshot,
     uploading, dragOver, fileInputRef,
     onAvatarDragOver, onAvatarDragLeave, onAvatarDrop, onAvatarFile,
     editingName, draftName, setDraftName, saving, startRename, commitRename, cancelRename,
     errorMsg, exporting, onExport, onBindPhone, onDeleteAccount, onLogout,
   } = props;
 
-  const planLabel = profile.plan === 'pro' ? 'Pro 套餐' : '免费体验';
+  const planText = planLabel(profile.plan);
+  const quotaRows = pickUserCenterQuotaRows(quotaSnapshot);
 
   return (
     <>
@@ -334,7 +357,7 @@ function MainView(props) {
             </div>
           )}
           <div className="user-center-tags">
-            <span className={'user-center-tag tag-' + profile.plan}>{planLabel}</span>
+            <span className={'user-center-tag tag-' + profile.plan}>{planText}</span>
             {profile.role === 'admin' ? (
               <span className="user-center-tag tag-admin">Admin</span>
             ) : null}
@@ -357,6 +380,15 @@ function MainView(props) {
         共 {chartCount} 张命盘
         {conversationCount > 0 ? <> · 当前盘 {conversationCount} 个对话</> : null}
       </div>
+
+      {quotaRows.length ? (
+        <div className="user-center-quota">
+          <div className="user-center-quota-head muted">本日用量</div>
+          {quotaRows.map((row) => (
+            <QuotaBar key={row.kind} row={row} />
+          ))}
+        </div>
+      ) : null}
 
       {errorMsg ? (
         <div className="user-center-error" role="alert">{errorMsg}</div>
@@ -419,6 +451,38 @@ function MainView(props) {
         >注销账号</button>
       </div>
     </>
+  );
+}
+
+// ── Quota bar ───────────────────────────────────────────────────────────────
+
+function QuotaBar({ row }) {
+  const used = Math.max(0, Number(row.used) || 0);
+  const limit = Math.max(1, Number(row.limit) || 1);   // 防 0 除
+  const ratio = Math.min(1, used / limit);
+  const percent = Math.round(ratio * 100);
+  const tone =
+    ratio >= 1   ? 'full'
+    : ratio >= 0.85 ? 'warn'
+    : 'ok';
+  const label = quotaKindLabel(row.kind);
+  const hint = row.periodic
+    ? '北京 0 点重置'
+    : '累计上限';
+  return (
+    <div className={'user-center-quota-row tone-' + tone}>
+      <div className="user-center-quota-row-head">
+        <span className="user-center-quota-row-label">{label}</span>
+        <span className="user-center-quota-row-count">{used} / {limit}</span>
+      </div>
+      <div className="user-center-quota-bar">
+        <div
+          className="user-center-quota-bar-fill"
+          style={{ width: `${Math.max(2, percent)}%` }}
+        />
+      </div>
+      <div className="user-center-quota-row-hint">{hint}</div>
+    </div>
   );
 }
 

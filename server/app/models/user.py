@@ -20,7 +20,9 @@ class User(Base):
     __table_args__ = (
         CheckConstraint("status IN ('active','disabled')", name="status_enum"),
         CheckConstraint("role IN ('user','admin')", name="role_enum"),
-        CheckConstraint("plan IN ('free','pro')", name="plan_enum"),
+        # Plan 5 会员：lite=免费基线、standard=5×、pro=20×。老 'free' 列由
+        # 0008 迁移整体改写为 lite，schema 上不再接受 'free'。
+        CheckConstraint("plan IN ('lite','standard','pro')", name="plan_enum"),
     )
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True,
@@ -36,7 +38,7 @@ class User(Base):
     avatar_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'active'"))
     role: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'user'"))
-    plan: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'free'"))
+    plan: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'lite'"))
     plan_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     invited_by_user_id: Mapped[Optional[UUID]] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True,

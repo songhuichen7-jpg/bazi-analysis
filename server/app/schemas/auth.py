@@ -79,7 +79,7 @@ class UserResponse(BaseModel):
     nickname: str | None
     avatar_url: str | None = None
     role: Literal["user", "admin"]
-    plan: Literal["free", "pro"]
+    plan: Literal["lite", "standard", "pro"]
     plan_expires_at: datetime | None
     created_at: datetime
 

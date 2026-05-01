@@ -20,5 +20,5 @@ class QuotaKindUsage(BaseModel):
 
 
 class QuotaResponse(BaseModel):
-    plan: Literal["free", "pro"]
+    plan: Literal["lite", "standard", "pro"]
     usage: dict[QuotaKind, QuotaKindUsage]      # 7 keys always present

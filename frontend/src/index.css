@@ -320,6 +320,50 @@
     font-size: 12px;
   }
 
+  /* 本日用量 — 三条进度条（对话 / 起卦 / 命盘），命盘是累计型 */
+  .user-center-quota {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .user-center-quota-head {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .user-center-quota-row { display: flex; flex-direction: column; gap: 4px; }
+  .user-center-quota-row-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .user-center-quota-row-count {
+    font-size: 11px;
+    color: var(--mute);
+    font-feature-settings: "tnum";
+  }
+  .user-center-quota-bar {
+    height: 4px;
+    background: #f0ece2;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .user-center-quota-bar-fill {
+    height: 100%;
+    background: var(--ink);
+    transition: width .25s ease, background .15s ease;
+    border-radius: 999px;
+  }
+  .user-center-quota-row.tone-warn .user-center-quota-bar-fill { background: #c08c2a; }
+  .user-center-quota-row.tone-full .user-center-quota-bar-fill { background: #b44343; }
+  .user-center-quota-row-hint {
+    font-size: 10.5px;
+    color: var(--mute);
+  }
+
   /* 主操作（绑手机号 / 导出） */
   .user-center-actions {
     display: flex;

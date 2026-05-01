@@ -123,10 +123,46 @@ function isStorageUnavailable(lower) {
   ]);
 }
 
+// 7 个 daily-reset kind 的中文名 — 跟 server core/quotas.py 的 key 一一对应。
+// 命盘是累计型（不在 daily QuotaResponse 里），但前端配额超限对话也可能涉及。
+const QUOTA_KIND_LABEL = {
+  chat_message: '对话',
+  gua: '起卦',
+  chart: '命盘',
+  section_regen: '解读重写',
+  verdicts_regen: '判语重写',
+  dayun_regen: '大运重写',
+  liunian_regen: '流年重写',
+  sms_send: '短信发送',
+};
+
+function tryQuotaExceeded(error) {
+  // 后端把 ServiceError(code='QUOTA_EXCEEDED') 映射成 HTTP 429，
+  // payload 形如 { detail: { code, message, details: { kind, limit, resets_at? } } }。
+  // ChartLimitExceeded 也走 ServiceError 路径，code='CHART_LIMIT_EXCEEDED'。
+  const code = error?.payload?.detail?.code || '';
+  if (code === 'QUOTA_EXCEEDED') {
+    const kind = error?.payload?.detail?.details?.kind;
+    const label = QUOTA_KIND_LABEL[kind] || '操作';
+    return result(`今日${label}额度用完了`, '北京 0 点重置 · 等明天再来', false);
+  }
+  if (code === 'CHART_LIMIT_EXCEEDED') {
+    const limit = error?.payload?.detail?.details?.limit;
+    const cap = limit ? `${limit} 张` : '';
+    return result(`命盘已达${cap}上限`, '可以在用户中心删掉一张再开新盘', false);
+  }
+  return null;
+}
+
 export function friendlyError(error, context) {
   const ctx = typeof context === 'string' ? { kind: context } : (context || {});
   const detail = rawMessage(error);
   const lower = detail.toLowerCase();
+
+  // 配额错误优先 — 它的 status 也是 429，普通 isRateLimit 会把它误判成
+  // "现在使用的人有点多，再试一次"，文案不准。
+  const quotaResult = tryQuotaExceeded(error);
+  if (quotaResult) return quotaResult;
 
   if (ctx.kind === 'storage_load') {
     if (isStorageUnavailable(lower)) return result('本地记录暂时读不了', detail, false);

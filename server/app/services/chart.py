@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy import column, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.quotas import MAX_CHARTS_PER_USER
+from app.core.quotas import chart_max_for
 from app.models.chart import Chart, ChartCache
 from app.models.user import User
 from app.schemas.chart import CacheSlot, ChartCreateRequest
@@ -61,15 +61,18 @@ async def create_chart(
     db.add(chart)
     await db.flush()  # obtain chart.id + verify schema constraints
 
-    # NOTE: spec §2.4 — post-check 15-chart ceiling; soft-deleted charts don't count.
+    # NOTE: spec §2.4 — post-check 命盘上限（按 user.plan 查 chart_max_for）；
+    # 软删的不计。post-check 而不是 pre-check 是为了让 race-condition 落点
+    # 在 INSERT 后；db.flush 后我们只是回滚事务，不会留半生成的 chart 行。
     active_count = (await db.execute(
         select(func.count(Chart.id)).where(
             Chart.user_id == user.id,
             Chart.deleted_at.is_(None),
         )
     )).scalar_one()
-    if active_count > MAX_CHARTS_PER_USER:
-        raise ChartLimitExceeded(limit=MAX_CHARTS_PER_USER)
+    chart_cap = chart_max_for(user.plan)
+    if active_count > chart_cap:
+        raise ChartLimitExceeded(limit=chart_cap)
 
     return chart, warnings
 
@@ -176,7 +179,8 @@ async def restore(db: AsyncSession, user: User, chart_id: UUID) -> Chart:
 
     Raises:
       ChartNotFound — not exist / wrong owner / not soft-deleted / past 30d window
-      ChartLimitExceeded — restoring would push active count over MAX_CHARTS_PER_USER
+      ChartLimitExceeded — restoring would push active count over the user's
+        plan-specific 命盘上限（chart_max_for(user.plan)）
     """
     chart = await get_chart(db, user, chart_id, include_soft_deleted=True)
     if chart.deleted_at is None:
@@ -190,8 +194,9 @@ async def restore(db: AsyncSession, user: User, chart_id: UUID) -> Chart:
             Chart.deleted_at.is_(None),
         )
     )).scalar_one()
-    if active_count >= MAX_CHARTS_PER_USER:
-        raise ChartLimitExceeded(limit=MAX_CHARTS_PER_USER)
+    chart_cap = chart_max_for(user.plan)
+    if active_count >= chart_cap:
+        raise ChartLimitExceeded(limit=chart_cap)
 
     chart.deleted_at = None
     chart.updated_at = datetime.now(tz=timezone.utc)
