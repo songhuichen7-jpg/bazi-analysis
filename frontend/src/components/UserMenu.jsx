@@ -87,19 +87,6 @@ export default function UserMenu() {
     }
   }
 
-  async function clearAvatar() {
-    setSaving(true);
-    setErrorMsg('');
-    try {
-      const updated = await updateProfile({ avatar_url: '' });
-      patchUser({ nickname: updated.nickname, avatar_url: updated.avatar_url });
-    } catch (e) {
-      setErrorMsg(friendlyError(e, 'profile').title);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <div className="user-menu" ref={rootRef}>
       <button
@@ -118,7 +105,7 @@ export default function UserMenu() {
       </button>
       {open ? (
         <div className="user-menu-dropdown user-center" role="dialog" aria-label="用户中心">
-          {/* 头像区 — 大头像 + 悬浮"换头像"label */}
+          {/* 头像区 — 大头像，hover 浮"换头像"覆盖层；点击即唤起选图 */}
           <div className="user-center-head">
             <label className={'user-center-avatar' + (uploading ? ' is-uploading' : '')}>
               {profile.avatarUrl ? (
@@ -137,17 +124,6 @@ export default function UserMenu() {
                 hidden
               />
             </label>
-            {profile.avatarUrl ? (
-              <button
-                type="button"
-                className="user-center-avatar-clear"
-                onClick={() => void clearAvatar()}
-                disabled={saving || uploading}
-                title="改回字面头像"
-              >
-                还原
-              </button>
-            ) : null}
           </div>
 
           {/* 昵称区 — 默认展示，点击 ✎ 进入编辑 */}
