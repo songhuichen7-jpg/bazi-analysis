@@ -273,7 +273,43 @@
     line-height: 1.9;
   }
   .auth-wrap { width: min(560px, 100%); text-align: center; }
+  /* 内测专用入口：宽度收紧，单一 CTA 居中，没有 toggle / 表单 */
+  .auth-wrap-beta { width: min(440px, 100%); }
   .auth-title { font-size: 44px; line-height: 1.24; margin: 0 0 18px; font-weight: normal; }
+  /* "先体验一下"主 CTA — 比 toggle button 视觉权重明显高 */
+  .auth-cta-primary {
+    margin-top: 8px;
+    padding: 14px 28px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    font-size: 15px;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    transition: background .15s ease, transform .12s ease, box-shadow .2s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,.10);
+  }
+  .auth-cta-primary:hover { background: #000; transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,.16); }
+  .auth-cta-primary:active { transform: translateY(0); }
+  .auth-cta-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+  /* 底部小字链接 — 给少数想用账号注册的用户留口子 */
+  .auth-beta-foot {
+    margin-top: 36px;
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .auth-link {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    color: var(--mute);
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .auth-link:hover { color: var(--ink); border-bottom-color: rgba(0,0,0,.2); }
+  .auth-link:disabled { opacity: .5; cursor: not-allowed; }
   .auth-subtitle {
     max-width: 460px;
     margin: 0 auto 36px;

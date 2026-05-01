@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.auth import (
     AccountDeleteRequest,
     AccountDeleteResponse,
+    GuestLoginRequest,
     LoginRequest,
     MeResponse,
     RegisterRequest,
@@ -145,6 +146,7 @@ async def login_endpoint(
 async def guest_login_endpoint(
     request: Request,
     response: Response,
+    body: GuestLoginRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     if settings.env != "dev":
@@ -155,9 +157,18 @@ async def guest_login_endpoint(
         user_agent=request.headers.get("user-agent"),
         ip=request.client.host if request.client else None,
         kek=request.app.state.kek,
+        guest_token=body.guest_token if body is not None else None,
     )
+    await db.commit()
     _set_session_cookie(response, result.raw_token)
-    return {"user": _user_response(result.user).model_dump(mode="json")}
+    return {
+        "user": _user_response(result.user).model_dump(mode="json"),
+        # 回传给前端：第一次进入时后端可能根据传入 token 返回已存在的
+        # 用户（这种情况 guest_token 等于客户端传入的）；新建账号时返回
+        # 同样的 token 让客户端写到 localStorage。两种情况下值都是 user
+        # 在 DB 里的 guest_token 字段。
+        "guest_token": result.user.guest_token,
+    }
 
 
 @router.post("/logout")

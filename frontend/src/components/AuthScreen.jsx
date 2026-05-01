@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { fetchConfig, guestLogin } from '../lib/api';
 import { setAuthSessionHint } from '../lib/authSessionHint.js';
 import { clearAuthPhoneHint, writeAuthPhoneHint } from '../lib/authPhoneHint.js';
+import { ensureGuestToken, readGuestToken, writeGuestToken } from '../lib/guestToken.js';
 import SmsSendForm from './SmsSendForm';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
@@ -18,6 +19,11 @@ export default function AuthScreen() {
   const [guestLoginEnabled, setGuestLoginEnabled] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState('');
+  // 内测模式下默认折叠"注册/登录"，露出的是单一入口"先体验一下"。
+  // 已经体验过的（localStorage 有 guest_token）回访时也走同一按钮，
+  // 后端会按 token 还原账号 → 命盘 + 对话 + 古籍缓存 都在。
+  const hasReturningGuest = !!readGuestToken();
+  const [showFullAuth, setShowFullAuth] = useState(false);
 
   useEffect(() => {
     fetchConfig()
@@ -41,7 +47,13 @@ export default function AuthScreen() {
     setGuestError('');
     setGuestLoading(true);
     try {
-      const result = await guestLogin();
+      // 第一次进入时生成 token；再次进入时读出来传给后端，后端按 token
+      // 找回上次的访客账号 → 命盘 + 对话 + 古籍缓存全部沿用。
+      const token = ensureGuestToken();
+      const result = await guestLogin({ guestToken: token });
+      // 后端可能返回它认定的最终 token（首次进入返回的就是我们传过去的；
+      // 如果客户端 token 损坏后端会创建新账号）。以后端为准写回。
+      if (result.guest_token) writeGuestToken(result.guest_token);
       setAuthSessionHint();
       clearAuthPhoneHint();
       setUser(result.user || null);
@@ -51,6 +63,58 @@ export default function AuthScreen() {
     } finally {
       setGuestLoading(false);
     }
+  }
+
+  // 内测模式：guest_login_enabled 为 true 且用户没主动展开"使用账号注册"
+  // 时，渲染极简的"先体验一下"入口；其余情况渲染完整的注册/登录面板。
+  const showBetaEntry = guestLoginEnabled && !showFullAuth;
+
+  if (showBetaEntry) {
+    return (
+      <div className="screen active">
+        <div className="center-wrap">
+          <div className="auth-wrap auth-wrap-beta fade-in">
+            <div className="section-num" style={{ marginBottom: 24 }}>有 时 · 内 测</div>
+            <h1 className="serif auth-title">
+              {hasReturningGuest ? '欢迎回来' : '欢迎来体验'}
+            </h1>
+            <p className="auth-subtitle">
+              {hasReturningGuest
+                ? '点下方按钮直接进入。你之前的命盘、对话和古籍记录都还在。'
+                : '不用注册，点下面的按钮直接进入。命盘和对话会保存在这个浏览器里，下次回来还能继续。'}
+            </p>
+
+            <button
+              type="button"
+              className="auth-cta-primary"
+              onClick={() => void onGuestLogin()}
+              disabled={guestLoading}
+            >
+              {guestLoading
+                ? '进入体验中…'
+                : hasReturningGuest
+                  ? '继续我的命盘 →'
+                  : '先体验一下 →'}
+            </button>
+
+            {guestError ? (
+              <div className="auth-inline-error" style={{ marginTop: 16 }}>{guestError}</div>
+            ) : null}
+
+            <div className="auth-beta-foot">
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => setShowFullAuth(true)}
+                disabled={guestLoading}
+              >
+                有手机号？用账号注册或登录
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,10 +145,10 @@ export default function AuthScreen() {
             {guestLoginEnabled ? (
               <button
                 className="auth-toggle-btn"
-                onClick={() => void onGuestLogin()}
+                onClick={() => setShowFullAuth(false)}
                 disabled={guestLoading}
               >
-                {guestLoading ? '进入体验中…' : '先体验一下'}
+                返回体验入口
               </button>
             ) : null}
           </div>

@@ -36,6 +36,12 @@ class LoginRequest(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
 
 
+class GuestLoginRequest(BaseModel):
+    """前端可选传入 guest_token（来自 localStorage）；后端按 token 找回
+    已绑定的访客账号，否则创建一个新访客并把 token 存下来。"""
+    guest_token: str | None = Field(default=None, max_length=64)
+
+
 class AccountDeleteRequest(BaseModel):
     # NOTE: must match literal — protects against accidental account loss.
     confirm: Literal["DELETE MY ACCOUNT"]

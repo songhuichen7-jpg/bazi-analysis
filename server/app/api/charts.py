@@ -1,16 +1,19 @@
 """HTTP layer for /api/charts/*. Thin wrapper over services/chart."""
 from __future__ import annotations
 
+import json
 from functools import partial
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import check_quota, current_user
 from app.core.db import get_db
-from app.models.chart import Chart
+from app.models.chart import Chart, ChartCache
 from app.models.user import User
 from app.prompts import (
     chips as prompts_chips,
@@ -122,6 +125,13 @@ async def get_chart_endpoint(
     return await _chart_to_response(chart, db=db)
 
 
+# 缓存版本号 — 一旦 retrieval / polisher / 古籍语料发生有意义的改动，
+# bump 一次让前后端的旧缓存自动失效。和 frontend useAppStore 的
+# CLASSICS_VERSION 是两套独立 key（一个磁盘缓存的 schema 标记，一个浏览器
+# 的本地存储版本），改动节奏可以不同步。
+_CLASSICS_CACHE_VERSION = "v1"
+
+
 @router.get(
     "/{chart_id}/classics",
     response_model=ChartClassicsResponse,
@@ -132,15 +142,56 @@ async def get_chart_classics_endpoint(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> ChartClassicsResponse:
+    """命盘的古籍旁证 — 检索 + LLM 抛光大概要 30–40s，所以结果会持久化到
+    chart_cache (kind='classics')。下次同一命盘请求直接读 cache。版本
+    bump 后会自动重新抛光。"""
     try:
         chart = await chart_service.get_chart(db, user, chart_id)
     except ServiceError as e:
         raise _http_error(e)
 
+    cache_key = _CLASSICS_CACHE_VERSION
+    # 1. 先查缓存：命中且版本对得上就直接返回
+    cached_row = (await db.execute(
+        select(ChartCache).where(
+            ChartCache.chart_id == chart_id,
+            ChartCache.kind == "classics",
+            ChartCache.key == cache_key,
+        )
+    )).scalar_one_or_none()
+    if cached_row is not None and cached_row.content:
+        try:
+            cached_items = json.loads(cached_row.content)
+            return ChartClassicsResponse(items=cached_items)
+        except (ValueError, TypeError):
+            # JSON 损坏 — 落到下面的重新抛光分支
+            pass
+
+    # 2. 跑检索 + LLM 抛光
     paipan = dict(chart.paipan or {})
     paipan["gender"] = (chart.birth_input or {}).get("gender", "")
     raw_items = await retrieval_service.retrieve_for_chart(paipan, "meta")
     items = await classics_polisher.polish_classics_for_chart(paipan, raw_items)
+
+    # 3. 写入缓存 — UPSERT，避免并发写时唯一约束冲突
+    serialized = json.dumps(
+        [item.model_dump(mode="json") if hasattr(item, "model_dump") else item for item in items],
+        ensure_ascii=False,
+    )
+    upsert = pg_insert(ChartCache).values(
+        chart_id=chart_id,
+        kind="classics",
+        key=cache_key,
+        content=serialized,
+        model_used=None,
+        tokens_used=None,
+    ).on_conflict_do_update(
+        constraint="uq_chart_cache_slot",
+        set_={"content": serialized},
+    )
+    await db.execute(upsert)
+    await db.commit()
+
     return ChartClassicsResponse(items=items)
 
 

@@ -38,7 +38,10 @@ class Chart(Base):
 class ChartCache(Base):
     __tablename__ = "chart_cache"
     __table_args__ = (
-        CheckConstraint("kind IN ('verdicts','section','dayun_step','liunian')", name="kind_enum"),
+        CheckConstraint(
+            "kind IN ('verdicts','section','dayun_step','liunian','classics')",
+            name="kind_enum",
+        ),
         UniqueConstraint("chart_id", "kind", "key", name="uq_chart_cache_slot"),
     )
 

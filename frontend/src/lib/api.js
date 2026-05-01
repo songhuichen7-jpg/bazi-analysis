@@ -141,8 +141,10 @@ export async function login({ phone, code }) {
   return _postJSON('/api/auth/login', { phone, code });
 }
 
-export async function guestLogin() {
-  return _postJSON('/api/auth/guest', null);
+export async function guestLogin({ guestToken } = {}) {
+  // 把 localStorage 里的 guest_token（如有）传给后端，让后端能找回
+  // 上次的访客账号；否则后端会创建新账号并把新 token 回传给我们。
+  return _postJSON('/api/auth/guest', { guest_token: guestToken || null });
 }
 
 export async function logout() {

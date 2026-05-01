@@ -43,6 +43,10 @@ class User(Base):
     )
     wechat_openid: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True)
     wechat_unionid: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True)
+    # 内测访客的稳定 token — 浏览器 localStorage 持有；同设备 = 同账号。
+    # 不像 phone 是身份证明，guest_token 只是一种"设备记忆"，未注册用户
+    # 也能跨 session 找回自己的命盘。注册成功后这个字段会被清空。
+    guest_token: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True)
     # KEK-encrypted per-user DEK (not itself DEK-encrypted; users has no DEK context yet).
     # NOTE: nullable post crypto-shredding — spec §2.6. Registration sets it;
     # DELETE /api/auth/account sets it to NULL, making ciphertext unrecoverable.

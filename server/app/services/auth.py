@@ -149,13 +149,52 @@ async def login(
     return AuthResult(user=user, raw_token=raw_token)
 
 
+def _validate_guest_token(token: str | None) -> str | None:
+    """Accept only client-provided guest tokens that look like our format
+    (UUID v4 hex, no dashes, 32 chars). Rejects garbage and over-long
+    inputs to prevent storage bloat / injection."""
+    if not token:
+        return None
+    s = str(token).strip().lower()
+    if len(s) < 16 or len(s) > 64:
+        return None
+    # 允许 hex / hyphenated UUID — 标准化成无连字符的 hex 字符串
+    cleaned = s.replace("-", "")
+    if not cleaned.isalnum():
+        return None
+    return cleaned[:64]
+
+
 async def login_guest(
     db: AsyncSession,
     *,
     user_agent: str | None,
     ip: str | None,
     kek: bytes,
+    guest_token: str | None = None,
 ) -> AuthResult:
+    """Guest login flow.
+
+    If ``guest_token`` is provided AND already bound to an active user,
+    re-issue a session for that user (their charts/conversations
+    persist across browser sessions). Otherwise create a fresh guest
+    user and bind the token so the next call from the same browser
+    rejoins this account."""
+    normalized = _validate_guest_token(guest_token)
+
+    if normalized:
+        existing_user = (await db.execute(
+            select(User).where(
+                User.guest_token == normalized,
+                User.status == "active",
+            )
+        )).scalar_one_or_none()
+        if existing_user is not None:
+            _, raw_token = await create_session(
+                db, existing_user.id, user_agent=user_agent, ip=ip,
+            )
+            return AuthResult(user=existing_user, raw_token=raw_token)
+
     dek = generate_dek()
     dek_ciphertext = encrypt_dek(dek, kek)
 
@@ -169,6 +208,11 @@ async def login_guest(
     if phone is None:
         raise RuntimeError("failed to allocate guest phone")
 
+    # 如果客户端没传 guest_token（老客户端 / 新访客），后端生成一个发回。
+    # 这样客户端写到 localStorage 后下次进来就能凭它找回自己的账号。
+    if not normalized:
+        normalized = secrets.token_hex(16)  # 32 字符 hex，落入 guest_token 字段长度
+
     user = User(
         phone=phone,
         phone_last4=phone[-4:],
@@ -176,6 +220,7 @@ async def login_guest(
         dek_ciphertext=dek_ciphertext,
         dek_key_version=1,
         agreed_to_terms_at=datetime.now(tz=timezone.utc),
+        guest_token=normalized,
     )
     db.add(user)
     await db.flush()
