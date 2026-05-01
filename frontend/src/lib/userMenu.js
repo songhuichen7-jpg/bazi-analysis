@@ -42,6 +42,7 @@ export function buildUserMenuProfile(user = {}) {
         ? `+86 ${normalizedPhone.slice(0, 3)} *** ${normalizedPhone.slice(-4)}`
         : (phoneLast4 ? `+86 *** *** ${phoneLast4}` : ''),
     plan: ['lite', 'standard', 'pro'].includes(user?.plan) ? user.plan : 'lite',
+    planExpiresAt: user?.plan_expires_at || null,
     role: user?.role === 'admin' ? 'admin' : 'user',
   };
 }
@@ -51,6 +52,14 @@ export function planLabel(plan) {
   if (plan === 'pro') return 'Pro';
   if (plan === 'standard') return '标准';
   return '免费体验';
+}
+
+// "Pro · 至 2026.08.31" — 用在用户中心的标签里。无到期时间则只显示档位。
+export function planLabelWithExpiry(plan, expiresAt) {
+  const base = planLabel(plan);
+  if (!expiresAt || plan === 'lite') return base;
+  const ymd = formatYearMonthDay(expiresAt);
+  return ymd ? `${base} · 至 ${ymd}` : base;
 }
 
 // 7 个 daily kind + chart 共 8 类配额对应的中文短标签。
@@ -87,7 +96,7 @@ export function pickUserCenterQuotaRows(snapshot) {
   return rows;
 }
 
-// 生日 / 加入时间 / 套餐期限统一格式化为「YYYY.MM」（中文环境最简洁）。
+// 生日 / 加入时间 统一格式化为「YYYY.MM」（中文环境最简洁）。
 // 拿不到 / 解析失败 → 返回空字符串，让调用方决定是否兜底。
 export function formatYearMonth(value) {
   if (!value) return '';
@@ -96,6 +105,18 @@ export function formatYearMonth(value) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}.${month}`;
+}
+
+// 套餐到期日要细到日 — "至 2026.05" 在五月看会让用户以为已经过期；
+// "至 2026.05.31" 才足够清楚。
+export function formatYearMonthDay(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
 }
 
 // 触发浏览器直接下载一个 JSON Blob — 用于"导出我的数据"。

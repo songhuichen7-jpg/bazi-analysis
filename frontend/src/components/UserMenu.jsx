@@ -5,7 +5,7 @@ import {
   buildUserMenuProfile,
   formatYearMonth,
   downloadJsonBlob,
-  planLabel,
+  planLabelWithExpiry,
   pickUserCenterQuotaRows,
   quotaKindLabel,
 } from '../lib/userMenu';
@@ -270,7 +270,7 @@ function MainView(props) {
     errorMsg, exporting, onExport, onBindPhone, onDeleteAccount, onLogout,
   } = props;
 
-  const planText = planLabel(profile.plan);
+  const planText = planLabelWithExpiry(profile.plan, profile.planExpiresAt);
   const quotaRows = pickUserCenterQuotaRows(quotaSnapshot);
 
   return (

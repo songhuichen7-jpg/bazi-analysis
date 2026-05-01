@@ -64,6 +64,18 @@ async def get_db() -> AsyncIterator[AsyncSession]:
             raise
 
 
+def get_session_maker() -> async_sessionmaker[AsyncSession]:
+    """Public hook for non-FastAPI consumers (cron loops, CLI scripts).
+
+    使用模式：
+        async with get_session_maker()() as db:
+            await do_work(db)
+            await db.commit()
+    Caller 自己决定 commit/rollback — get_db 自动 commit 那套不要再套一遍。
+    """
+    return _ensure_engine()
+
+
 async def dispose_engine() -> None:
     """Called from FastAPI lifespan shutdown."""
     global _engine, _session_maker

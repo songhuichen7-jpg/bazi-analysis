@@ -196,6 +196,25 @@ export async function exportMyData() {
   return _getJSON('/api/auth/export');
 }
 
+// ============================================================================
+// Billing — 订阅 + checkout（Plan 5+）
+// ============================================================================
+
+export async function fetchBilling() {
+  return _getJSON('/api/billing/me');
+}
+
+export async function startCheckout({ plan, period = 'monthly', provider } = {}) {
+  // body.provider 留空时后端用 settings.payment_provider — 多数前端调用不传。
+  const body = { plan, period };
+  if (provider) body.provider = provider;
+  return _postJSON('/api/billing/checkout', body);
+}
+
+export async function cancelSubscription({ reason } = {}) {
+  return _postJSON('/api/billing/cancel', { reason: reason || null });
+}
+
 export async function me() {
   const response = await fetch('/api/auth/me', { credentials: 'include' });
   if (response.status === 401) return null;

@@ -673,6 +673,16 @@
   }
   .pricing-foot a { color: var(--ink); }
 
+  .pricing-error {
+    margin-top: 18px;
+    padding: 8px 12px;
+    border-left: 2px solid #c66;
+    background: #fdf5f5;
+    color: #7a2626;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
   /* 法律页 — 关于 / 服务条款 / 隐私 */
   .legal-screen { background: var(--bg); }
   .legal-wrap {

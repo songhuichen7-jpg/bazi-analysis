@@ -5,6 +5,8 @@ used by the frontend during bootstrap.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.billing import admin_router as billing_admin_router
+from app.api.billing import router as billing_router
 from app.api.card import router as card_router
 from app.api.hepan import router as hepan_router
 from app.api.charts import router as charts_router
@@ -26,6 +30,34 @@ from app.api.tracking import router as tracking_router
 from app.api.wx import router as wx_router
 from app.core.config import settings
 from app.core.logging import setup_logging
+
+
+async def _subscription_expire_loop() -> None:
+    """每 ``settings.subscription_expire_loop_seconds`` 秒扫一次到期订阅。
+
+    每轮新开一个 db session（避免长 session 持着连接）；任何异常都吞掉
+    继续 loop — 这是 best-effort，挂了不该把进程也带死。loop 取消时
+    asyncio.CancelledError 会自然冒到 lifespan 的 wait，正常退出。
+    """
+    interval = settings.subscription_expire_loop_seconds
+    if interval <= 0:
+        return
+    log = logging.getLogger("billing.expire")
+    # 进程刚启动时先睡一轮再做 — 避免冷启 thundering-herd
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            from app.core.db import get_session_maker
+            from app.services.subscription import expire_due
+            async with get_session_maker()() as db:
+                count = await expire_due(db)
+                if count:
+                    await db.commit()
+                    log.info("expired %d subscriptions", count)
+        except asyncio.CancelledError:
+            raise
+        except Exception:                # noqa: BLE001
+            log.exception("subscription expire loop iteration failed")
 
 
 @asynccontextmanager
@@ -42,9 +74,20 @@ async def lifespan(app: FastAPI):
     from app.services.hepan.loader import load_all as load_hepan_all
     load_hepan_all()
 
-    yield
-    from app.core.db import dispose_engine
-    await dispose_engine()
+    expire_task = asyncio.create_task(
+        _subscription_expire_loop(), name="subscription-expire-loop",
+    )
+
+    try:
+        yield
+    finally:
+        expire_task.cancel()
+        try:
+            await expire_task
+        except asyncio.CancelledError:
+            pass
+        from app.core.db import dispose_engine
+        await dispose_engine()
 
 
 app = FastAPI(
@@ -79,6 +122,8 @@ app.mount(
 
 app.include_router(admin_router)
 app.include_router(auth_router)
+app.include_router(billing_router)
+app.include_router(billing_admin_router)
 app.include_router(card_router)
 app.include_router(hepan_router)
 app.include_router(sessions_router)
