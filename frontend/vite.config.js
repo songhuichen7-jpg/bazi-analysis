@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3101',
       '/static/cards': 'http://localhost:3101',
+      '/static/hepan': 'http://localhost:3101',
       '/static/media-cache': 'http://localhost:3101',
       '/static/avatars': 'http://localhost:3101',
     },

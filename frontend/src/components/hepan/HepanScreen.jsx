@@ -3,10 +3,11 @@
 // /hepan/:slug — opens an A-created invite. Two modes:
 //   - status='pending': show A's profile + form for B to fill in
 //   - status='completed': show the rendered HepanCard
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { getHepan, postHepanComplete } from '../../lib/hepanApi.js';
 import { track } from '../../lib/analytics.js';
+import { saveCardAsImage } from '../../lib/saveImage.js';
 import { HepanCard } from './HepanCard.jsx';
 
 export function HepanScreen() {
@@ -16,6 +17,7 @@ export function HepanScreen() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const cardRef = useRef(null);
 
   // form state for B
   const [year, setYear] = useState('');
@@ -84,6 +86,19 @@ export function HepanScreen() {
     }
   }
 
+  async function handleSaveHepan() {
+    if (!cardRef.current || !hepan) return;
+    await saveCardAsImage(cardRef.current, {
+      typeId: `${hepan.a?.type_id || ''}x${hepan.b?.type_id || ''}`,
+      cosmicName: hepan.label || 'hepan',
+      onTrack: () => track('hepan_card_save', {
+        slug,
+        category: hepan.category,
+        state_pair: hepan.state_pair,
+      }),
+    });
+  }
+
   if (loading) {
     return <main className="hepan-screen hepan-loading"><p>正在打开邀请…</p></main>;
   }
@@ -103,8 +118,15 @@ export function HepanScreen() {
   if (hepan.status === 'completed') {
     return (
       <main className="hepan-screen">
-        <HepanCard hepan={hepan} />
+        <HepanCard ref={cardRef} hepan={hepan} />
         <div className="hepan-cta-block">
+          <button
+            type="button"
+            className="hepan-save-button"
+            onClick={handleSaveHepan}
+          >
+            导出合盘图
+          </button>
           <p className="hepan-cta-hook">想看你和 TA 的相处指南？</p>
           <p className="hepan-cta-detail">谁主动谁跟随、可能的摩擦点、最佳协作方式。</p>
           <Link to="/" className="hepan-cta-link">阅读完整解读 →</Link>

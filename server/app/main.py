@@ -104,6 +104,12 @@ app.mount(
     StaticFiles(directory=str(_CARDS_DATA_DIR)),
     name="card_static",
 )
+_HEPAN_ILLUSTRATIONS_DIR = Path(__file__).parent / "data" / "hepan" / "illustrations"
+app.mount(
+    "/static/hepan/illustrations",
+    StaticFiles(directory=str(_HEPAN_ILLUSTRATIONS_DIR)),
+    name="hepan_illustration_static",
+)
 _MEDIA_CACHE_DIR = Path(__file__).resolve().parents[1] / "var" / "media-cache"
 _MEDIA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 app.mount(

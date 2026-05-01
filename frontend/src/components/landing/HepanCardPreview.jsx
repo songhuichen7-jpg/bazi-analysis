@@ -2,7 +2,11 @@
 //
 // 静态合盘卡预览 (甲己合·撑腰搭子·双绽放) — 给 landing 第 03 段使用。
 // 不依赖 hepan API，纯展示。复用 hepan-card 视觉语言但收紧字号给 landing 容器。
+import { relationIllustrationSrc } from '../../lib/hepanArt.js';
+
 export function HepanCardPreview() {
+  const category = '天作搭子';
+
   return (
     <article
       className="landing-hepan-preview"
@@ -31,11 +35,12 @@ export function HepanCardPreview() {
         <span style={{ color: 'var(--theme-b)' }}>@阿青</span>
       </div>
       <div className="landing-hepan-illust" aria-hidden="true">
-        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="38" cy="50" r="22" opacity="0.85" />
-          <circle cx="62" cy="50" r="22" opacity="0.85" />
-          <circle cx="50" cy="50" r="3" fill="currentColor" stroke="none" />
-        </svg>
+        <img
+          src={relationIllustrationSrc(category)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <h3 className="landing-hepan-label">撑腰搭子</h3>
       <ul className="landing-hepan-subtags">

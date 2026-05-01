@@ -3,9 +3,11 @@
 assembled correctly from card data + 04a pairs + 04b dynamics."""
 from __future__ import annotations
 
+from collections import Counter
+
 import pytest
 
-from app.services.card.loader import load_all as load_card
+from app.services.card.loader import TYPES, load_all as load_card
 from app.services.hepan.loader import find_pair, load_all as load_hepan
 from app.services.hepan.payload import (
     build_completed_payload,
@@ -154,3 +156,51 @@ def test_pair_theme_color_blends_both_sides():
     # The blended hex shouldn't equal either side's exact theme
     assert resp.pair_theme_color != resp.a.theme_color
     assert resp.pair_theme_color != resp.b.theme_color
+
+
+def test_completed_payload_covers_all_210_type_pairs():
+    """Every unordered pair among 20 personal cards should render a hepan card."""
+    card_types = [TYPES[key] for key in sorted(TYPES)]
+    categories: Counter[str] = Counter()
+    state_pairs: Counter[str] = Counter()
+    count = 0
+
+    for index, a in enumerate(card_types):
+        for b in card_types[index:]:
+            resp = build_completed_payload(
+                slug=f"pair-{a['id']}-{b['id']}",
+                a_type_id=a["id"],
+                a_state=a["state"],
+                a_day_stem=a["day_stem"],
+                a_nickname="A",
+                b_type_id=b["id"],
+                b_state=b["state"],
+                b_day_stem=b["day_stem"],
+                b_nickname="B",
+            )
+            assert resp.status == "completed"
+            assert resp.a and resp.b
+            assert resp.category
+            assert resp.label
+            assert len(resp.subtags or []) == 3
+            assert resp.description
+            assert resp.modifier
+            assert resp.cta
+            categories[resp.category] += 1
+            state_pairs[resp.state_pair or ""] += 1
+            count += 1
+
+    assert count == 210
+    assert categories == {
+        "镜像搭子": 30,
+        "同频搭子": 20,
+        "滋养搭子": 80,
+        "火花搭子": 60,
+        "天作搭子": 20,
+    }
+    assert state_pairs == {
+        "⚡⚡": 55,
+        "⚡🔋": 55,
+        "🔋⚡": 45,
+        "🔋🔋": 55,
+    }

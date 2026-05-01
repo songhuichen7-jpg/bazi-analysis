@@ -76,19 +76,21 @@ export const HepanCard = forwardRef(function HepanCard({ hepan }, ref) {
         </div>
       </div>
 
-      {hepan.description ? (
-        <p className="hepan-description">{hepan.description}</p>
-      ) : null}
+      <div className="hepan-copy-stack">
+        {hepan.description ? (
+          <p className="hepan-description">{hepan.description}</p>
+        ) : null}
 
-      {hepan.modifier ? (
-        <p className="hepan-modifier">{hepan.modifier}</p>
-      ) : null}
+        {hepan.modifier ? (
+          <p className="hepan-modifier">{hepan.modifier}</p>
+        ) : null}
 
-      {hepan.cta ? (
-        <blockquote className="hepan-cta">
-          <span className="hepan-quote">"</span>{hepan.cta}
-        </blockquote>
-      ) : null}
+        {hepan.cta ? (
+          <blockquote className="hepan-cta">
+            <span className="hepan-quote">"</span>{hepan.cta}
+          </blockquote>
+        ) : null}
+      </div>
 
       <footer className="hepan-card-foot">
         <span>有时 · 合盘图鉴</span>

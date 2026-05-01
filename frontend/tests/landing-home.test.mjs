@@ -156,4 +156,7 @@ test('HepanCardPreview shows pair card with state pair icon + label + cta', () =
   assert.match(source, /撑腰搭子/);
   assert.match(source, /⚡⚡/);
   assert.match(source, /你冲，我等你回来吃饭/);
+  assert.match(source, /relationIllustrationSrc/);
+  assert.match(source, /<img/);
+  assert.doesNotMatch(source, /<svg/);
 });

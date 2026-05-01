@@ -44,12 +44,28 @@ test('hepan card uses 3:4 portrait aspect ratio', () => {
   assert.match(css, /--card-accent:\s*var\(--theme/);
 });
 
+test('hepan card protects long relationship tags from clipping', () => {
+  const css = fs.readFileSync(new URL('../src/styles/hepan.css', import.meta.url), 'utf8');
+  assert.match(css, /\.hepan-card-subtags[\s\S]*display:\s*grid/);
+  assert.match(css, /\.hepan-card-subtags li[\s\S]*overflow-wrap:\s*anywhere/);
+  assert.match(css, /\.hepan-role-text[\s\S]*overflow-wrap:\s*anywhere/);
+  assert.match(css, /\.hepan-copy-stack[\s\S]*min-height:\s*0/);
+});
+
 test('hepan invite landing page guides B with inviter context', () => {
   const source = fs.readFileSync(new URL('../src/components/hepan/HepanScreen.jsx', import.meta.url), 'utf8');
   assert.match(source, /邀请你来合盘/);
   assert.match(source, /hepan-invite/);
   assert.match(source, /看我们是哪种搭子/);
   assert.match(source, /原始日期不会被保存/);
+});
+
+test('completed hepan card can be exported as an image', () => {
+  const source = fs.readFileSync(new URL('../src/components/hepan/HepanScreen.jsx', import.meta.url), 'utf8');
+  assert.match(source, /saveCardAsImage/);
+  assert.match(source, /hepan-save-button/);
+  assert.match(source, /导出合盘图/);
+  assert.match(source, /hepan_card_save/);
 });
 
 test('CardActions invite-pair button is no longer disabled', () => {
@@ -66,12 +82,17 @@ test('CardWorkspace wires invite-pair button to /api/hepan/invite', () => {
   assert.match(source, /handleInvitePair/);
 });
 
-test('relationIllustrations exports 6 category SVGs', () => {
+test('relationIllustrations exports 6 versioned PNG assets', () => {
   const source = fs.readFileSync(new URL('../src/components/hepan/relationIllustrations.jsx', import.meta.url), 'utf8');
-  assert.match(source, /天作搭子/);
-  assert.match(source, /镜像搭子/);
-  assert.match(source, /同频搭子/);
-  assert.match(source, /滋养搭子/);
-  assert.match(source, /火花搭子/);
-  assert.match(source, /互补搭子/);
+  const art = fs.readFileSync(new URL('../src/lib/hepanArt.js', import.meta.url), 'utf8');
+  assert.match(art, /天作搭子/);
+  assert.match(art, /镜像搭子/);
+  assert.match(art, /同频搭子/);
+  assert.match(art, /滋养搭子/);
+  assert.match(art, /火花搭子/);
+  assert.match(art, /互补搭子/);
+  assert.match(art, /\/static\/hepan\/illustrations/);
+  assert.match(art, /HEPAN_ART_VERSION/);
+  assert.match(source, /relationIllustrationSrc/);
+  assert.doesNotMatch(source, /<svg/);
 });
