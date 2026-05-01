@@ -1440,13 +1440,14 @@
     border: 1px solid var(--line);
     background: #fff;
     padding: 8px;
+    /* 行内两列都居中对齐 — textarea wrap 由内部 flex 把单行 textarea 撑成
+       42 高度并垂直居中；按钮 (.chat-send-btn) 自然高度 ~38，靠这条
+       align-items 也跟着中线对齐 */
+    align-items: center;
   }
   .chat-input textarea {
     border: none !important;
-    /* padding 选 8/10 让 42px 高度减去上下 16px 后剩 26px ≈ 14px × 1.8
-       的单行高度，单行文字视觉刚好居中。多行时 textarea 自然往下扩 */
-    padding: 8px 10px;
-    min-height: 42px;
+    padding: 0 10px;     /* 只留水平 padding；垂直由父 flex 居中 */
     max-height: 140px;
     resize: none;
     overflow-y: auto;
@@ -1463,12 +1464,17 @@
   .chat-textarea-wrap {
     position: relative;
     min-width: 0;
+    /* flex + min-height 才是让 textarea 单行文字真正垂直居中的关键：
+       textarea 自己内部不会居中文字（不像 div），所以让它做 flex item，
+       靠 align-items: center 把它放在 42px 行的视觉中线。*/
+    display: flex;
+    align-items: center;
+    min-height: 42px;
   }
   .chat-placeholder-overlay {
     position: absolute;
-    /* 跟 textarea padding 严格对齐 — overlay 的字要落在 textarea 文字
-       会出现的位置，否则用户看到 placeholder → typed text 时会有跳动 */
-    top: 8px;
+    top: 50%;
+    transform: translateY(-50%);
     left: 10px;
     right: 10px;
     line-height: 1.8;
@@ -1485,7 +1491,8 @@
   }
   .chat-send-btn {
     min-width: 76px;
-    align-self: end;
+    /* 父 .chat-input 已经 align-items: center，按钮自然就跟 textarea
+       中线对齐 — 老的 align-self: end 把按钮压到底部，是这次没居中的根因 */
   }
 
   .msg { margin-bottom: 22px; }
