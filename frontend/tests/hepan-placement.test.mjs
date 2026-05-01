@@ -14,7 +14,8 @@ test('hepan card surfaces label, subtags, dual roles, modifier, cta', () => {
   const source = fs.readFileSync(new URL('../src/components/hepan/HepanCard.jsx', import.meta.url), 'utf8');
 
   assert.match(source, /hepan-card-head/);
-  assert.match(source, /hepan-state-pair/);          // ⚡⚡/⚡🔋
+  assert.match(source, /hepan-card-hero/);
+  assert.match(source, /hepan-state-pair/);          // readable state rhythm label
   assert.match(source, /hepan-card-illustration/);   // 6 大类占位插画
   assert.match(source, /hepan-card-label/);          // 关系标签 (大字)
   assert.match(source, /hepan-card-subtags/);        // 3 chip
@@ -50,6 +51,20 @@ test('hepan card protects long relationship tags from clipping', () => {
   assert.match(css, /\.hepan-card-subtags li[\s\S]*overflow-wrap:\s*anywhere/);
   assert.match(css, /\.hepan-role-text[\s\S]*overflow-wrap:\s*anywhere/);
   assert.match(css, /\.hepan-copy-stack[\s\S]*min-height:\s*0/);
+});
+
+test('hepan card follows the editorial paper visual system', () => {
+  const source = fs.readFileSync(new URL('../src/components/hepan/HepanCard.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../src/styles/hepan.css', import.meta.url), 'utf8');
+  const chipRule = css.match(/\.hepan-card-subtags li\s*\{[\s\S]*?\n\}/)?.[0] || '';
+
+  assert.match(css, /\.hepan-card::before/);
+  assert.match(css, /\.hepan-card-hero[\s\S]*flex-direction:\s*column/);
+  assert.match(css, /\.hepan-card-illustration[\s\S]*max-width:\s*46%/);
+  assert.match(css, /\.hepan-card-illustration img[\s\S]*transform:\s*scale\(1\.28\)/);
+  assert.match(chipRule, /background:\s*color-mix/);
+  assert.match(chipRule, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(source, /\{hepan\.state_pair\}/);
 });
 
 test('hepan invite landing page guides B with inviter context', () => {

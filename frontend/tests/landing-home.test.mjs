@@ -151,12 +151,15 @@ test('CosmicCardPreview uses versioned PNG illustrations without raw bazi terms'
   assert.doesNotMatch(source, /[>\s]格局[<\s]/);
 });
 
-test('HepanCardPreview shows pair card with state pair icon + label + cta', () => {
+test('HepanCardPreview shows editorial pair card with label, state copy, and cta', () => {
   const source = fs.readFileSync(new URL('../src/components/landing/HepanCardPreview.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../src/styles/landing.css', import.meta.url), 'utf8');
   assert.match(source, /撑腰搭子/);
-  assert.match(source, /⚡⚡/);
+  assert.match(source, /全力释放期/);
+  assert.match(source, /\{category\}/);
   assert.match(source, /你冲，我等你回来吃饭/);
   assert.match(source, /relationIllustrationSrc/);
   assert.match(source, /<img/);
   assert.doesNotMatch(source, /<svg/);
+  assert.match(css, /\.landing-hepan-illust img[\s\S]*transform:\s*scale\(1\.24\)/);
 });

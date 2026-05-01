@@ -57,11 +57,11 @@ const PERSONA_POOL = [
 ];
 
 const RELATION_CATEGORIES = [
-  { emoji: '🤝', label: '天作' },
-  { emoji: '🌱', label: '滋养' },
-  { emoji: '🔥', label: '火花' },
-  { emoji: '🪞', label: '镜像' },
-  { emoji: '🔄', label: '同频' },
+  { mark: '01', label: '天作' },
+  { mark: '02', label: '滋养' },
+  { mark: '03', label: '火花' },
+  { mark: '04', label: '镜像' },
+  { mark: '05', label: '同频' },
 ];
 
 const TRUST_METRICS = [
@@ -231,7 +231,7 @@ export function LandingHome() {
             <div className="landing-relation-chips">
               {RELATION_CATEGORIES.map(c => (
                 <span key={c.label} className="landing-relation-chip">
-                  {c.emoji}<span>{c.label}</span>
+                  <em>{c.mark}</em><span>{c.label}</span>
                 </span>
               ))}
             </div>

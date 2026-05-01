@@ -25,28 +25,32 @@ export function HepanCardPreview() {
           <em> / 20</em>
         </span>
       </header>
-      <div className="landing-hepan-state">
-        <span className="landing-hepan-state-icon">⚡⚡</span>
-        <span>全力释放期</span>
-      </div>
-      <div className="landing-hepan-nicks">
-        <span style={{ color: 'var(--theme-a)' }}>@小满</span>
-        <span className="landing-hepan-x">×</span>
-        <span style={{ color: 'var(--theme-b)' }}>@阿青</span>
-      </div>
-      <div className="landing-hepan-illust" aria-hidden="true">
-        <img
-          src={relationIllustrationSrc(category)}
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
-      <h3 className="landing-hepan-label">撑腰搭子</h3>
+      <section className="landing-hepan-hero">
+        <div className="landing-hepan-illust" aria-hidden="true">
+          <img
+            src={relationIllustrationSrc(category)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <div className="landing-hepan-hero-copy">
+          <div className="landing-hepan-state">
+            <span>全力释放期</span>
+            <span>{category}</span>
+          </div>
+          <h3 className="landing-hepan-label">撑腰搭子</h3>
+          <div className="landing-hepan-nicks">
+            <span style={{ color: 'var(--theme-a)' }}>@小满</span>
+            <span className="landing-hepan-x">×</span>
+            <span style={{ color: 'var(--theme-b)' }}>@阿青</span>
+          </div>
+        </div>
+      </section>
       <ul className="landing-hepan-subtags">
-        <li>你顶我兜</li>
-        <li>急的慢的</li>
-        <li>吵完还在</li>
+        <li><span>01</span>你顶我兜</li>
+        <li><span>02</span>急的慢的</li>
+        <li><span>03</span>吵完还在</li>
       </ul>
       <p className="landing-hepan-desc">
         你往前冲的时候从不回头，因为知道后面有人给你留着饭。

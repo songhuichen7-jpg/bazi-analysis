@@ -1,10 +1,10 @@
 // frontend/src/components/hepan/HepanCard.jsx
 //
 // Spec: PM/specs/03_卡片与分享系统.md §三 + 04b §四 展示结构.
-//   头部: 双方编号 + ⚡🔋 状态徽章
+//   头部: 双方编号 + 状态标签
 //   昵称行: @A × @B
 //   关系标签 (大字)
-//   3 子标签 chip
+//   3 子标签
 //   双方角色对照 (A 角色 / B 角色)
 //   描述 + 04b 修饰句
 //   CTA 金句
@@ -40,27 +40,34 @@ export const HepanCard = forwardRef(function HepanCard({ hepan }, ref) {
         </span>
       </header>
 
-      <div className="hepan-state-row">
-        <span className="hepan-state-pair">{hepan.state_pair}</span>
-        <span className="hepan-state-label">{hepan.state_pair_label}</span>
-      </div>
+      <section className="hepan-card-hero">
+        <RelationIllustration
+          category={hepan.category}
+          className="hepan-card-illustration"
+        />
 
-      <div className="hepan-nicks">
-        <span className="hepan-nick hepan-nick-a">@{a?.nickname || '邀请人'}</span>
-        <span className="hepan-x">×</span>
-        <span className="hepan-nick hepan-nick-b">@{b?.nickname || '你'}</span>
-      </div>
+        <div className="hepan-card-hero-copy">
+          <div className="hepan-state-row">
+            <span className="hepan-state-pair">{hepan.state_pair_label}</span>
+            <span className="hepan-state-label">{hepan.category}</span>
+          </div>
 
-      <RelationIllustration
-        category={hepan.category}
-        className="hepan-card-illustration"
-      />
+          <h1 className="hepan-card-label">{hepan.label}</h1>
 
-      <h1 className="hepan-card-label">{hepan.label}</h1>
+          <div className="hepan-nicks">
+            <span className="hepan-nick hepan-nick-a">@{a?.nickname || '邀请人'}</span>
+            <span className="hepan-x">×</span>
+            <span className="hepan-nick hepan-nick-b">@{b?.nickname || '你'}</span>
+          </div>
+        </div>
+      </section>
 
       <ul className="hepan-card-subtags">
         {(hepan.subtags || []).map((t, i) => (
-          <li key={i}>{t}</li>
+          <li key={i}>
+            <span>{String(i + 1).padStart(2, '0')}</span>
+            {t}
+          </li>
         ))}
       </ul>
 

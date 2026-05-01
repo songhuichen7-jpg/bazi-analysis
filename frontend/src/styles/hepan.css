@@ -156,11 +156,10 @@
   width: min(540px, 100%);
   aspect-ratio: 3 / 4;
   margin: 0 auto;
-  padding: 20px 22px 16px;
+  padding: 26px 28px 20px;
   border-radius: 18px;
   background:
-    radial-gradient(54% 26% at 24% 0%, color-mix(in srgb, var(--theme-a, var(--card-accent)) 10%, transparent) 0%, transparent 62%),
-    radial-gradient(54% 26% at 76% 0%, color-mix(in srgb, var(--theme-b, var(--card-accent)) 10%, transparent) 0%, transparent 62%),
+    radial-gradient(118% 82% at 50% -12%, color-mix(in srgb, var(--card-accent) 10%, #fffdf7) 0%, #fffdf7 58%),
     #fffdf7;
   color: var(--card-ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
@@ -173,6 +172,22 @@
     0 18px 38px rgba(60, 36, 14, 0.14),
     0 1px 0 rgba(255, 255, 255, 0.9) inset;
   overflow: hidden;
+}
+
+.hepan-card::before {
+  content: "";
+  position: absolute;
+  right: -25%;
+  top: -40%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 10%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.hepan-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Header: brand + dual type id */
@@ -218,30 +233,52 @@
   margin: 0 4px;
 }
 
-/* State row: ⚡⚡/⚡🔋 + label */
+.hepan-card-hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 0;
+  text-align: center;
+}
+
+.hepan-card-hero-copy {
+  min-width: 0;
+  width: 100%;
+}
+
+/* State row: rhythm + category */
 .hepan-state-row {
-  margin-top: 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #5d4f3a;
-  font-size: 11px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: #9a8866;
+  font-size: 10px;
   letter-spacing: 0.16em;
 }
 
 .hepan-state-pair {
-  font-size: 16px;
-  letter-spacing: 0;
+  color: var(--card-accent);
+  letter-spacing: 0.16em;
+}
+
+.hepan-state-label {
+  color: #9a8866;
 }
 
 /* Nicknames row */
 .hepan-nicks {
   margin-top: 8px;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
+  justify-content: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: #3a2c1d;
+  line-height: 1.4;
 }
 
 .hepan-nick-a { color: var(--theme-a, var(--card-accent)); font-weight: 500; }
@@ -249,10 +286,11 @@
 
 /* Relation illustration */
 .hepan-card-illustration {
-  width: 31%;
+  width: 214px;
+  max-width: 46%;
+  margin: 10px 0 6px;
   aspect-ratio: 1 / 1;
-  margin: 10px 0 4px;
-  color: var(--card-accent);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,12 +301,15 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  filter: saturate(.96) contrast(1.03);
+  transform: scale(1.28);
+  transform-origin: center;
 }
 
 /* Relation label — biggest text */
 .hepan-card-label {
-  margin: 3px 0 0;
-  font-size: 34px;
+  margin: 4px 0 0;
+  font-size: 46px;
   font-weight: 600;
   line-height: 1.04;
   letter-spacing: 0.02em;
@@ -277,63 +318,80 @@
   overflow-wrap: anywhere;
 }
 
-/* Subtags — 3 chips */
+/* Subtags — three small paper labels, soft enough to sit with the personal card. */
 .hepan-card-subtags {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  gap: 6px;
   list-style: none;
   padding: 0;
-  margin: 9px 0 0;
+  margin: 12px 0 0;
   width: 100%;
+  align-items: stretch;
 }
 
 .hepan-card-subtags li {
   min-width: 0;
-  min-height: 34px;
-  padding: 5px 4px;
+  min-height: 42px;
+  padding: 6px 5px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--card-accent) 9%, #fffaf0);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, #ecdfc4);
+  background: color-mix(in srgb, var(--card-accent) 8%, #fffaf0);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 20%, #ecdfc4);
   color: #2a1d10;
-  font-size: 10px;
-  line-height: 1.28;
+  font-size: 10.5px;
+  line-height: 1.24;
   text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.hepan-card-subtags li + li {
+  border-color: color-mix(in srgb, var(--card-accent) 20%, #ecdfc4);
+}
+
+.hepan-card-subtags li span {
+  color: var(--card-accent);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  line-height: 1;
 }
 
 /* Roles — A 角色 / B 角色 (双方角色对照) */
 .hepan-roles {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
   margin-top: 10px;
+  padding-top: 0;
   width: 100%;
+  text-align: center;
 }
 
 .hepan-role {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .hepan-role-divider {
   width: 1px;
-  height: 36px;
-  background: #ecdfc8;
+  height: 48px;
+  background: rgba(42, 31, 18, 0.1);
 }
 
 .hepan-role-cosmic {
-  font-size: 11px;
-  color: #8b7858;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
 }
 
 .hepan-role-a .hepan-role-cosmic { color: var(--theme-a, var(--card-accent)); }
@@ -341,9 +399,9 @@
 
 .hepan-role-text {
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 13px;
+  font-size: 14px;
   color: #2a1d10;
-  line-height: 1.32;
+  line-height: 1.34;
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
@@ -351,17 +409,20 @@
 .hepan-copy-stack {
   width: 100%;
   min-height: 0;
-  margin-top: 9px;
+  margin-top: 12px;
   display: grid;
   gap: 6px;
+  flex: 1 1 auto;
+  align-content: center;
+  text-align: center;
 }
 
 /* Description (04a base) */
 .hepan-description {
   margin: 0;
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 12.2px;
+  line-height: 1.5;
   color: #3a2c1d;
   letter-spacing: 0;
   overflow-wrap: anywhere;
@@ -370,24 +431,22 @@
 /* Modifier (04b dynamic) */
 .hepan-modifier {
   margin: 0;
-  padding: 6px 9px;
-  background: color-mix(in srgb, var(--card-accent) 8%, #fffaf0);
-  border-left: 2px solid var(--card-accent);
-  font-size: 11px;
-  line-height: 1.42;
-  color: #3a2c1d;
-  text-align: left;
+  padding: 0 6px;
+  font-size: 11.3px;
+  line-height: 1.46;
+  color: #5f513b;
   overflow-wrap: anywhere;
 }
 
 /* CTA quote */
 .hepan-cta {
   margin: 0;
-  padding: 0 8px;
+  padding: 2px 0 0;
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.42;
   color: var(--card-ink);
+  text-align: center;
   overflow-wrap: anywhere;
 }
 
@@ -404,8 +463,8 @@
 /* Footer */
 .hepan-card-foot {
   width: 100%;
-  margin-top: auto;
-  padding-top: 8px;
+  margin-top: 0;
+  padding-top: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -472,78 +531,87 @@
 @media (max-width: 540px) {
   .hepan-card {
     width: 100%;
-    padding: 16px 16px 13px;
+    padding: 17px 16px 13px;
   }
 
   .hepan-card-head {
     font-size: 9px;
     letter-spacing: 0.18em;
+    padding-bottom: 10px;
   }
 
-  .hepan-state-row {
-    margin-top: 7px;
-    font-size: 10px;
-  }
-
-  .hepan-nicks {
-    margin-top: 5px;
-    font-size: 12px;
+  .hepan-card-hero {
+    padding: 8px 0 0;
   }
 
   .hepan-card-illustration {
-    width: 28%;
-    margin-top: 7px;
+    width: 160px;
+    max-width: 44%;
+    margin: 8px 0 3px;
+  }
+
+  .hepan-state-row {
+    font-size: 8.5px;
+    letter-spacing: 0.12em;
+  }
+
+  .hepan-nicks {
+    margin-top: 8px;
+    font-size: 10.5px;
   }
 
   .hepan-card-label {
-    font-size: 27px;
+    margin-top: 4px;
+    font-size: 34px;
   }
 
   .hepan-card-subtags {
-    margin-top: 7px;
+    margin-top: 9px;
     gap: 4px;
   }
 
   .hepan-card-subtags li {
-    min-height: 30px;
-    padding: 4px 3px;
-    font-size: 9px;
-    line-height: 1.22;
+    min-height: 34px;
+    padding: 4px 4px;
+    border-radius: 8px;
+    font-size: 8.4px;
+    line-height: 1.16;
   }
 
   .hepan-roles {
     margin-top: 8px;
-    gap: 7px;
+    padding-top: 0;
+    gap: 9px;
   }
 
   .hepan-role-cosmic {
-    font-size: 9px;
+    font-size: 8.5px;
   }
 
   .hepan-role-text {
-    font-size: 11px;
-    line-height: 1.24;
+    font-size: 10px;
+    line-height: 1.2;
   }
 
   .hepan-copy-stack {
-    margin-top: 7px;
+    margin-top: 9px;
     gap: 5px;
   }
 
   .hepan-description {
-    font-size: 10.5px;
-    line-height: 1.33;
+    font-size: 10.1px;
+    line-height: 1.34;
   }
 
   .hepan-modifier {
-    padding: 5px 7px;
-    font-size: 9.5px;
+    padding: 5px 0 0;
+    font-size: 9.2px;
     line-height: 1.3;
   }
 
   .hepan-cta {
-    font-size: 11px;
-    line-height: 1.32;
+    font-size: 10.8px;
+    line-height: 1.3;
   }
 
   .hepan-card-foot {
