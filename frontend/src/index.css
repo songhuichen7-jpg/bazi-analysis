@@ -567,7 +567,10 @@
   .view-item:hover { color: var(--ink); }
   .view-item.active { color: var(--ink); border-bottom-color: var(--ink); }
 
-  .left-content { padding: 40px 24px; max-width: 720px; }
+  /* 左栏内容（命盘 / 流年 / 卡片）水平居中 — 拖宽分隔条让左栏变大时，
+   * 内容跟着变宽容易让 4 柱命盘看起来散；居中后无论左栏多宽，命盘
+   * 都坐在视觉中心。.card-content 只覆盖 max-width，margin auto 自动继承。 */
+  .left-content { padding: 40px 24px; max-width: 720px; margin-left: auto; margin-right: auto; }
 
   /* Right pane (chat) */
   .chat-topbar {
