@@ -6,8 +6,6 @@ import AppShell from './components/AppShell.jsx';
 import LegalPage from './components/LegalPage.jsx';
 import PricingPage from './components/PricingPage.jsx';
 
-export const ROUTES = ['/', '/card/:slug', '/hepan/:slug', '/legal/:slug', '/pricing', '/app/*'];
-
 export default function App() {
   return (
     <Routes>

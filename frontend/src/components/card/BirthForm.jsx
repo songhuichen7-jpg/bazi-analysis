@@ -5,8 +5,6 @@ import { TimeSegmentPicker } from './TimeSegmentPicker.jsx';
 import { validateBirthInput } from './birthValidation.js';
 import { track } from '../../lib/analytics.js';
 
-export { validateBirthInput };  // re-export
-
 export function BirthForm({ onSubmit }) {
   const { birth, nickname, setBirthField, setNickname, selectTimeSegment, clearTimeSegment } = useCardStore();
   const [formError, setFormError] = useState(null);

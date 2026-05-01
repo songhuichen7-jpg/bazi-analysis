@@ -32,5 +32,5 @@ export async function track(event, properties = {}) {
         properties: { ...collectContext(), ...properties },
       }),
     });
-  } catch (_) { /* silent */ }
+  } catch { /* silent */ }
 }

@@ -11,7 +11,6 @@ import { friendlyError } from '../lib/errorMessages.js';
 
 export default function AuthScreen() {
   const setUser = useAppStore(s => s.setUser);
-  const setScreen = useAppStore(s => s.setScreen);
   const enterFromLanding = useAppStore(s => s.enterFromLanding);
 
   const [mode, setMode] = useState('register');

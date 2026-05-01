@@ -70,10 +70,11 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
         deleteCache(key);
         setError(e.message || String(e));
       } finally {
-        if (cancelled) return;
-        setStreaming(false);
-        setStreamingFlag(false);
-        if (abortRef.current === controller) abortRef.current = null;
+        if (!cancelled) {
+          setStreaming(false);
+          setStreamingFlag(false);
+          if (abortRef.current === controller) abortRef.current = null;
+        }
       }
     })();
 

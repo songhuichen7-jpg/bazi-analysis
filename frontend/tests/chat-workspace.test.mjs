@@ -27,9 +27,9 @@ test('buildChatWorkspace summarizes the chart and provides a textual opening gui
   assert.equal(workspace.openingGuide.items[0].detail, '这盘命的底色是什么，核心结构长什么样');
   assert.match(workspace.openingGuide.closing, /我先从整体聊起/);
   assert.deepEqual(workspace.starterQuestions.slice(0, 3), [
-    '这张盘的核心矛盾是什么',
-    '我最该先补哪一块',
-    '接下来两年重点看什么',
+    '这盘像哪部电影',
+    '这盘的核心矛盾',
+    '接下来两年的关键节点',
   ]);
 });
 
@@ -49,7 +49,7 @@ test('buildChatWorkspace follows the open dayun context when a step is selected'
   assert.equal(workspace.contextLabel, '戊午大运');
   assert.equal(workspace.title, '戊午大运');
   assert.deepEqual(workspace.badges, ['18岁起', '偏财/伤官']);
-  assert.equal(workspace.starterQuestions[0], '这步大运的主线是什么');
+  assert.equal(workspace.starterQuestions[0], '这十年的主线');
 });
 
 
@@ -67,7 +67,7 @@ test('buildChatWorkspace prioritizes the open liunian context over the wider day
   assert.equal(workspace.contextLabel, '2014 甲午');
   assert.equal(workspace.title, '2014 甲午');
   assert.deepEqual(workspace.badges, ['所属 戊午大运', '比肩']);
-  assert.equal(workspace.starterQuestions[0], '这一年最该抓住什么机会');
+  assert.equal(workspace.starterQuestions[0], '这一年最大的机会');
 });
 
 

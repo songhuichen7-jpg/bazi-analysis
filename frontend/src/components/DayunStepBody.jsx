@@ -76,10 +76,11 @@ export default function DayunStepBody({ idx }) {
         deleteDayunCache(idx);
         setError(e.message || String(e));
       } finally {
-        if (cancelled) return;
-        setStreaming(false);
-        setDayunStreaming(false);
-        if (abortRef.current === controller) abortRef.current = null;
+        if (!cancelled) {
+          setStreaming(false);
+          setDayunStreaming(false);
+          if (abortRef.current === controller) abortRef.current = null;
+        }
       }
     })();
 

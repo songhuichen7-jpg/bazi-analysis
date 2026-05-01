@@ -14,7 +14,8 @@ const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿
 // whitespace + an optional sentence-ending 。/！/？ at the parser level
 // so the card sits flush against the adjacent text. Chart refs (inline
 // labels) keep their punctuation/whitespace untouched.
-const MEDIA_TRAILING_RE = /^[。！？.!?]?[\s ]*/;
+const NBSP = '\u00a0';
+const MEDIA_TRAILING_RE = new RegExp(`^[。！？.!?]?[\\s${NBSP}]*`);
 
 // LLMs occasionally serialise our token in malformed shapes — single brackets,
 // markdown-link syntax, etc. Repair the common ones BEFORE the strict parser
@@ -31,7 +32,7 @@ const FIXUP_PATTERNS = [
   },
   // Single-bracket media token: [song:歌|艺] → [[song:歌|艺]]
   {
-    re: /(^|[^\[])\[(song|movie|book):([^|\]]+)(?:\|([^\]]+))?\](?!\])/g,
+    re: /(^|[^[])\[(song|movie|book):([^|\]]+)(?:\|([^\]]+))?](?!])/g,
     repl: (_m, head, kind, title, sub) =>
       `${head}[[${kind}:${title}${sub ? '|' + sub : ''}]]`,
   },
@@ -122,7 +123,7 @@ export function parseRef(text, options = {}) {
       // Trim trailing newlines/spaces from the segment before a media card —
       // the card has its own margin and doesn't need the LLM's "\n\n"
       // padding rendered as a visible blank line above it.
-      if (m[1]) preceding = preceding.replace(/[\s ]+$/, '');
+      if (m[1]) preceding = preceding.replace(new RegExp(`[\\s${NBSP}]+$`), '');
       if (preceding) out.push({ type: 'text', value: preceding });
     }
     let cursor = m.index + m[0].length;

@@ -4,7 +4,7 @@ function hasValue(value) {
   return text !== '' && text !== '—';
 }
 
-export function buildChartVisibility({ meta, force, guards } = {}) {
+export function buildChartVisibility({ meta, force } = {}) {
   const dayMaster = hasValue(meta?.rizhu) ? String(meta.rizhu).trim() : '';
   const dayStrength = hasValue(meta?.dayStrength) ? String(meta.dayStrength).trim() : '';
   const geju = hasValue(meta?.geju) ? String(meta.geju).trim() : '';

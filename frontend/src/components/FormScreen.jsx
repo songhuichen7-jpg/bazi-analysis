@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { useAppStore, generateChartLabel } from '../store/useAppStore';
 import { fetchCities, createChart } from '../lib/api';

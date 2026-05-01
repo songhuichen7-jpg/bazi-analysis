@@ -16,18 +16,23 @@ const KIND_FALLBACK_GRADIENT = {
 export function MediaCard({ kind, title, subtitle }) {
   const safeTitle = String(title || '').trim();
   const safeSub = String(subtitle || '').trim();
-  if (!safeTitle) return null;
-
-  const { url, label } = buildSearchUrl(kind, safeTitle, safeSub);
   const [cover, setCover] = useState(null);
+  const { url, label } = safeTitle
+    ? buildSearchUrl(kind, safeTitle, safeSub)
+    : { url: '', label: '' };
 
   useEffect(() => {
+    if (!safeTitle) {
+      return undefined;
+    }
     let cancelled = false;
     fetchMediaCover(kind, safeTitle, safeSub).then((data) => {
       if (!cancelled) setCover(data || null);
     });
     return () => { cancelled = true; };
   }, [kind, safeTitle, safeSub]);
+
+  if (!safeTitle) return null;
 
   // For movies: when the LLM gave no director (subtitle empty) but TMDB
   // returned a release year, surface that as the subtitle instead so the

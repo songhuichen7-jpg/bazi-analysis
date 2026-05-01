@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { renderMd } from './RefChip';
+import { renderMd } from '../lib/richText.jsx';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import { buildClassicsDisplayItem } from '../lib/classics';

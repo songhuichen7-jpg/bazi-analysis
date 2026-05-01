@@ -108,9 +108,14 @@ test('buildUserMenuProfile prefers nickname initial and masks known phone digits
   });
 
   assert.deepEqual(result, {
+    avatarUrl: null,
     avatarLabel: '测',
     displayName: '测试用户',
+    isGuest: false,
     maskedPhone: '+86 138 *** 1833',
+    plan: 'lite',
+    planExpiresAt: null,
+    role: 'user',
   });
 });
 
@@ -143,7 +148,7 @@ test('primary shell navigation and icon-only controls expose button semantics', 
   const form = fs.readFileSync(new URL('../src/components/FormScreen.jsx', import.meta.url), 'utf8');
 
   assert.match(shell, /<button[\s\S]*aria-pressed=\{view === 'chart'\}[\s\S]*>命 盘<\/button>/);
-  assert.match(shell, /aria-label="清空所有命盘和聊天记录"/);
+  assert.match(shell, /aria-label=\{resetPending \? '再点一次清空所有命盘和聊天记录' : '清空所有命盘和聊天记录'\}/);
   assert.match(chartSwitcher, /aria-label="重命名命盘"/);
   assert.match(chartSwitcher, /aria-label="删除命盘"/);
   assert.match(conversationSwitcher, /aria-label="重命名对话"/);

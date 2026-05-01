@@ -137,11 +137,12 @@ test('Landing is responsive at 900px (mockup stacks, gallery wraps)', () => {
 
 test('CosmicCardPreview renders 5 illustration kinds without raw bazi terms', () => {
   const source = fs.readFileSync(new URL('../src/components/landing/CosmicCardPreview.jsx', import.meta.url), 'utf8');
-  assert.match(source, /bamboo/);
-  assert.match(source, /samoye/);
-  assert.match(source, /lamp/);
-  assert.match(source, /puffer/);
-  assert.match(source, /dandelion/);
+  const illustrations = fs.readFileSync(new URL('../src/components/landing/landingIllustrations.jsx', import.meta.url), 'utf8');
+  assert.match(illustrations, /bamboo/);
+  assert.match(illustrations, /samoye/);
+  assert.match(illustrations, /lamp/);
+  assert.match(illustrations, /puffer/);
+  assert.match(illustrations, /dandelion/);
   assert.doesNotMatch(source, /[>\s]日主[<\s]/);
   assert.doesNotMatch(source, /[>\s]格局[<\s]/);
 });

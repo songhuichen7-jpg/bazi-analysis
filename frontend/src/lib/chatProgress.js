@@ -38,7 +38,7 @@ export function applyChatProgressEvent(progress, event) {
     case 'retrieval':
       return {
         ...current,
-        phase: 'retrieving',
+        phase: 'streaming',
         hasRetrieval: true,
         retrievalSources: parseSources(event.source),
       };

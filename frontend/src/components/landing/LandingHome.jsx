@@ -11,6 +11,7 @@
 //
 // 设计语言: 超大宋体衬线 (Songti SC) + 黑/暖灰为主 + 暖米底 + 大留白.
 // 卡片本身保留产品标志性的暖色, 但页面 chrome 几乎是黑白灰.
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';

@@ -30,7 +30,7 @@ export function CardWorkspace() {
   const activeCard = card && sourceChartId === currentId ? card : null;
   const canGenerate = !!birthInfo?.date && !!currentId;
   const shareUrl = buildShareUrl(activeCard);
-  const archiveCode = activeCard?.type_id ? `命档 ${activeCard.type_id}` : '命档 --';
+  const archiveCode = activeCard?.type_id ? `命档 ${activeCard.type_id}` : '命档待生成';
 
   async function handleGenerate() {
     setNotice('');
@@ -128,11 +128,11 @@ export function CardWorkspace() {
               <article className="share-card share-card-empty">
                 <header className="share-card-head">
                   <span className="share-card-brand">有时</span>
-                  <span className="share-card-typeid">-- <em>/ 20</em></span>
+                  <span className="share-card-typeid">待定 <em>/ 20</em></span>
                 </header>
                 <figure className="share-card-illustration share-card-illustration-empty" aria-hidden="true" />
-                <h1 className="share-card-name">??</h1>
-                <p className="share-card-suffix">· 等你的卡片 ·</p>
+                <h1 className="share-card-name">待生成</h1>
+                <p className="share-card-suffix">· 等一张命盘摘录 ·</p>
                 <p className="share-card-oneliner">点右上角『生成卡片』，3 秒看到你的人格卡片。</p>
                 <ul className="share-card-subtags share-card-subtags-empty" aria-hidden="true">
                   <li />

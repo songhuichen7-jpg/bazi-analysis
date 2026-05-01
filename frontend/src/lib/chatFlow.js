@@ -7,6 +7,10 @@ export function finalizeChatTurn({ setChatStreaming, refreshChips }) {
   });
 }
 
+function isOptimisticConversationId(value) {
+  return String(value || '').startsWith('temp-conv-');
+}
+
 export function startBootstrapChipsRefresh({
   meta,
   currentConversationId,
@@ -28,8 +32,10 @@ export async function resolveConversationIdForSend({
   currentChartId,
   ensureConversation,
 }) {
-  if (currentConversationId) return currentConversationId;
   if (!currentChartId || typeof ensureConversation !== 'function') return null;
+  if (currentConversationId && !isOptimisticConversationId(currentConversationId)) {
+    return currentConversationId;
+  }
   const result = await ensureConversation(currentChartId);
   return result?.conversationId || null;
 }

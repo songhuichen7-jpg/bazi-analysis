@@ -9,7 +9,7 @@ test('ClassicsPanel subtitle only renders after items arrive', () => {
   const source = fs.readFileSync(new URL('../src/components/ClassicsPanel.jsx', import.meta.url), 'utf8');
 
   // 副标题被 hasContent (= items.length > 0) 守住, 出现在条件分支里
-  assert.match(source, /hasContent\s*\?[\s\S]*?从古书里取几段，与这张命盘互相照看/);
+  assert.match(source, /hasContent\s*\?[\s\S]*?整体框架 —— 调候、格局、用神/);
   // hasContent 派生自 items.length
   assert.match(source, /hasContent\s*=\s*items\.length\s*>\s*0/);
 });

@@ -39,11 +39,10 @@ function ThinkingIndicator({ trace }) {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [startedAt, stopped, hasOutput]);
+  const now = startedAt ? startedAt + tick * 1000 : 0;
   const elapsedSec = startedAt
-    ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+    ? Math.max(0, Math.floor((now - startedAt) / 1000))
     : 0;
-  // tick 仅用来触发重渲染，elapsedSec 才是真值
-  void tick;
 
   const steps = [];
   // Step 1: intent
@@ -324,7 +323,7 @@ export default function Chat() {
       // 不在底部时，新内容来了 → 提示用户"下面有新内容"
       if (distanceFromBottom(el) > 120) setShowJumpToBottom(true);
     }
-  }, [history, currentConversationId, stuckToBottom]);
+  }, [history, currentConversationId, stuckToBottom, input]);
 
   useEffect(() => {
     if (!inputRef.current) return;

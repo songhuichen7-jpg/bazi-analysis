@@ -1,5 +1,4 @@
-export function buildGenerationStatus({
-} = {}) {
+export function buildGenerationStatus() {
   return {
     visible: false,
     text: '',
