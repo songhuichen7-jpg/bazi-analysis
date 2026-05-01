@@ -52,7 +52,9 @@ export function MetaGrid() {
       {visibility.showYongshen ? (
         <div className="meta-item">
           <div className="section-num" style={{ marginBottom:6 }}>用 神</div>
-          <div className="meta-big" style={{ fontSize:15, lineHeight:1.4 }}>{meta.yongshen}</div>
+          {/* fontSize 跟旁边的日主 / 格局齐 — 默认 .meta-big 是 20px Songti，
+              内联压到 15 是早期残留，现在拿掉 */}
+          <div className="meta-big">{meta.yongshen}</div>
           <div className="meta-small">{''}</div>
         </div>
       ) : null}

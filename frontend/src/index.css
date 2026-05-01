@@ -1443,7 +1443,9 @@
   }
   .chat-input textarea {
     border: none !important;
-    padding: 6px 8px;
+    /* padding 选 8/10 让 42px 高度减去上下 16px 后剩 26px ≈ 14px × 1.8
+       的单行高度，单行文字视觉刚好居中。多行时 textarea 自然往下扩 */
+    padding: 8px 10px;
     min-height: 42px;
     max-height: 140px;
     resize: none;
@@ -1464,9 +1466,11 @@
   }
   .chat-placeholder-overlay {
     position: absolute;
-    top: 6px;
-    left: 8px;
-    right: 8px;
+    /* 跟 textarea padding 严格对齐 — overlay 的字要落在 textarea 文字
+       会出现的位置，否则用户看到 placeholder → typed text 时会有跳动 */
+    top: 8px;
+    left: 10px;
+    right: 10px;
     line-height: 1.8;
     color: #b8b1a4;
     pointer-events: none;
