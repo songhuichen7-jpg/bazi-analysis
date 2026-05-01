@@ -143,6 +143,18 @@ export function friendlyError(error, context) {
     return result('请检查出生日期和城市', detail, false);
   }
 
+  if (ctx.kind === 'profile') {
+    if (lower.includes('昵称') || lower.includes('nickname')) {
+      return result(detail || '昵称不合法', detail, false);
+    }
+    if (lower.includes('图片') || lower.includes('image') || lower.includes('webp') || lower.includes('jpg')) {
+      return result(detail || '图片不合法', detail, false);
+    }
+    if (lower.includes('4mb') || lower.includes('文件')) {
+      return result(detail || '上传文件有问题', detail, false);
+    }
+  }
+
   if (isNetwork(lower)) return result('网络连接有点问题', detail, true);
   if (isTimeout(lower)) return result('AI 响应慢了一点', detail, true);
   if (isAuth(lower)) return result('服务暂时不可用', detail, false);

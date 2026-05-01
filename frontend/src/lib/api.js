@@ -151,6 +151,27 @@ export async function logout() {
   return _postJSON('/api/auth/logout', null);
 }
 
+export async function updateProfile({ nickname, avatar_url } = {}) {
+  // 字段都是可选；undefined 不发，null/空字符串发但被后端解释成"清空"。
+  const body = {};
+  if (nickname !== undefined) body.nickname = nickname;
+  if (avatar_url !== undefined) body.avatar_url = avatar_url;
+  return _patchJSON('/api/auth/me', body);
+}
+
+export async function uploadAvatar(file) {
+  // multipart/form-data — 不能用 _postJSON（那个套了 application/json）
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/auth/avatar', {
+    method: 'POST',
+    credentials: 'include',
+    body: fd,
+  });
+  if (!r.ok) throw await _errorFromResponse(r);
+  return r.json();
+}
+
 export async function me() {
   const response = await fetch('/api/auth/me', { credentials: 'include' });
   if (response.status === 401) return null;

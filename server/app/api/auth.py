@@ -1,9 +1,12 @@
 """HTTP layer for /api/auth/*. Thin wrapper over services/*."""
 from __future__ import annotations
 
+import io
+import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import current_user
@@ -16,6 +19,7 @@ from app.schemas.auth import (
     GuestLoginRequest,
     LoginRequest,
     MeResponse,
+    ProfileUpdateRequest,
     RegisterRequest,
     SmsSendRequest,
     SmsSendResponse,
@@ -55,6 +59,7 @@ def _user_response(user: User) -> UserResponse:
         id=user.id,
         phone_last4=user.phone_last4 or "",
         nickname=user.nickname,
+        avatar_url=user.avatar_url,
         role=user.role,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at,
@@ -189,6 +194,140 @@ async def me_endpoint(
     user: User = Depends(current_user),
 ) -> MeResponse:
     return MeResponse(user=_user_response(user), quota_snapshot={})
+
+
+# 头像写入目录 — 跟 media-cache / classics 索引一起放在 server/var 下
+_AVATAR_DIR = Path(__file__).resolve().parents[2] / "var" / "avatars"
+_AVATAR_MAX_BYTES = 4 * 1024 * 1024     # 4MB 上限够手机随手拍的截图
+_AVATAR_OUTPUT_SIZE = 256                # 头像最终边长（正方形）
+_ALLOWED_MIME = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile_endpoint(
+    body: ProfileUpdateRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """更新昵称 / 头像 URL。两个字段都可选；都不传 = 什么也不做。
+    nickname 给空字符串 = 清掉，前端会回到默认显示。
+    avatar_url 一般由 POST /api/auth/avatar 返回后再 PATCH 进来；
+    这里也允许直接传字符串（比如想清空，传 ""）。"""
+    changed = False
+    if body.nickname is not None:
+        cleaned = body.nickname.strip()
+        if cleaned and len(cleaned) > 40:
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "VALIDATION", "message": "昵称最长 40 个字符"},
+            )
+        user.nickname = cleaned or None
+        changed = True
+    if body.avatar_url is not None:
+        # 只接受我们 own 的 /static/avatars/ 路径，避免被注入外链
+        if body.avatar_url and not body.avatar_url.startswith("/static/avatars/"):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "VALIDATION", "message": "头像 URL 不合法"},
+            )
+        user.avatar_url = body.avatar_url or None
+        changed = True
+    if changed:
+        await db.flush()
+        await db.commit()
+    return _user_response(user)
+
+
+@router.post("/avatar", response_model=UserResponse)
+async def upload_avatar_endpoint(
+    file: UploadFile = File(...),
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """上传头像 — 多媒体表单 ``file`` 字段，PNG/JPG/WebP/GIF。
+    流程：读 → 校验大小 / mime → Pillow 解码 + 居中裁剪到 256×256
+    → 编码为 WebP（约 80%） → 写到 ``server/var/avatars/<user>.webp``
+    → 把 ``users.avatar_url`` 更新成 ``/static/avatars/<user>.webp``。
+    返回更新后的 UserResponse。"""
+    # 1. mime / extension whitelist
+    if file.content_type not in _ALLOWED_MIME:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "VALIDATION", "message": "请上传 PNG / JPG / WebP 图片"},
+        )
+
+    # 2. 读 + 大小限制（防止 bombs）
+    raw = await file.read(_AVATAR_MAX_BYTES + 1)
+    if len(raw) > _AVATAR_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "VALIDATION", "message": "图片不能超过 4MB"},
+        )
+    if not raw:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "VALIDATION", "message": "上传文件为空"},
+        )
+
+    # 3. Pillow 解码 + 居中正方形裁剪 + 缩到 256
+    try:
+        from PIL import Image, ImageOps
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL", "message": "服务端缺少图片处理依赖"},
+        ) from exc
+    try:
+        with Image.open(io.BytesIO(raw)) as img:
+            # 自动按 EXIF 旋转，避免横竖错位
+            img = ImageOps.exif_transpose(img)
+            # 转 RGBA 再统一回 RGB（透明 → 白底），WebP 也支持透明但
+            # 头像渲染都是圆形 mask，统一不透明输出最简单。
+            if img.mode != "RGB":
+                rgb = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode in ("RGBA", "LA"):
+                    rgb.paste(img, mask=img.split()[-1])
+                else:
+                    rgb.paste(img.convert("RGB"))
+                img = rgb
+            # 居中正方形裁剪
+            short = min(img.size)
+            left = (img.width - short) // 2
+            top = (img.height - short) // 2
+            img = img.crop((left, top, left + short, top + short))
+            img = img.resize((_AVATAR_OUTPUT_SIZE, _AVATAR_OUTPUT_SIZE), Image.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format="WEBP", quality=82, method=6)
+            blob = buf.getvalue()
+    except Exception as exc:  # noqa: BLE001 — Pillow can throw a wide variety
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "VALIDATION", "message": "图片解析失败，请换一张试试"},
+        ) from exc
+
+    # 4. 写盘 — 文件名带随机后缀，旧 URL 还能被旧 page-load 引用一会儿，
+    # 浏览器自然清理；保留 user_id 前缀方便排查。
+    _AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+    nonce = secrets.token_hex(4)
+    filename = f"{user.id}-{nonce}.webp"
+    out_path = _AVATAR_DIR / filename
+    out_path.write_bytes(blob)
+    public_url = f"/static/avatars/{filename}"
+
+    # 5. 顺手把旧文件删掉（如果是我们 own 的；外链不动）
+    if user.avatar_url and user.avatar_url.startswith("/static/avatars/"):
+        old_name = user.avatar_url.split("/")[-1]
+        old_path = _AVATAR_DIR / old_name
+        if old_path != out_path:
+            try:
+                old_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    user.avatar_url = public_url
+    await db.flush()
+    await db.commit()
+    return _user_response(user)
 
 
 @router.delete("/account", response_model=AccountDeleteResponse)

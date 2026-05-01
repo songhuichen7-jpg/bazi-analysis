@@ -210,6 +210,11 @@ export const useAppStore = create((set, get) => ({
   setScreen: (screen) => set({ screen }),
   setView:   (view)   => set({ view }),
   setUser: (user) => set({ user }),
+  // 部分字段更新 —— 用户中心改昵称 / 头像后只需要刷新这两项，
+  // 不能用 setUser 整体覆盖（会把 phone 等已有字段冲掉，比如登录留下的 phone）。
+  patchUser: (patch) => set((s) => ({
+    user: s.user ? { ...s.user, ...patch } : (patch.id ? patch : s.user),
+  })),
   enterFromLanding: async () => {
     const state = get();
     if (!state.user) {

@@ -16,6 +16,7 @@ dependencies = [
     "openai>=1.40",
     "paipan",
     "pillow>=10",
+    "python-multipart>=0.0.9",
     "zhconv>=1.4",
     "colorthief>=0.2.1",
 ]

@@ -69,6 +69,14 @@ app.mount(
     name="media_cache_static",
 )
 
+_AVATAR_DIR = Path(__file__).resolve().parents[1] / "var" / "avatars"
+_AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static/avatars",
+    StaticFiles(directory=str(_AVATAR_DIR)),
+    name="avatar_static",
+)
+
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(card_router)

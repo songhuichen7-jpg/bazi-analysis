@@ -42,6 +42,13 @@ class GuestLoginRequest(BaseModel):
     guest_token: str | None = Field(default=None, max_length=64)
 
 
+class ProfileUpdateRequest(BaseModel):
+    """用户中心更名 / 改头像。两个字段都是可选的；都不传 = 不改。
+    注意：任一字段传空字符串会被当作"清空"，nickname 清空回到默认显示。"""
+    nickname: str | None = Field(default=None, max_length=40)
+    avatar_url: str | None = Field(default=None, max_length=255)
+
+
 class AccountDeleteRequest(BaseModel):
     # NOTE: must match literal — protects against accidental account loss.
     confirm: Literal["DELETE MY ACCOUNT"]
@@ -64,6 +71,7 @@ class UserResponse(BaseModel):
     id: UUID
     phone_last4: str
     nickname: str | None
+    avatar_url: str | None = None
     role: Literal["user", "admin"]
     plan: Literal["free", "pro"]
     plan_expires_at: datetime | None

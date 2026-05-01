@@ -108,6 +108,13 @@
     color: #fff;
     font-size: 14px;
     font-weight: 600;
+    overflow: hidden;
+  }
+  .user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    user-select: none;
   }
   .user-menu-dropdown {
     position: absolute;
@@ -136,6 +143,133 @@
     padding: 0;
     font-size: 12px;
     color: #b44343;
+  }
+
+  /* ── 用户中心：头像上传 / 昵称编辑 / 退出 ────────────────────────── */
+  .user-center { min-width: 264px; padding: 16px 16px 14px; }
+
+  .user-center-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  /* 大头像 — label 包 input file，整个圆形可点；hover 时浮一层"换头像" */
+  .user-center-avatar {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #707070;
+    color: #fff;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    transition: box-shadow .2s ease, transform .15s ease;
+  }
+  .user-center-avatar:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+  .user-center-avatar img,
+  .user-center-avatar-fallback {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .user-center-avatar-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 11px;
+    letter-spacing: .12em;
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+  .user-center-avatar:hover .user-center-avatar-overlay,
+  .user-center-avatar.is-uploading .user-center-avatar-overlay {
+    opacity: 1;
+  }
+  .user-center-avatar-clear {
+    border: none;
+    background: transparent;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: var(--mute);
+    cursor: pointer;
+    transition: color .15s ease;
+  }
+  .user-center-avatar-clear:hover { color: var(--ink); }
+  .user-center-avatar-clear:disabled { opacity: .5; cursor: not-allowed; }
+
+  .user-center-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .user-center-name-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .user-center-name-edit-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--mute);
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .user-center-name-edit-btn:hover { background: #f3f0e8; color: var(--ink); }
+
+  .user-center-name-edit { display: flex; flex-direction: column; gap: 8px; }
+  .user-center-name-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-bottom: 1px solid var(--ink);
+    background: #fff;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .user-center-name-input:focus { outline: none; border-color: var(--ink); }
+  .user-center-name-actions { display: flex; align-items: center; gap: 12px; }
+
+  .user-center-link {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    color: var(--mute);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .user-center-link:hover { color: var(--ink); }
+  .user-center-link:disabled { opacity: .5; cursor: not-allowed; }
+
+  .user-center-phone { margin-top: 4px; font-size: 11px; }
+
+  .user-center-error {
+    margin-top: 10px;
+    padding: 6px 10px;
+    border-left: 2px solid #c66;
+    background: #fdf5f5;
+    color: #7a2626;
+    font-size: 12px;
+    line-height: 1.5;
   }
   .error-state {
     display: grid;

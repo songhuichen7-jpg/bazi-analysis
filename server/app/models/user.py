@@ -31,6 +31,9 @@ class User(Base):
     phone_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True, unique=True)
     phone_last4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
     nickname: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    # 头像 URL — 用户上传后存为 /static/avatars/<id>.webp 之类的相对路径，
+    # NULL 时前端用 nickname / 手机尾号生成的字面 fallback
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'active'"))
     role: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'user'"))
     plan: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'free'"))
