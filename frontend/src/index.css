@@ -509,8 +509,14 @@
     transition: color .15s ease;
   }
   .legal-back:hover { color: var(--ink); }
+  .legal-eyebrow {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--mute);
+    letter-spacing: .28em;
+  }
   .legal-title {
-    margin-top: 16px;
+    margin-top: 12px;
     font-size: 32px;
     font-weight: 400;
     color: var(--ink);
@@ -520,6 +526,36 @@
     margin-top: 6px;
     font-size: 12px;
     color: var(--mute);
+  }
+  /* 关于页的箴言区块 — 用宋体大字、淡灰边、轻微背景，把「有时」名字的出处摆出来 */
+  .legal-verse {
+    margin: 36px 0 0;
+    padding: 28px 32px;
+    border-left: 2px solid var(--ink);
+    background: #fff;
+  }
+  .legal-verse-body {
+    font-size: 17px;
+    line-height: 2.1;
+    color: var(--ink);
+    white-space: pre-line;
+    letter-spacing: .04em;
+  }
+  .legal-verse-source {
+    margin-top: 18px;
+    text-align: right;
+    font-size: 13px;
+    color: var(--mute);
+    letter-spacing: .04em;
+  }
+  .legal-verse-caption {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+    color: var(--mute);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    letter-spacing: .02em;
   }
   .legal-body {
     margin-top: 36px;

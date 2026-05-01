@@ -1,25 +1,44 @@
 import { useNavigate, useParams } from 'react-router-dom';
 
-// 单文件三页 — 文案就是产品本身的一部分，不抽 markdown 是因为
-// 每段都要跟产品语境（"有时""命盘""排盘"…）保持一致，硬编码成文反而
-// 比 i18n / cms 化更靠谱。
+// 整站名字"有时"来自《传道书》3:1–8 — 这个 about 页就把它当锚点，
+// 让用户一进来先读完再讲产品。terms / privacy 是功能性文档，不掺哲学。
+const ABOUT_VERSE = `凡事都有定期，
+天下万务都有定时。
+
+生有时，死有时。栽种有时，拔出所栽种的，也有时。
+杀戮有时，医治有时。拆毁有时，建造有时。
+哭有时，笑有时。哀恸有时，跳舞有时。
+抛掷石头有时，堆聚石头有时。怀抱有时，不怀抱有时。
+寻找有时，失落有时。保守有时，舍弃有时。
+撕裂有时，缝补有时。静默有时，言语有时。
+喜爱有时，恨恶有时。争战有时，和好有时。`;
+
 const PAGES = {
   about: {
     title: '关于「有时」',
+    eyebrow: '凡 事 都 有 定 期 · 命 有 其 时',
+    verse: ABOUT_VERSE,
+    verseSource: '——《传道书》3:1–8',
+    verseCaption: '「有时」这个名字，就出自这里。',
     sections: [
-      ['一句话',
-        '有时，是一个把八字命理写得像散文的助手。\n它不算命，它陪你梳理。'],
+      ['我们相信什么',
+        '命理不是预言，而是节律。\n' +
+        '人有自己的春夏秋冬。\n' +
+        '这个工具的角色，是帮你看清当下站在哪一段时序里 —\n' +
+        '该播种的时候不迟疑，该静默的时候不焦虑。'],
       ['它能做什么',
         '· 排盘：完整的八字 + 大运 + 流年 + 神煞\n' +
         '· 解读：性格 / 事业 / 财运 / 婚姻 / 健康，都是按你的盘说\n' +
         '· 对话：你问，它答。问到模糊处会主动起一卦\n' +
         '· 古籍：自动检索古籍原文，给参考依据'],
       ['它不能做什么',
-        '· 不能替你做选择 — 命理只描述势能，决定权在你\n' +
-        '· 不能精确预言时间 — 命理是粗粒度的趋势\n' +
-        '· 不替代专业咨询 — 涉及健康 / 法律 / 重大决策时请先找专业人士'],
+        '· 不预言时间 — 时序是粗粒度的，不是日历\n' +
+        '· 不替你做选择 — 命理只描述势能，决定权在你\n' +
+        '· 不代替专业咨询 — 健康 / 法律 / 重大决策请先找专业人士'],
       ['作者',
-        '一个相信"命由心造"的写代码的人。\n做这个工具，是因为命理学被神秘化太久，\n它本来该像散文一样被读。'],
+        '一个相信"命由心造"的写代码的人。\n' +
+        '做这个工具，是因为命理学被神秘化太久 —\n' +
+        '它本来该像散文一样被读。'],
     ],
   },
   terms: {
@@ -74,6 +93,17 @@ const PAGES = {
   },
 };
 
+// react-router v6 会在 history.state 上挂 `idx`：>0 表示还有历史可退；
+// 等于 0（或 undefined）表示这是会话第一页，navigate(-1) 是哑火，
+// 兜底跳首页 — 这样用户直接 deep-link 进 /legal/* 也有出口。
+function goBackOrHome(navigate) {
+  const idx = typeof window !== 'undefined'
+    ? window.history.state?.idx
+    : undefined;
+  if (typeof idx === 'number' && idx > 0) navigate(-1);
+  else navigate('/', { replace: true });
+}
+
 export default function LegalPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -83,7 +113,7 @@ export default function LegalPage() {
     return (
       <div className="screen active legal-screen">
         <div className="legal-wrap">
-          <button className="legal-back" type="button" onClick={() => navigate(-1)}>← 返回</button>
+          <button className="legal-back" type="button" onClick={() => goBackOrHome(navigate)}>← 返回</button>
           <h1 className="serif legal-title">页面不存在</h1>
           <p className="legal-section-body">你访问的法律页面不在「有时」的资料里。</p>
         </div>
@@ -94,9 +124,23 @@ export default function LegalPage() {
   return (
     <div className="screen active legal-screen">
       <div className="legal-wrap">
-        <button className="legal-back" type="button" onClick={() => navigate(-1)}>← 返回</button>
+        <button className="legal-back" type="button" onClick={() => goBackOrHome(navigate)}>← 返回</button>
+        {page.eyebrow ? <div className="legal-eyebrow">{page.eyebrow}</div> : null}
         <h1 className="serif legal-title">{page.title}</h1>
         <div className="legal-meta">最近更新：2026.05</div>
+
+        {page.verse ? (
+          <blockquote className="legal-verse serif">
+            <p className="legal-verse-body">{page.verse}</p>
+            {page.verseSource ? (
+              <footer className="legal-verse-source">{page.verseSource}</footer>
+            ) : null}
+            {page.verseCaption ? (
+              <div className="legal-verse-caption">{page.verseCaption}</div>
+            ) : null}
+          </blockquote>
+        ) : null}
+
         <div className="legal-body">
           {page.sections.map(([heading, body]) => (
             <section key={heading} className="legal-section">

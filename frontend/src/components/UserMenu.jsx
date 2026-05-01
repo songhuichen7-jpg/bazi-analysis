@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import {
   buildUserMenuProfile,
@@ -396,11 +396,14 @@ function MainView(props) {
       <div className="user-menu-sep" />
 
       <div className="user-center-foot">
-        <a className="user-center-foot-link" href="/legal/about" target="_blank" rel="noreferrer">关于</a>
+        {/* 同一标签页跳进 /legal/:slug — 旧版用 target=_blank 是错的：
+            返回按钮调 navigate(-1) 但新标签没有历史，按了等于哑火。
+            mailto 是协议跳转，留 <a>。*/}
+        <Link className="user-center-foot-link" to="/legal/about">关于</Link>
         <span className="user-center-foot-dot">·</span>
-        <a className="user-center-foot-link" href="/legal/terms" target="_blank" rel="noreferrer">服务条款</a>
+        <Link className="user-center-foot-link" to="/legal/terms">服务条款</Link>
         <span className="user-center-foot-dot">·</span>
-        <a className="user-center-foot-link" href="/legal/privacy" target="_blank" rel="noreferrer">隐私</a>
+        <Link className="user-center-foot-link" to="/legal/privacy">隐私</Link>
         <span className="user-center-foot-dot">·</span>
         <a className="user-center-foot-link" href="mailto:songhuichen7@gmail.com?subject=有时%20·%20反馈">反馈</a>
       </div>
