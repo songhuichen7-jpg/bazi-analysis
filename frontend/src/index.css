@@ -1472,11 +1472,18 @@
     min-height: 42px;
   }
   .chat-placeholder-overlay {
+    /* 老写法是 top:50% + transform:translateY(-50%) 居中，但 chat-placeholder-in
+       动画的 100% keyframe 把 transform 重置成 translateY(0) — animation-fill-
+       mode:both 会把这个最终态锁住，把居中 transform 抹掉，放置文字偏下 13px。
+       现在改成 top:0 + bottom:0 让 overlay 撑满 wrap 高度，再用 flex 居中
+       内部文字 — 这样 animation 的 transform 跟居中正交，互不影响。*/
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
     left: 10px;
     right: 10px;
+    display: flex;
+    align-items: center;
     line-height: 1.8;
     color: #b8b1a4;
     pointer-events: none;
