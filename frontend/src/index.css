@@ -327,11 +327,23 @@
     flex-direction: column;
     gap: 10px;
   }
+  .user-center-quota-head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
   .user-center-quota-head {
     font-size: 11px;
     letter-spacing: .12em;
     text-transform: uppercase;
   }
+  .user-center-quota-upgrade {
+    font-size: 11px;
+    color: var(--mute);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+  .user-center-quota-upgrade:hover { color: var(--ink); }
   .user-center-quota-row { display: flex; flex-direction: column; gap: 4px; }
   .user-center-quota-row-head {
     display: flex;
@@ -535,6 +547,131 @@
     background: #d9b6b6;
     cursor: not-allowed;
   }
+
+  /* paywall toast 的强调按钮 — 跳 /pricing。复用 .btn-primary 形态但
+     在 ErrorState 里语义是 link，所以用 a/Link 元素。 */
+  .error-state-cta {
+    display: inline-block;
+    text-decoration: none;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  /* 订阅方案页 */
+  .pricing-screen { background: var(--bg); }
+  .pricing-wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 64px 32px 96px;
+  }
+  .pricing-lede {
+    margin-top: 18px;
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--ink-2);
+  }
+  .pricing-lede em {
+    font-style: normal;
+    border-bottom: 1px dashed var(--mute);
+    padding: 0 1px;
+  }
+  .pricing-grid {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 720px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+  }
+  .pricing-card {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .pricing-card:hover { border-color: #cfcabe; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.05); }
+  .pricing-card.is-highlighted {
+    border-color: var(--ink);
+    background: #fcfaf4;
+  }
+  .pricing-card.is-current {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px var(--ink) inset;
+  }
+  .pricing-card-name {
+    font-size: 14px;
+    letter-spacing: .12em;
+    color: var(--mute);
+    text-transform: uppercase;
+  }
+  .pricing-card-price {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .pricing-card-amount {
+    font-size: 32px;
+    color: var(--ink);
+    letter-spacing: .02em;
+  }
+  .pricing-card-cadence { font-size: 12px; }
+  .pricing-card-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  .pricing-card-rows li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .pricing-card-row-key { font-size: 12px; }
+  .pricing-card-row-val {
+    color: var(--ink);
+    font-feature-settings: "tnum";
+  }
+  .pricing-card-note {
+    font-size: 12px;
+    line-height: 1.7;
+    border-top: 1px dashed var(--line);
+    padding-top: 10px;
+  }
+  .pricing-card-cta {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .pricing-card-cta .btn-primary,
+  .pricing-card-cta .btn-inline {
+    display: inline-block;
+    text-decoration: none;
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+  .pricing-foot {
+    margin-top: 56px;
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+    font-size: 13px;
+    line-height: 1.85;
+    color: var(--ink-2);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pricing-foot a { color: var(--ink); }
 
   /* 法律页 — 关于 / 服务条款 / 隐私 */
   .legal-screen { background: var(--bg); }

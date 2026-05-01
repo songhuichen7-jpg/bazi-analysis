@@ -215,6 +215,8 @@ export default function Chat() {
   const guaStreaming = useAppStore(s => s.guaStreaming);
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const setGuaCurrent = useAppStore(s => s.setGuaCurrent);
+  const bumpQuotaUsage = useAppStore(s => s.bumpQuotaUsage);
+  const setAppNotice = useAppStore(s => s.setAppNotice);
   const view = useAppStore(s => s.view);
   const meta = useAppStore(s => s.meta);
   const force = useAppStore(s => s.force);
@@ -486,6 +488,7 @@ export default function Chat() {
           updateTrace({ type: 'done' });
         },
       });
+      bumpQuotaUsage('chat_message');
     } catch (e) {
       if (isAbortError(e)) {
         updateTrace({ type: 'abort' });
@@ -495,6 +498,9 @@ export default function Chat() {
       const uiError = friendlyError(e, 'chat');
       replaceLastAssistant(uiError.title);
       setChatError({ error: e, question: q });
+      // QUOTA_EXCEEDED / CHART_LIMIT_EXCEEDED — friendlyError 给挂上 cta，
+      // 弹个 toast 让用户看到"查看订阅方案"那个按钮。
+      if (uiError.cta) setAppNotice(uiError);
     } finally {
       releaseStreamController(controller);
       finalizeChatTurn({ setChatStreaming, refreshChips });
@@ -528,13 +534,16 @@ export default function Chat() {
       setGuaCurrent({ ...(guaData || {}), question: question.trim(), body: finalBody, ts: Date.now() });
       // Note: gua history is now server-backed (each gua becomes a role='gua' message);
       // we no longer call pushGuaHistory.
+      bumpQuotaUsage('gua');
     } catch (e) {
       if (isAbortError(e)) {
         updateLastGuaCard(runningBody || '（已停止输出）', true);
         return;
       }
       console.error('[gua inline] failed:', e);
-      updateLastGuaCard('（起卦失败：' + (e.message || String(e)) + '）', true);
+      const ui = friendlyError(e, 'gua');
+      updateLastGuaCard('（起卦失败：' + (ui.title || e.message || String(e)) + '）', true);
+      if (ui.cta) setAppNotice(ui);
     } finally {
       releaseStreamController(controller);
       setGuaStreaming(false);
@@ -578,6 +587,7 @@ export default function Chat() {
           updateTrace({ type: 'done' });
         },
       });
+      bumpQuotaUsage('chat_message');
     } catch (e) {
       if (isAbortError(e)) {
         updateTrace({ type: 'abort' });
@@ -587,6 +597,7 @@ export default function Chat() {
       const uiError = friendlyError(e, 'chat');
       replaceLastAssistant(uiError.title);
       setChatError({ error: e, question });
+      if (uiError.cta) setAppNotice(uiError);
     } finally {
       releaseStreamController(controller);
       setChatStreaming(false);

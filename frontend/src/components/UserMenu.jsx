@@ -13,7 +13,6 @@ import {
   bindPhone,
   deleteAccount,
   exportMyData,
-  me as fetchMe,
   sendSmsCode,
   updateProfile,
   uploadAvatar,
@@ -39,6 +38,8 @@ export default function UserMenu() {
   const logout = useAppStore((s) => s.logout);
   const chartCount = useAppStore((s) => Object.keys(s.charts || {}).length);
   const conversationCount = useAppStore((s) => (s.conversations || []).length);
+  const quotaSnapshot = useAppStore((s) => s.quotaSnapshot);
+  const refreshQuotaSnapshot = useAppStore((s) => s.refreshQuotaSnapshot);
   const navigate = useNavigate();
 
   const rootRef = useRef(null);
@@ -55,9 +56,6 @@ export default function UserMenu() {
   const [dragOver, setDragOver] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  // 配额快照 — 打开菜单时拉一下 /api/auth/me 取最新；不跨菜单缓存，因为
-  // 用量在菜单关着的时候可能涨（用户在主区域聊了两条），下次打开要看到。
-  const [quotaSnapshot, setQuotaSnapshot] = useState(null);
 
   useEffect(() => {
     if (!open) {
@@ -66,27 +64,18 @@ export default function UserMenu() {
       setErrorMsg('');
       return undefined;
     }
-    // 首次打开时 fetch 一遍，保证用量条永远是最新的
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await fetchMe();
-        if (!cancelled && result?.quota_snapshot) {
-          setQuotaSnapshot(result.quota_snapshot);
-        }
-      } catch { /* 静默 — 用量条可以暂时不显示 */ }
-    })();
+    // 打开菜单时调一次 — store 里有 5 分钟 TTL，5 分钟内重复打开不会真发请求。
+    // 乐观自增（bumpQuotaUsage）已经在 chat / gua 完成时落到 store 上，
+    // 所以即便缓存还热，用量条也是准的。
+    void refreshQuotaSnapshot();
     function onDocClick(event) {
       if (rootRef.current && !rootRef.current.contains(event.target)) {
         dispatch({ type: 'outside' });
       }
     }
     document.addEventListener('mousedown', onDocClick);
-    return () => {
-      cancelled = true;
-      document.removeEventListener('mousedown', onDocClick);
-    };
-  }, [open]);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open, refreshQuotaSnapshot]);
 
   if (!user) return null;
 
@@ -383,7 +372,10 @@ function MainView(props) {
 
       {quotaRows.length ? (
         <div className="user-center-quota">
-          <div className="user-center-quota-head muted">本日用量</div>
+          <div className="user-center-quota-head-row">
+            <span className="user-center-quota-head muted">本日用量</span>
+            <Link className="user-center-quota-upgrade" to="/pricing">升级方案 →</Link>
+          </div>
           {quotaRows.map((row) => (
             <QuotaBar key={row.kind} row={row} />
           ))}

@@ -187,6 +187,11 @@ const initialState = {
   view: 'chart',
   ...BLANK_CHART,
   user: null,
+  // /api/auth/me 的 quota_snapshot — 用户中心、聊天报错时都要读。
+  // bumpQuotaUsage 乐观推进；refreshQuotaSnapshot 拿权威值兜底纠偏。
+  // ``quotaSnapshotFetchedAt`` 是毫秒时间戳，5 分钟过期由调用方决定要不要 refresh。
+  quotaSnapshot: null,
+  quotaSnapshotFetchedAt: 0,
 
   // Multi-chart index
   charts: {},      // Record<id, { id, label, createdAt, formData, ...chartFields }>
@@ -294,6 +299,49 @@ export const useAppStore = create((set, get) => ({
     return { appNotice: { id: Date.now(), ...notice } };
   }),
   clearAppNotice: () => set({ appNotice: null }),
+
+  // ── Quota（用量）── 配额状态在 /api/auth/me 的 quota_snapshot 上落地。
+  setQuotaSnapshot: (snapshot) => set({
+    quotaSnapshot: snapshot || null,
+    quotaSnapshotFetchedAt: snapshot ? Date.now() : 0,
+  }),
+  // 乐观自增 — 在 chat / gua 调用 onDone 时调一次，不等 /me round trip。
+  // periodic kind（chat_message / gua / regen / sms_send）+ chart 累计一起处理。
+  bumpQuotaUsage: (kind, delta = 1) => set((s) => {
+    if (!s.quotaSnapshot || !kind) return s;
+    const next = { ...s.quotaSnapshot };
+    if (kind === 'chart' && next.chart) {
+      next.chart = { ...next.chart, used: (next.chart.used || 0) + delta };
+    } else if (next.usage && next.usage[kind]) {
+      next.usage = {
+        ...next.usage,
+        [kind]: { ...next.usage[kind], used: (next.usage[kind].used || 0) + delta },
+      };
+    } else {
+      return s;     // 没这条 kind 就不改，免得脏写
+    }
+    return { quotaSnapshot: next };
+  }),
+  // 5 分钟内不重复拉；force=true 时无视缓存（quota 撞墙后调一次纠偏）。
+  refreshQuotaSnapshot: async ({ force = false } = {}) => {
+    const TTL_MS = 5 * 60 * 1000;
+    const s = get();
+    if (!force && s.quotaSnapshot && (Date.now() - s.quotaSnapshotFetchedAt) < TTL_MS) {
+      return s.quotaSnapshot;
+    }
+    try {
+      const { me } = await import('../lib/api.js');
+      const result = await me();
+      if (result?.quota_snapshot) {
+        set({
+          quotaSnapshot: result.quota_snapshot,
+          quotaSnapshotFetchedAt: Date.now(),
+        });
+        return result.quota_snapshot;
+      }
+    } catch { /* 静默 — 用户中心可以暂时不显示用量条 */ }
+    return null;
+  },
 
   // ── Chart data (flat) ───────────────────────────────────────────────────────
   setBirthInfo: (birthInfo) => set({ birthInfo }),
@@ -830,3 +878,10 @@ export const useAppStore = create((set, get) => ({
     user: state.user,
   })),
 }));
+
+// Dev-only：把 store 暴露到 window 上方便调试 / 自动化测试 — 比如自定义
+// 触发一次 paywall toast 看渲染。生产构建里 import.meta.env.DEV === false，
+// 这块整体被 dead-code-eliminate 掉。
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
+  window.__baziStore = useAppStore;
+}

@@ -32,6 +32,10 @@ export async function bootstrapAuthGate({ store, me, guestLogin }) {
         setAuthSessionHint();
         const phone = readAuthPhoneHint();
         store.getState().setUser({ ...result.user, ...(phone ? { phone } : {}) });
+        // 顺手把配额快照也吃下来 — 省掉用户中心首次打开的那次额外往返
+        if (result.quota_snapshot) {
+          store.getState().setQuotaSnapshot(result.quota_snapshot);
+        }
         return result.user;
       }
       // me() 拿到 null = 401，清理 hint。但不 return — 继续往下试 guest_token

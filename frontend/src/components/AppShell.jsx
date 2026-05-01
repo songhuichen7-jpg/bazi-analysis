@@ -91,6 +91,7 @@ export default function AppShell() {
             title={appNotice.title}
             detail={appNotice.detail}
             retryable={false}
+            cta={appNotice.cta || null}
             onDismiss={clearAppNotice}
           />
         </div>

@@ -8,11 +8,14 @@ function hasAny(haystack, needles) {
   return needles.some((needle) => haystack.includes(needle));
 }
 
-function result(title, detail, retryable) {
+function result(title, detail, retryable, cta) {
+  // cta = { label, to }   to 是 react-router 内部路径，调用方拿来塞 navigate /
+  // <Link>。配额错误用它指向 /pricing；普通错误不带这个字段。
   return {
     title,
     detail: detail && detail !== title ? detail : '',
     retryable,
+    ...(cta ? { cta } : {}),
   };
 }
 
@@ -136,20 +139,34 @@ const QUOTA_KIND_LABEL = {
   sms_send: '短信发送',
 };
 
+const PAYWALL_CTA = { label: '查看订阅方案', to: '/pricing' };
+
 function tryQuotaExceeded(error) {
   // 后端把 ServiceError(code='QUOTA_EXCEEDED') 映射成 HTTP 429，
   // payload 形如 { detail: { code, message, details: { kind, limit, resets_at? } } }。
   // ChartLimitExceeded 也走 ServiceError 路径，code='CHART_LIMIT_EXCEEDED'。
+  // 这两类错误都走 paywall — result() 上挂一个 cta，外面的 toast / inline
+  // 渲染器看到就追加一个"查看订阅方案"按钮，链向 /pricing。
   const code = error?.payload?.detail?.code || '';
   if (code === 'QUOTA_EXCEEDED') {
     const kind = error?.payload?.detail?.details?.kind;
     const label = QUOTA_KIND_LABEL[kind] || '操作';
-    return result(`今日${label}额度用完了`, '北京 0 点重置 · 等明天再来', false);
+    return result(
+      `今日${label}额度用完了`,
+      '北京 0 点重置 · 或升级到更高档位',
+      false,
+      PAYWALL_CTA,
+    );
   }
   if (code === 'CHART_LIMIT_EXCEEDED') {
     const limit = error?.payload?.detail?.details?.limit;
     const cap = limit ? `${limit} 张` : '';
-    return result(`命盘已达${cap}上限`, '可以在用户中心删掉一张再开新盘', false);
+    return result(
+      `命盘已达${cap}上限`,
+      '可以删一张再开新盘，或升级到更高档位',
+      false,
+      PAYWALL_CTA,
+    );
   }
   return null;
 }

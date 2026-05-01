@@ -12,6 +12,8 @@ export default function Gua() {
   const guaStreaming = useAppStore(s => s.guaStreaming);
   const setGuaStreaming = useAppStore(s => s.setGuaStreaming);
   const currentConversationId = useAppStore(s => s.currentConversationId);
+  const bumpQuotaUsage = useAppStore(s => s.bumpQuotaUsage);
+  const setAppNotice = useAppStore(s => s.setAppNotice);
 
   const [question, setQuestion] = useState('');
   const [streamingText, setStreamingText] = useState('');
@@ -50,9 +52,12 @@ export default function Gua() {
       setGuaCurrent(finalEntry);
       pushGuaHistory(finalEntry);
       setQuestion('');
+      bumpQuotaUsage('gua');
     } catch (e) {
       console.error('[gua] failed:', e);
       setError(e.message || String(e));
+      const ui = friendlyError(e, 'gua');
+      if (ui.cta) setAppNotice(ui);
     } finally {
       setGuaStreaming(false);
       setStreamingText('');
