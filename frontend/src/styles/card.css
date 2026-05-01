@@ -162,16 +162,15 @@
 /* ── Share card (3:4 portrait) ─────────────────────────────────────── */
 .share-card {
   --card-accent: var(--theme, #b07a3c);
-  --card-accent-soft: color-mix(in srgb, var(--card-accent) 16%, #fff8ec);
   --card-ink: #1f1610;
 
   /* Spec: 3:4 portrait, export 1080×1440 (@2x of 540×720) */
   width: min(540px, 100%);
   aspect-ratio: 3 / 4;
-  padding: 28px 28px 22px;
+  padding: 26px 28px 20px;
   border-radius: 18px;
   background:
-    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--card-accent) 12%, #fffdf7) 0%, #fffdf7 55%),
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--card-accent) 9%, #fffdf7) 0%, #fffdf7 58%),
     #fffdf7;
   color: var(--card-ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
@@ -186,7 +185,7 @@
   overflow: hidden;
 }
 
-/* Soft accent corner — 暖色手绘 hint */
+/* Soft accent corner — only enough warmth to keep the white card from going clinical. */
 .share-card::before {
   content: "";
   position: absolute;
@@ -194,7 +193,7 @@
   right: -25%;
   width: 70%;
   height: 70%;
-  background: radial-gradient(closest-side, var(--card-accent-soft), transparent 70%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 10%, transparent), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -234,22 +233,23 @@
 
 /* Illustration — 中央大插画 (spec wireframe 第二行) */
 .share-card-illustration {
-  margin: 14px 0 10px;
-  width: 46%;
+  margin: 12px 0 8px;
+  width: 204px;
+  max-width: 42%;
   aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 18%, #fff7e6), transparent 75%);
+  border-radius: 0;
+  background: transparent;
 }
 
 .share-card-illustration img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: saturate(1.05);
+  filter: saturate(.98) contrast(1.03);
 }
 
 .share-card-illustration-empty {
@@ -262,7 +262,7 @@
 .share-card-name {
   margin: 0;
   font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
-  font-size: 48px;
+  font-size: 46px;
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: .02em;
@@ -271,57 +271,61 @@
 
 /* Suffix — 十神后缀，· 包裹 */
 .share-card-suffix {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--card-accent);
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: .08em;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 /* One-liner */
 .share-card-oneliner {
-  margin: 16px 0 0;
-  max-width: 14em;
+  margin: 12px 0 0;
+  max-width: 15em;
   color: #3a2c1d;
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 17px;
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.5;
   letter-spacing: .03em;
+  overflow-wrap: anywhere;
 }
 
 /* Subtags — 3 chips (十神干预)
  * 注: 02c 子标签矩阵实际字数中位数 7 字、最长 10 字 (与 spec #6 ≤5 字
- * 硬约束既存偏差)。chip 允许换行而非截断，紧凑字号让 7-8 字一行可放. */
+ * 硬约束既存偏差)。三等分网格给每个 chip 稳定宽度，换行也不会推挤
+ * 底部品牌信息。 */
 .share-card-subtags {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   list-style: none;
   padding: 0;
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   width: 100%;
-  justify-content: center;
   align-items: stretch;
 }
 
 .share-card-subtags li {
-  flex: 1 1 0;
   min-width: 0;
-  padding: 7px 4px;
-  border-radius: 12px;
+  min-height: 42px;
+  padding: 6px 5px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--card-accent) 9%, #fffaf0);
   border: 1px solid color-mix(in srgb, var(--card-accent) 22%, #ecdfc4);
   color: #2a1d10;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 10.5px;
+  line-height: 1.25;
   letter-spacing: 0;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   white-space: normal;
+  overflow-wrap: anywhere;
   word-break: break-word;
   hyphens: none;
+  text-wrap: balance;
 }
 
 .share-card-subtags-empty li {
@@ -334,14 +338,15 @@
 /* Golden line — 引号 + 1 句 */
 .share-card-golden {
   position: relative;
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   padding: 0 12px;
-  max-width: 22em;
+  max-width: 24em;
   color: var(--card-ink);
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 13px;
+  line-height: 1.55;
   letter-spacing: .02em;
+  overflow-wrap: anywhere;
 }
 
 .share-card-quote {
@@ -365,7 +370,7 @@
 .share-card-foot {
   width: 100%;
   margin-top: auto;
-  padding-top: 14px;
+  padding-top: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -673,9 +678,75 @@
 
   .share-card {
     width: min(420px, 100%);
+    padding: 24px 22px 18px;
+  }
+
+  .share-card-illustration {
+    margin: 10px 0 6px;
+    width: 142px;
+    max-width: 38%;
   }
 
   .share-card-name {
-    font-size: 48px;
+    font-size: 42px;
+  }
+
+  .share-card-oneliner {
+    font-size: 15px;
+    line-height: 1.46;
+  }
+
+  .share-card-golden {
+    font-size: 12.5px;
+    line-height: 1.48;
+  }
+}
+
+@media (max-width: 480px) {
+  .share-card {
+    padding: 20px 18px 16px;
+  }
+
+  .share-card-illustration {
+    margin: 8px 0 5px;
+    width: 132px;
+    max-width: 38%;
+  }
+
+  .share-card-name {
+    font-size: 38px;
+  }
+
+  .share-card-suffix {
+    font-size: 12px;
+  }
+
+  .share-card-oneliner {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.42;
+  }
+
+  .share-card-subtags {
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .share-card-subtags li {
+    min-height: 38px;
+    padding: 5px 4px;
+    font-size: 10px;
+    line-height: 1.22;
+  }
+
+  .share-card-golden {
+    margin-top: 10px;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 1.42;
+  }
+
+  .share-card-foot {
+    padding-top: 10px;
   }
 }

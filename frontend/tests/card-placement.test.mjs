@@ -70,15 +70,16 @@ test('share card uses 3:4 portrait aspect ratio (export 1080×1440)', () => {
   assert.match(css, /\.share-card[\s\S]*border-radius:\s*1[2-8]px/);
 });
 
-test('share card subtags render as 3 chips in a single row, allowing 2-line wrap', () => {
+test('share card subtags render as 3 stable chips, allowing 2-line wrap', () => {
   // 02c 子标签矩阵实际字数中位数 7 字、最长 10 字 (与 spec #6 ≤5 字
   // 既存偏差)。chip 必须允许换行，否则会被 ellipsis 截断丢信息。
   const css = fs.readFileSync(new URL('../src/styles/card.css', import.meta.url), 'utf8');
 
-  assert.match(css, /\.share-card-subtags[\s\S]*display:\s*flex/);
-  assert.match(css, /\.share-card-subtags[\s\S]*flex-wrap:\s*nowrap/);
-  assert.match(css, /\.share-card-subtags li[\s\S]*flex:\s*1\s*1\s*0/);
+  assert.match(css, /\.share-card-subtags[\s\S]*display:\s*grid/);
+  assert.match(css, /\.share-card-subtags[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.share-card-subtags li[\s\S]*min-height:\s*42px/);
   assert.match(css, /\.share-card-subtags li[\s\S]*white-space:\s*normal/);
+  assert.match(css, /\.share-card-subtags li[\s\S]*overflow-wrap:\s*anywhere/);
   // 不应再有 ellipsis 截断
   assert.doesNotMatch(css, /\.share-card-subtags li[\s\S]*text-overflow:\s*ellipsis/);
 });
