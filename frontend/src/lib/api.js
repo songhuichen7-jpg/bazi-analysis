@@ -172,6 +172,30 @@ export async function uploadAvatar(file) {
   return r.json();
 }
 
+export async function bindPhone({ phone, code }) {
+  // 访客升级 — 当前 session 的 user_id 不变，只是补上 phone。
+  return _postJSON('/api/auth/bind-phone', { phone, code });
+}
+
+export async function deleteAccount() {
+  // 后端要求 body.confirm === 'DELETE MY ACCOUNT'，硬编码在前端
+  // 是为了让"按错按钮"也无法触发；模态里第二步的输入框只是 UX 防呆，
+  // 真正护栏在这里。
+  const r = await fetch('/api/auth/account', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'DELETE MY ACCOUNT' }),
+  });
+  if (!r.ok) throw await _errorFromResponse(r);
+  return r.json();
+}
+
+export async function exportMyData() {
+  // 直接拿 JSON；调用方自行 Blob 化触发下载。
+  return _getJSON('/api/auth/export');
+}
+
 export async function me() {
   const response = await fetch('/api/auth/me', { credentials: 'include' });
   if (response.status === 401) return null;

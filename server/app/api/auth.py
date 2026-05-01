@@ -16,6 +16,7 @@ from app.models.user import User
 from app.schemas.auth import (
     AccountDeleteRequest,
     AccountDeleteResponse,
+    BindPhoneRequest,
     GuestLoginRequest,
     LoginRequest,
     MeResponse,
@@ -194,6 +195,101 @@ async def me_endpoint(
     user: User = Depends(current_user),
 ) -> MeResponse:
     return MeResponse(user=_user_response(user), quota_snapshot={})
+
+
+@router.post("/bind-phone", response_model=UserResponse)
+async def bind_phone_endpoint(
+    body: BindPhoneRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """访客升级到正式账号 — 把手机号绑到当前 user 上，不换 user_id，
+    原命盘 / 对话 / 古籍缓存全部沿用。"""
+    try:
+        updated = await auth_service.bind_phone_to_guest(
+            db, user=user, phone=body.phone, code=body.code,
+        )
+        await db.commit()
+    except ServiceError as e:
+        await db.rollback()
+        raise _http_error(e)
+    return _user_response(updated)
+
+
+@router.get("/export")
+async def export_data_endpoint(
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """打包用户的命盘 + 对话 + 消息为 JSON。客户端拿到自行下载。
+    访客升级 / 换设备前的"备份"，也是数据携带权（GDPR-style）的兑现。
+    Conversation 没有 user_id，通过 chart_id 反查；同样地 Message 经
+    conversation_id 串联。EncryptedText 列由 SQLAlchemy 解密好再写到 dict。"""
+    from sqlalchemy import select as _select
+    from app.models.chart import Chart
+    from app.models.conversation import Conversation, Message
+
+    charts_rows = (await db.execute(
+        _select(Chart)
+        .where(Chart.user_id == user.id, Chart.deleted_at.is_(None))
+        .order_by(Chart.created_at)
+    )).scalars().all()
+    chart_ids = [c.id for c in charts_rows]
+
+    convs_rows = []
+    msgs_rows = []
+    if chart_ids:
+        convs_rows = (await db.execute(
+            _select(Conversation)
+            .where(
+                Conversation.chart_id.in_(chart_ids),
+                Conversation.deleted_at.is_(None),
+            )
+            .order_by(Conversation.created_at)
+        )).scalars().all()
+        conv_ids = [c.id for c in convs_rows]
+        if conv_ids:
+            msgs_rows = (await db.execute(
+                _select(Message)
+                .where(Message.conversation_id.in_(conv_ids))
+                .order_by(Message.created_at)
+            )).scalars().all()
+
+    return {
+        "exported_at": datetime.now(tz=timezone.utc).isoformat(),
+        "user": _user_response(user).model_dump(mode="json"),
+        "charts": [
+            {
+                "id": str(c.id),
+                "label": c.label,
+                "birth_input": c.birth_input,
+                "paipan": c.paipan,
+                "engine_version": c.engine_version,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in charts_rows
+        ],
+        "conversations": [
+            {
+                "id": str(c.id),
+                "chart_id": str(c.chart_id) if c.chart_id else None,
+                "label": c.label,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in convs_rows
+        ],
+        "messages": [
+            {
+                "id": str(m.id),
+                "conversation_id": str(m.conversation_id),
+                "role": m.role,
+                "content": m.content,
+                "meta": m.meta,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in msgs_rows
+        ],
+    }
 
 
 # 头像写入目录 — 跟 media-cache / classics 索引一起放在 server/var 下

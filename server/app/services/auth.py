@@ -165,6 +165,32 @@ def _validate_guest_token(token: str | None) -> str | None:
     return cleaned[:64]
 
 
+async def bind_phone_to_guest(
+    db: AsyncSession,
+    *,
+    user: User,
+    phone: str,
+    code: str,
+) -> User:
+    """把手机号绑定到当前访客 user — 不创建新账号，原 user_id / 命盘 / 对话
+    全部沿用，只是补上 phone + 清空 guest_token 这一对字段。
+    用 SMS purpose='register'（跟首次注册同款），后端校验通过即生效。"""
+    if user.phone and not user.phone.startswith("99"):
+        # 已经绑定真号了 — 不允许重复绑（防误操作）
+        raise PhoneAlreadyRegisteredError()
+    await verify_sms_code(db, phone, code, "register")
+    existing = (await db.execute(
+        select(User).where(User.phone == phone, User.id != user.id)
+    )).scalar_one_or_none()
+    if existing is not None:
+        raise PhoneAlreadyRegisteredError()
+    user.phone = phone
+    user.phone_last4 = phone[-4:]
+    user.guest_token = None
+    await db.flush()
+    return user
+
+
 async def login_guest(
     db: AsyncSession,
     *,

@@ -49,6 +49,12 @@ class ProfileUpdateRequest(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=255)
 
 
+class BindPhoneRequest(BaseModel):
+    """访客升级 — 当前 session 的 user 加上手机号绑定，不新建账号。"""
+    phone: str = Field(pattern=r"^\+?\d{11,15}$")
+    code: str = Field(pattern=r"^\d{6}$")
+
+
 class AccountDeleteRequest(BaseModel):
     # NOTE: must match literal — protects against accidental account loss.
     confirm: Literal["DELETE MY ACCOUNT"]

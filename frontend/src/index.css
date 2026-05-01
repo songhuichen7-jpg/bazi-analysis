@@ -146,7 +146,12 @@
   }
 
   /* ── 用户中心：头像上传 / 昵称编辑 / 退出 ────────────────────────── */
-  .user-center { min-width: 264px; padding: 16px 16px 14px; }
+  .user-center {
+    width: 332px;
+    max-height: calc(100vh - 36px);
+    overflow-y: auto;
+    padding: 16px 16px 14px;
+  }
 
   .user-center-head {
     display: flex;
@@ -261,6 +266,280 @@
   .user-center-link:disabled { opacity: .5; cursor: not-allowed; }
 
   .user-center-phone { margin-top: 4px; font-size: 11px; }
+
+  /* 用户中心：身份块右半部 — 昵称 + 标签 */
+  .user-center-head-meta {
+    flex: 1;
+    min-width: 0;            /* 让 ellipsis 生效 */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .user-center-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .user-center-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    border: 1px solid var(--line);
+    color: var(--mute);
+    background: #fafafa;
+  }
+  .user-center-tag.tag-pro {
+    color: #6b4a14;
+    background: #fdf5e1;
+    border-color: #efdfa8;
+  }
+  .user-center-tag.tag-free {
+    color: var(--ink-2);
+    background: #f3f0e8;
+    border-color: #e9e3d4;
+  }
+  .user-center-tag.tag-admin {
+    color: #4a3a8a;
+    background: #efeaff;
+    border-color: #d9cffb;
+  }
+  .user-center-tag.tag-muted {
+    color: var(--mute);
+    background: transparent;
+    border-color: transparent;
+    padding-left: 0;
+  }
+
+  /* 数据概览（X 张命盘 · 当前盘 Y 个对话） */
+  .user-center-overview {
+    margin-top: 10px;
+    font-size: 12px;
+  }
+
+  /* 主操作（绑手机号 / 导出） */
+  .user-center-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .user-center-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    margin: 0 -8px;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    transition: background .15s ease;
+  }
+  .user-center-action:hover { background: #f3f0e8; }
+  .user-center-action:disabled { opacity: .55; cursor: not-allowed; background: transparent; }
+  .user-center-action-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f0e8;
+    color: var(--ink);
+    font-size: 13px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .user-center-action-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 13px;
+  }
+  .user-center-action-hint {
+    font-size: 11px;
+    color: var(--mute);
+  }
+
+  /* 关于 / 条款 / 隐私 / 反馈 — 一行链接 */
+  .user-center-foot {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--mute);
+  }
+  .user-center-foot-link {
+    color: var(--mute);
+    text-decoration: none;
+    padding: 2px 0;
+    transition: color .15s ease;
+  }
+  .user-center-foot-link:hover { color: var(--ink); }
+  .user-center-foot-dot { color: #cfcfcf; }
+
+  /* 退出 + 注销 — 同一行，注销在右边、灰字、点击进入二步确认 */
+  .user-center-danger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .user-center-danger-link {
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+    font-size: 11px;
+    color: var(--mute);
+    cursor: pointer;
+    transition: color .15s ease;
+  }
+  .user-center-danger-link:hover { color: #b44343; }
+
+  /* 子视图 — 绑手机号 / 注销账号都用这套外壳 */
+  .user-center-subview { display: flex; flex-direction: column; gap: 12px; }
+  .user-center-subview-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .user-center-subview-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    margin: 0;
+  }
+  .user-center-subview-title.danger { color: #b44343; }
+  .user-center-subview-desc {
+    font-size: 12px;
+    color: var(--mute);
+    line-height: 1.7;
+  }
+  .user-center-bullets {
+    margin: 0;
+    padding: 0 0 0 18px;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.8;
+  }
+  .user-center-bullets li { margin-bottom: 2px; }
+
+  .user-center-form { display: flex; flex-direction: column; gap: 10px; }
+  .user-center-form-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .user-center-form-row > input {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-bottom-color: var(--ink);
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .user-center-form-row > .btn-inline { flex-shrink: 0; padding: 6px 10px; font-size: 11.5px; }
+  .user-center-form-input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-bottom-color: var(--ink);
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .user-center-form-input:focus { outline: none; border-color: var(--ink); }
+  .user-center-form-label {
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .user-center-form-label code {
+    color: var(--ink);
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 11px;
+    background: #f3f0e8;
+    padding: 1px 4px;
+  }
+  .user-center-form-submit {
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 13px;
+    letter-spacing: .04em;
+  }
+  .user-center-form-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* 头像拖拽放置态 — 让 overlay 立即可见 */
+  .user-center-avatar.is-dragover .user-center-avatar-overlay {
+    opacity: 1;
+    background: rgba(38, 78, 53, .82);
+  }
+  .user-center-avatar.is-dragover {
+    box-shadow: 0 0 0 3px rgba(38, 78, 53, .35), 0 6px 18px rgba(0,0,0,.12);
+  }
+
+  /* 注销按钮 — 红底白字。复用 .btn-primary 的外形参数 */
+  .btn-danger {
+    background: #b44343;
+    color: #fff;
+    padding: 10px 18px;
+    font-size: 14px;
+    letter-spacing: .05em;
+    transition: opacity .15s;
+  }
+  .btn-danger:hover { opacity: .85; }
+  .btn-danger:disabled {
+    background: #d9b6b6;
+    cursor: not-allowed;
+  }
+
+  /* 法律页 — 关于 / 服务条款 / 隐私 */
+  .legal-screen { background: var(--bg); }
+  .legal-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 32px 96px;
+  }
+  .legal-back {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--mute);
+    cursor: pointer;
+    transition: color .15s ease;
+  }
+  .legal-back:hover { color: var(--ink); }
+  .legal-title {
+    margin-top: 16px;
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: .03em;
+  }
+  .legal-meta {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .legal-body {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .legal-section { display: flex; flex-direction: column; gap: 8px; }
+  .legal-section-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: .04em;
+  }
+  .legal-section-body {
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--ink-2);
+    white-space: pre-line;
+  }
 
   .user-center-error {
     margin-top: 10px;
