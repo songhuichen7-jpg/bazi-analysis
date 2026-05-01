@@ -12,6 +12,7 @@ import { friendlyError } from '../lib/errorMessages.js';
 export default function AuthScreen() {
   const setUser = useAppStore(s => s.setUser);
   const setScreen = useAppStore(s => s.setScreen);
+  const enterFromLanding = useAppStore(s => s.enterFromLanding);
 
   const [mode, setMode] = useState('register');
   const [phone, setPhone] = useState('');
@@ -39,7 +40,9 @@ export default function AuthScreen() {
     setAuthSessionHint();
     writeAuthPhoneHint(normalizedPhone);
     setUser(normalizedPhone ? { ...user, phone: normalizedPhone } : user);
-    setScreen('input');
+    // 让 enterFromLanding 决定下一屏：有命盘 → shell（带数据），没有 → input。
+    // 直接 setScreen('input') 会让回访用户错过自己的命盘历史。
+    await enterFromLanding();
   }
 
   async function onGuestLogin() {
@@ -57,7 +60,10 @@ export default function AuthScreen() {
       setAuthSessionHint();
       clearAuthPhoneHint();
       setUser(result.user || null);
-      setScreen('input');
+      // 复用主入口的"决定下一屏"逻辑：回访 + 后端有命盘 → shell；
+      // 全新访客或服务端没数据 → input。直接 setScreen('input')
+      // 会让"继续我的命盘"按钮等于"重新填生辰"，与按钮文案矛盾。
+      await enterFromLanding();
     } catch (error) {
       setGuestError(friendlyError(error, 'auth').title);
     } finally {

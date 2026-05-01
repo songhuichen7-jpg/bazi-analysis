@@ -46,7 +46,10 @@ class ChartLabelUpdateRequest(BaseModel):
 
 
 class CacheSlot(BaseModel):
-    kind: Literal["verdicts", "section", "dayun_step", "liunian"]
+    # 'classics' added in migration 0006 to cache the LLM-polished 古籍旁证
+    # output. Schema must accept it or GET /charts/{id} 500s after the
+    # first classics fetch (the cache row exists but schema rejects it).
+    kind: Literal["verdicts", "section", "dayun_step", "liunian", "classics"]
     key: str
     has_cache: bool
     model_used: str | None = None

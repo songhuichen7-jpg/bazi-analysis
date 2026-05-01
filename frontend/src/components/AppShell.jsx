@@ -4,7 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import FormScreen, { LoadingScreen } from './FormScreen';
 import Shell from './Shell';
 import AuthScreen from './AuthScreen';
-import { fetchHealth, me } from '../lib/api';
+import { fetchHealth, guestLogin, me } from '../lib/api';
 import { bootstrapAuthGate } from '../lib/appBootstrap';
 import { scrollAndFlash } from '../lib/parseRef';
 import ErrorState from './ErrorState';
@@ -43,7 +43,7 @@ export default function AppShell() {
     ['conversations','chatHistory','gua','gua-history'].forEach(k => {
       try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
-    void bootstrapAuthGate({ store: useAppStore, me });
+    void bootstrapAuthGate({ store: useAppStore, me, guestLogin });
 
     const onRefClick = (e) => scrollAndFlash(e.detail?.id);
     window.addEventListener('bazi:ref-click', onRefClick);

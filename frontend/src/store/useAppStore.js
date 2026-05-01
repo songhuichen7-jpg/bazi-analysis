@@ -213,6 +213,26 @@ export const useAppStore = create((set, get) => ({
   enterFromLanding: async () => {
     const state = get();
     if (!state.user) {
+      // 没登录 — 但如果 localStorage 有 guest_token，先静默尝试用它
+      // 复活 session（内测访客刷新或隔天回访都能直达，不用再过 AuthScreen）
+      try {
+        const { readGuestToken, writeGuestToken } = await import('../lib/guestToken.js');
+        const { guestLogin } = await import('../lib/api.js');
+        const { setAuthSessionHint } = await import('../lib/authSessionHint.js');
+        const token = readGuestToken();
+        if (token) {
+          const result = await guestLogin({ guestToken: token });
+          if (result?.guest_token) writeGuestToken(result.guest_token);
+          if (result?.user) {
+            setAuthSessionHint();
+            set({ user: result.user });
+            // 继续往下走 — 现在 state.user 有值了，逻辑跟登录用户一致
+          }
+        }
+      } catch { /* 静默 — 走 AuthScreen 兜底 */ }
+    }
+
+    if (!get().user) {
       set({ screen: 'auth' });
       return 'auth';
     }
@@ -220,8 +240,14 @@ export const useAppStore = create((set, get) => ({
     const chartEntries = Object.values(state.charts || {});
     if (chartEntries.length === 0) {
       const items = await get().syncChartsFromServer();
-      if (!items.length) set({ screen: 'input' });
-      return items.length ? 'shell' : 'input';
+      if (!items.length) {
+        set({ screen: 'input' });
+        return 'input';
+      }
+      // syncChartsFromServer 调用 openChartFromServer 把命盘数据装好了，
+      // 但它本身不动 screen — 这里显式落到 shell，避免回访用户落到 input。
+      set({ screen: 'shell' });
+      return 'shell';
     }
 
     const latest = chartEntries
@@ -240,12 +266,17 @@ export const useAppStore = create((set, get) => ({
 
     if (latest?.paipan) {
       await get().switchChart(latestId);
+      set({ screen: 'shell' });
       return 'shell';
     }
 
     const items = await get().syncChartsFromServer();
-    if (!items.length) set({ screen: 'input' });
-    return items.length ? 'shell' : 'input';
+    if (!items.length) {
+      set({ screen: 'input' });
+      return 'input';
+    }
+    set({ screen: 'shell' });
+    return 'shell';
   },
   setLlmStatus: (enabled) => set({ llmEnabled: enabled }),
   setFormError: (f)  => set({ formError: f }),
