@@ -1582,7 +1582,36 @@
     padding: 16px 16px 14px;
     background: #fffdfa;
   }
-  .timing-panel-head { margin-bottom: 12px; }
+  .timing-panel-head {
+    margin-bottom: 12px;
+    /* 让"停止"按钮跟标题在同一行右侧浮动 */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: end;
+  }
+  .timing-panel-head > *:not(.timing-stop-btn) { grid-column: 1; }
+  /* "停止"按钮 — 流式生成中显示，点击 abort 当前 stream */
+  .timing-stop-btn {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    padding: 5px 14px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #6b3a26;
+    background: #fdf3f1;
+    border: 1px solid #d4a48d;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .timing-stop-btn:hover {
+    background: #f4d8cc;
+    border-color: #c0653a;
+    color: #c0653a;
+  }
+  .timing-stop-btn:active { transform: translateY(1px); }
   .timing-panel-kicker {
     font-size: 11px;
     letter-spacing: .16em;
@@ -1616,6 +1645,35 @@
     line-height: 2;
   }
   .timing-paragraph:first-child { margin-top: 0; }
+  /* 流式 caret —— 生成中字尾闪烁的小竖条，让"还在写"持续可见 */
+  .timing-caret {
+    display: inline-block;
+    margin-left: 2px;
+    color: #b09a72;
+    font-weight: 400;
+    transform: translateY(-1px);
+    animation: timing-caret-blink 1s steps(2, end) infinite;
+  }
+  @keyframes timing-caret-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+  /* 流式期间整段文字略微调暗，等生成完恢复正色，给"成稿"的仪式感 */
+  .timing-body-streaming { color: #4a4338; }
+  /* 用户主动 abort 后的兜底 — 给一句"已停止"+ 重新生成按钮 */
+  .timing-stopped {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0 4px;
+  }
+  .timing-stopped-text {
+    font-size: 13px;
+    color: var(--mute);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .timing-caret { animation: none; }
+  }
   .liunian-section {
     margin-top: 18px;
     padding-top: 14px;

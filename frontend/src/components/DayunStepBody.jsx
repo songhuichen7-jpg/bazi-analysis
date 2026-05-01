@@ -7,6 +7,10 @@ import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import { buildDayunPanel } from '../lib/timingPanels';
 
+function isAbort(e) {
+  return e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || e));
+}
+
 export default function DayunStepBody({ idx }) {
   const cached = useAppStore((s) => s.dayunCache[idx]);
   const dayun = useAppStore((s) => s.dayun);
@@ -18,53 +22,97 @@ export default function DayunStepBody({ idx }) {
   const [text, setText] = useState(cached || '');
   const [error, setError] = useState(null);
   const [streaming, setStreaming] = useState(false);
-  const startedFor = useRef(null);
+  const [stoppedByUser, setStoppedByUser] = useState(false);
+  // 当前正在跑的 stream 的 AbortController — 暴露给"停止"按钮。
+  // 注意：mount/unmount/idx-change 的 abort 由下方主 effect 的 cleanup
+  // 直接管理，**不**通过 abortRef，避免 StrictMode 的 double-effect 把
+  // 自己刚开始的 stream 立刻 abort 掉。
+  const abortRef = useRef(null);
+  // 让用户主动 onStop / onResume / onRetry 触发重跑用的 nonce
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     setText(cached || '');
     setError(null);
+    setStoppedByUser(false);
     const timer = setTimeout(() => {
       document.getElementById(`dayun-step-body-${idx}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 20);
     return () => clearTimeout(timer);
   }, [idx, cached]);
 
+  // Stream 主 effect — setup 起 stream，cleanup abort。把"启动"和"清理"
+  // 放在同一个 effect 里，让 React（包括 StrictMode 的 double-mount）的
+  // setup/cleanup 配对永远是同一对 controller，不会出现 cleanup 误杀
+  // 别的 setup 起的请求的情况。
   useEffect(() => {
-    if (cached) return;
-    if (startedFor.current === idx) return;
-    startedFor.current = idx;
-    void startStream();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, cached]);
-
-  async function startStream() {
-    if (!currentId) return;
+    if (cached) return undefined;       // 已有缓存就不重跑
+    if (!currentId) return undefined;
+    let cancelled = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStreaming(true);
     setDayunStreaming(true);
     setError(null);
     setText('');
-    try {
-      const full = await streamDayunStep(currentId, idx, {
-        onModel: (model) => console.log('[dayun-step] modelUsed=' + model),
-        onRetrieval: (source) => console.log('[dayun-step] retrieval=' + source),
-      });
-      if (!full.trim()) throw new Error('empty response');
-      setDayunCache(idx, full);
-      setText(full);
-    } catch (e) {
-      console.error('[dayun-step] failed:', e);
-      deleteDayunCache(idx);
-      setError(e.message || String(e));
-    } finally {
+    setStoppedByUser(false);
+
+    (async () => {
+      try {
+        const full = await streamDayunStep(currentId, idx, {
+          signal: controller.signal,
+          // 实时把 delta 写进 text — 字逐段冒出来
+          onDelta: (_t, running) => { if (!cancelled) setText(running); },
+          onModel: (model) => console.log('[dayun-step] modelUsed=' + model),
+          onRetrieval: (source) => console.log('[dayun-step] retrieval=' + source),
+        });
+        if (cancelled) return;
+        if (!full.trim()) throw new Error('empty response');
+        setDayunCache(idx, full);
+        setText(full);
+      } catch (e) {
+        if (cancelled || isAbort(e)) return;
+        console.error('[dayun-step] failed:', e);
+        deleteDayunCache(idx);
+        setError(e.message || String(e));
+      } finally {
+        if (cancelled) return;
+        setStreaming(false);
+        setDayunStreaming(false);
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try { controller.abort(); } catch { /* ignore */ }
+      // 切大运 / 卸载时如果 stream 还在，前面 finally 里不会跑（cancelled
+      // 提前 return），需要在这里把 streaming 标志收尾，否则下一次 mount
+      // 进来会看到残留的 streaming=true。
       setStreaming(false);
       setDayunStreaming(false);
+      if (abortRef.current === controller) abortRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, cached, currentId, reloadNonce]);
+
+  function onStop() {
+    setStoppedByUser(true);
+    if (abortRef.current) {
+      try { abortRef.current.abort(); } catch { /* ignore */ }
     }
+    // 主 effect 的 cleanup 不会触发（deps 没变），手动收尾
+    setStreaming(false);
+    setDayunStreaming(false);
   }
 
   function onRetry() {
     deleteDayunCache(idx);
-    startedFor.current = null;
-    void startStream();
+    setReloadNonce((n) => n + 1);
+  }
+
+  function onResume() {
+    setReloadNonce((n) => n + 1);
   }
 
   const step = dayun[idx];
@@ -78,6 +126,11 @@ export default function DayunStepBody({ idx }) {
         <div className="timing-panel-kicker">{panel.kicker}</div>
         <div className="timing-panel-title serif">{panel.title}</div>
         {panel.meta ? <div className="timing-panel-meta">{panel.meta}</div> : null}
+        {streaming ? (
+          <button type="button" className="timing-stop-btn" onClick={onStop}>
+            停止
+          </button>
+        ) : null}
       </div>
 
       {error ? (
@@ -87,7 +140,8 @@ export default function DayunStepBody({ idx }) {
           retryable={uiError.retryable}
           onRetry={uiError.retryable ? onRetry : undefined}
         />
-      ) : streaming ? (
+      ) : !text && streaming ? (
+        // 等首个 delta 时的初始动画 — 一旦 text 有内容就切到逐字显示
         <div className="skeleton-progress timing-loading" role="status" aria-live="polite">
           <div className="skeleton-progress-label">正在推演这一步大运</div>
           <div className="skeleton-progress-sublabel">先给你整理这十年的主线、压力来源和后段转折。</div>
@@ -98,11 +152,19 @@ export default function DayunStepBody({ idx }) {
             <div className="skeleton-line skeleton-pulse" style={{ width: '72%' }} />
           </div>
         </div>
+      ) : !text && stoppedByUser ? (
+        <div className="timing-stopped" role="status">
+          <div className="timing-stopped-text">已停止生成</div>
+          <button type="button" className="btn-inline" onClick={onResume}>重新生成</button>
+        </div>
       ) : (
-        <div className="timing-body">
+        <div className={'timing-body' + (streaming ? ' timing-body-streaming' : '')}>
           {panel.paragraphs.map((paragraph, paragraphIndex) => (
             <p className="timing-paragraph" key={paragraphIndex}>
               <RichText text={paragraph} />
+              {streaming && paragraphIndex === panel.paragraphs.length - 1 ? (
+                <span className="timing-caret" aria-hidden="true">▌</span>
+              ) : null}
             </p>
           ))}
         </div>
@@ -120,7 +182,9 @@ function LiunianChips({ dayunIdx, years }) {
   const openKey = useAppStore((s) => s.liunianOpenKey);
   const setOpenKey = useAppStore((s) => s.setLiunianOpenKey);
   const dayunStreaming = useAppStore((s) => s.dayunStreaming);
-  const liunianStreaming = useAppStore((s) => s.liunianStreaming);
+  // liunianStreaming 仍在 store 里，用来给 chat 等其它视图判断"流年还在写"
+  // 但**这里不再据此 disable chip**：用户应该能在生成中切到别的已缓存
+  // 流年（LiunianBody 卸载时会 abort 中途的请求）。
   const [shakeKey, setShakeKey] = useState(null);
   const shakeTimerRef = useRef(null);
   useEffect(() => () => {
@@ -135,7 +199,6 @@ function LiunianChips({ dayunIdx, years }) {
       shakeTimerRef.current = setTimeout(() => setShakeKey(null), 420);
       return;
     }
-    if (dayunStreaming || liunianStreaming) return;
     setOpenKey(openKey === key ? null : key);
   };
 
@@ -155,7 +218,9 @@ function LiunianChips({ dayunIdx, years }) {
           const isCurrent = year.current;
           const isCached = !!cache[key];
           const isOpen = openKey === key;
-          const isDisabled = (dayunStreaming || liunianStreaming) && !isOpen;
+          // 大运还在出文时，所有流年 chip 暂不响应（dayun 是流年的前提）；
+          // 流年出文时，只锁住 *未缓存* 的 chip，已缓存的可以随时切回去看。
+          const isDisabled = dayunStreaming && !isOpen;
           return (
             <button
               type="button"
@@ -170,7 +235,7 @@ function LiunianChips({ dayunIdx, years }) {
               }
               data-ref={`liunian.${year.year}`}
               onClick={() => onChipClick(yearIndex, isDisabled)}
-              title={isDisabled ? '正在生成中，请稍候' : ''}
+              title={isDisabled ? '大运还在生成中，请稍候' : ''}
             >
               {year.year} {year.gz}
             </button>

@@ -6,23 +6,34 @@ import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import { buildLiunianPanel } from '../lib/timingPanels';
 
+function isAbort(e) {
+  return e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || e));
+}
+
 export default function LiunianBody({ dayunIdx, yearIdx }) {
   const key = `${dayunIdx}-${yearIdx}`;
   const cached = useAppStore((s) => s.liunianCache[key]);
   const setCache = useAppStore((s) => s.setLiunianCache);
   const deleteCache = useAppStore((s) => s.deleteLiunianCache);
-  const setStreaming = useAppStore((s) => s.setLiunianStreaming);
+  const setStreamingFlag = useAppStore((s) => s.setLiunianStreaming);
   const currentId = useAppStore((s) => s.currentId);
   const dayun = useAppStore((s) => s.dayun);
 
   const [text, setText] = useState(cached || '');
   const [error, setError] = useState(null);
-  const startedFor = useRef(null);
+  // 本地 streaming 标志 + AbortController — 让用户能中断当前生成。
+  // mount / unmount / key-change 的 abort 由主 effect 的 cleanup 管理，
+  // 跟 abortRef 区分开，避免 StrictMode 把刚启动的 stream 立刻 abort 掉。
+  const [streaming, setStreaming] = useState(false);
+  const [stoppedByUser, setStoppedByUser] = useState(false);
+  const abortRef = useRef(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const uiError = error ? friendlyError(error, 'liunian') : null;
 
   useEffect(() => {
     setText(cached || '');
     setError(null);
+    setStoppedByUser(false);
     const timer = setTimeout(() => {
       document.getElementById(`liunian-body-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 20);
@@ -30,39 +41,68 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
   }, [key, cached]);
 
   useEffect(() => {
-    if (cached) return;
-    if (startedFor.current === key) return;
-    startedFor.current = key;
-    void startStream();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, cached]);
-
-  async function startStream() {
-    if (!currentId) return;
+    if (cached) return undefined;
+    if (!currentId) return undefined;
+    let cancelled = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStreaming(true);
+    setStreamingFlag(true);
     setError(null);
     setText('');
-    try {
-      const full = await streamLiunian(currentId, { dayun_index: dayunIdx, year_index: yearIdx }, {
-        onModel: (model) => console.log('[liunian] modelUsed=' + model),
-        onRetrieval: (source) => console.log('[liunian] retrieval=' + source),
-      });
-      if (!full.trim()) throw new Error('empty response');
-      setCache(key, full);
-      setText(full);
-    } catch (e) {
-      console.error('[liunian] failed:', e);
-      deleteCache(key);
-      setError(e.message || String(e));
-    } finally {
+    setStoppedByUser(false);
+
+    (async () => {
+      try {
+        const full = await streamLiunian(currentId, { dayun_index: dayunIdx, year_index: yearIdx }, {
+          signal: controller.signal,
+          onDelta: (_t, running) => { if (!cancelled) setText(running); },
+          onModel: (model) => console.log('[liunian] modelUsed=' + model),
+          onRetrieval: (source) => console.log('[liunian] retrieval=' + source),
+        });
+        if (cancelled) return;
+        if (!full.trim()) throw new Error('empty response');
+        setCache(key, full);
+        setText(full);
+      } catch (e) {
+        if (cancelled || isAbort(e)) return;
+        console.error('[liunian] failed:', e);
+        deleteCache(key);
+        setError(e.message || String(e));
+      } finally {
+        if (cancelled) return;
+        setStreaming(false);
+        setStreamingFlag(false);
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try { controller.abort(); } catch { /* ignore */ }
       setStreaming(false);
+      setStreamingFlag(false);
+      if (abortRef.current === controller) abortRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, cached, currentId, reloadNonce]);
+
+  function onStop() {
+    setStoppedByUser(true);
+    if (abortRef.current) {
+      try { abortRef.current.abort(); } catch { /* ignore */ }
     }
+    setStreaming(false);
+    setStreamingFlag(false);
   }
 
   function onRetry() {
     deleteCache(key);
-    startedFor.current = null;
-    void startStream();
+    setReloadNonce((n) => n + 1);
+  }
+
+  function onResume() {
+    setReloadNonce((n) => n + 1);
   }
 
   const year = dayun?.[dayunIdx]?.years?.[yearIdx] || null;
@@ -73,6 +113,11 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
       <div className="timing-panel-head">
         <div className="timing-panel-kicker">{panel.kicker}</div>
         <div className="timing-panel-title serif">{panel.title}</div>
+        {streaming ? (
+          <button type="button" className="timing-stop-btn" onClick={onStop}>
+            停止
+          </button>
+        ) : null}
       </div>
 
       {error ? (
@@ -82,7 +127,8 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
           retryable={uiError.retryable}
           onRetry={uiError.retryable ? onRetry : undefined}
         />
-      ) : !text ? (
+      ) : !text && streaming ? (
+        // 初始等首个 delta — 还没有任何文字时给一个柔和的"正在思考"动画
         <div className="skeleton-progress timing-loading" role="status" aria-live="polite">
           <div className="skeleton-progress-label">正在细看这一年</div>
           <div className="skeleton-progress-sublabel">会给你看这一年的主压力、机会点和需要留心的地方。</div>
@@ -92,11 +138,20 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
             <div className="skeleton-line skeleton-pulse" style={{ width: '68%' }} />
           </div>
         </div>
+      ) : !text && stoppedByUser ? (
+        // 用户主动停了 + 还没有任何已生成内容 — 给一个重新生成入口
+        <div className="timing-stopped" role="status">
+          <div className="timing-stopped-text">已停止生成</div>
+          <button type="button" className="btn-inline" onClick={onResume}>重新生成</button>
+        </div>
       ) : (
-        <div className="timing-body">
+        <div className={'timing-body' + (streaming ? ' timing-body-streaming' : '')}>
           {panel.paragraphs.map((paragraph, paragraphIndex) => (
             <p className="timing-paragraph" key={paragraphIndex}>
               <RichText text={paragraph} />
+              {streaming && paragraphIndex === panel.paragraphs.length - 1 ? (
+                <span className="timing-caret" aria-hidden="true">▌</span>
+              ) : null}
             </p>
           ))}
         </div>
