@@ -74,33 +74,43 @@ async def _itunes_search(
     *,
     entity: Literal["song", "movie"] = "song",
 ) -> dict[str, Any] | None:
-    """Return ``{ url, year? }`` for the best-match iTunes hit."""
+    """Return ``{ url, year? }`` for the best-match iTunes hit.
+
+    ``country=CN`` 第一次试；零结果时回退到 ``US``。中文电影名（"黑天鹅"
+    / "盗梦空间" 之类）在 CN store 几乎全 0，但海报数据本身在 US store 里
+    用相同查询字符串能拿到（iTunes 跨区搜索是按 term 全文匹配，不强制
+    本地化结果集）。两个 country 都空才返 None。
+    """
     term = f"{title} {extra}" if extra else title
-    params = {
-        "term": term,
-        "entity": entity,
-        "limit": "3",
-        "country": "CN",
-    }
+    countries = ("CN", "US")
     try:
         async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as cli:
-            r = await cli.get("https://itunes.apple.com/search", params=params)
-            if r.status_code != 200:
-                return None
-            data = r.json()
-            results = data.get("results") or []
-            if not results:
-                return None
-            best = results[0]
-            url = best.get("artworkUrl100")
-            year = ""
-            release = best.get("releaseDate") or ""
-            if isinstance(release, str) and len(release) >= 4 and release[:4].isdigit():
-                year = release[:4]
-            return {"url": url, "year": year} if url else None
+            for country in countries:
+                params = {
+                    "term": term,
+                    "entity": entity,
+                    "limit": "3",
+                    "country": country,
+                }
+                r = await cli.get("https://itunes.apple.com/search", params=params)
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                results = data.get("results") or []
+                if not results:
+                    continue
+                best = results[0]
+                url = best.get("artworkUrl100")
+                if not url:
+                    continue
+                year = ""
+                release = best.get("releaseDate") or ""
+                if isinstance(release, str) and len(release) >= 4 and release[:4].isdigit():
+                    year = release[:4]
+                return {"url": url, "year": year}
     except Exception as exc:  # noqa: BLE001
         logger.warning("iTunes search failed for %r entity=%s: %r", term, entity, exc)
-        return None
+    return None
 
 
 async def _tmdb_search_movie(title: str) -> dict[str, Any] | None:
@@ -110,6 +120,13 @@ async def _tmdb_search_movie(title: str) -> dict[str, Any] | None:
     is configured or TMDB fails / returns nothing."""
     key = settings.tmdb_api_key
     if not key:
+        # 没配 key 时电影几乎拿不到封面 — iTunes Movies 中文片源覆盖率
+        # 极差。把这个状态显式打到日志，避免运维盯着 404 找半天。
+        logger.warning(
+            "TMDB_API_KEY not configured — movie covers will fall back to "
+            "iTunes (poor 中文 coverage). Get a free key at "
+            "https://www.themoviedb.org/settings/api"
+        )
         return None
     try:
         async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as cli:

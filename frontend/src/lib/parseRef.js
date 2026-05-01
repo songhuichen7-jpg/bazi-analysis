@@ -64,9 +64,45 @@ function inferMediaKind(context) {
 // (e.g. "我喜欢《肖申克》。它讲的是…" keeps its sentence break intact).
 const TITLE_QUOTE_RE = /《([^《》]{1,40})》(?:\s*[—-]+\s*([^，。；,;.!\n\s]{1,20}))?(?:[。！？.!?](?=\s*$|\s*\n))?/g;
 
+// 古籍标题白名单 — 即便 user 问 "用一首诗概括我"（触发 inferMediaKind=book），
+// LLM 也常常会在同一条回复里引一段古籍论甲木 / 五行；这些 《XX》 不能被
+// rescue 成 book card，否则封面缺 + 跳豆瓣搜索都很尴尬。
+//
+// 名单只列那几本 LLM 实际引得到的源典；以后扩展只需加一行。
+const CLASSICS_TITLES = new Set([
+  '滴天髓',
+  '滴天髓阐微',
+  '穷通宝鉴',
+  '三命通会',
+  '渊海子平',
+  '子平真诠',
+  '子平真诠评注',
+  '神峰通考',
+  '兰台妙选',
+  '玉照定真经',
+  '李虚中命书',
+  '星平大成',
+]);
+
+function isClassicsTitle(title) {
+  const t = String(title || '').trim();
+  if (CLASSICS_TITLES.has(t)) return true;
+  // 兼容子串 — "子平真诠评注" / "渊海子平评注" 等带后缀的版本也算
+  for (const known of CLASSICS_TITLES) {
+    if (t.startsWith(known) || t.endsWith(known)) return true;
+  }
+  return false;
+}
+
 function rescueQuotedTitles(text, kind) {
   if (!kind) return text;
-  return text.replace(TITLE_QUOTE_RE, (_m, title, sub) => {
+  // 只 rescue **第一个** 《XX》。"用一首诗 / 一部电影" 类问题答案通常就一个
+  // 主题标题；后面再出现的 《XX》 多半是引文 / 古籍 / 例子，rescue 了反伤。
+  let rescued = false;
+  return text.replace(TITLE_QUOTE_RE, (match, title, sub) => {
+    if (rescued) return match;
+    if (isClassicsTitle(title)) return match;   // 白名单跳过古籍
+    rescued = true;
     return `[[${kind}:${title.trim()}${sub ? '|' + sub.trim() : ''}]]`;
   });
 }
