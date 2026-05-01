@@ -23,6 +23,7 @@ from app.services.card.loader import (
     SUBTAGS,
     TYPES,
     VERSION,
+    illustration_url,
 )
 from app.services.card.mapping import (
     classify_state,
@@ -99,7 +100,7 @@ def build_card_payload(birth: BirthInput, nickname: str | None) -> CardResponse:
         subtags=subtags,
         golden_line=formation["golden_lines"][state],
         theme_color=info["theme_color"],
-        illustration_url=f"/static/cards/illustrations/{info['illustration']}",
+        illustration_url=illustration_url(info["illustration"]),
         precision=precision,
         borderline=borderline,
         share_slug=generate_slug(),

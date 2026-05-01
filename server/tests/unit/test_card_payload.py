@@ -72,7 +72,7 @@ def test_build_card_illustration_url_prefix():
     b = BirthInput(year=1998, month=7, day=15, hour=14, minute=0)
     p = build_card_payload(b, nickname=None)
     assert p.illustration_url.startswith("/static/cards/illustrations/")
-    assert p.illustration_url.endswith(".png")
+    assert ".png?v=" in p.illustration_url
 
 
 @pytest.mark.parametrize("year,month,day,hour", [

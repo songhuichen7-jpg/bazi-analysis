@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Optional
 
 from app.schemas.hepan import HepanResponse, HepanSide
-from app.services.card.loader import TYPES
+from app.services.card.loader import TYPES, illustration_url
 from app.services.hepan.loader import (
     DYNAMICS,
     DYNAMICS_VERSION,
@@ -39,7 +39,7 @@ def _make_side(
         state_icon="⚡" if state == "绽放" else "🔋",
         day_stem=day_stem,
         theme_color=info["theme_color"],
-        illustration_url=f"/static/cards/illustrations/{info['illustration']}",
+        illustration_url=illustration_url(info["illustration"]),
         nickname=nickname,
         role=role,
     )

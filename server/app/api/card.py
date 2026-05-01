@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.models.card_share import CardShare
 from app.schemas.card import CardRequest, CardResponse
-from app.services.card.loader import TYPES, load_all
+from app.services.card.loader import TYPES, illustration_url, load_all
 from app.services.card.payload import build_card_payload
 from app.services.card.slug import birth_hash
 
@@ -75,6 +75,6 @@ async def get_card_preview(
         slug=row.slug,
         cosmic_name=row.cosmic_name,
         suffix=row.suffix,
-        illustration_url=f"/static/cards/illustrations/{info['illustration']}",
+        illustration_url=illustration_url(info["illustration"]),
         nickname=row.nickname,
     )

@@ -36,3 +36,8 @@ def load_all() -> None:
 # Eagerly load at import time so ``from loader import VERSION`` binds the
 # real populated string value; load_all() remains idempotent.
 load_all()
+
+
+def illustration_url(filename: str) -> str:
+    """Version static card art so browsers let a new visual language arrive."""
+    return f"/static/cards/illustrations/{filename}?v={VERSION}"
