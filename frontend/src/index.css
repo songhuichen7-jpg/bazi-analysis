@@ -2238,6 +2238,8 @@
     font-size: 14px;
     text-align: left;
   }
+  /* ── 旧版 chat-turn-actions（文字按钮） — 保留给可能漏改的地方做兼容
+     新交互全部走下面的 .msg-actions（icon-only + hover reveal） */
   .chat-turn-actions {
     display: flex;
     gap: 12px;
@@ -2269,6 +2271,98 @@
   }
   .ai-turn-actions {
     justify-content: flex-start;
+  }
+
+  /* ── 新版消息操作行（Claude 客户端风格）─────────────────────────────
+     默认隐身 (opacity: 0)，鼠标悬到 .msg 上才出现；流式中的 .msg-actions-
+     streaming 永远显示，让"停止"按钮一直可见可点。
+     键盘 focus 也算 hover —— :focus-within 让无鼠标用户能 Tab 进操作行。 */
+  .msg-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-top: 6px;
+    height: 26px;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .msg:hover > .msg-actions,
+  .msg:focus-within > .msg-actions,
+  .msg-actions.msg-actions-streaming {
+    opacity: 1;
+  }
+  .msg-actions-user {
+    justify-content: flex-end;
+    padding-right: 2px;
+  }
+  .msg-actions-ai {
+    justify-content: flex-start;
+    padding-left: 2px;
+  }
+
+  /* 单个 icon 按钮 — 28×26 hit area，14px SVG 居中。hover 给极淡灰底，
+     不抢主内容视觉。 */
+  .msg-action-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--mute);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color .12s, color .12s;
+  }
+  .msg-action-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+  }
+  .msg-action-btn:hover:not(:disabled) {
+    background: rgba(17, 17, 17, 0.06);
+    color: var(--ink);
+  }
+  .msg-action-btn:active:not(:disabled) {
+    background: rgba(17, 17, 17, 0.12);
+  }
+  .msg-action-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+  .msg-action-btn-danger:hover:not(:disabled) {
+    color: #b04632;
+  }
+
+  /* 时间戳 — 跟 icon 按钮在同一行，色更轻、略小。鼠标 hover 整条消息时
+     跟着 .msg-actions 一起显形，平时藏起来不打扰阅读。 */
+  .msg-time {
+    font-size: 11px;
+    color: var(--mute);
+    letter-spacing: .03em;
+    padding: 0 6px;
+    user-select: none;
+  }
+  .msg-actions-user .msg-time {
+    margin-right: 2px;
+  }
+  .msg-actions-ai .msg-time {
+    margin-left: 2px;
+  }
+
+  /* 编辑态保留文字按钮（不藏） — 这是主操作流，icon 形态不够明显 */
+  .chat-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+  .chat-edit-actions .btn-primary,
+  .chat-edit-actions .btn-inline {
+    padding: 6px 14px;
+    font-size: 12.5px;
   }
   .msg-user-editing {
     display: flex;

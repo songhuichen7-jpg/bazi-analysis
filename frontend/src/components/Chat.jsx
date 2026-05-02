@@ -192,6 +192,91 @@ function isAbortError(error) {
   return error.name === 'AbortError' || /aborted|abort/i.test(String(error.message || error));
 }
 
+// ── 消息操作图标 ─────────────────────────────────────────────────────
+// 跟 Claude 客户端一个语言：操作不写文字，用 14px 内联 SVG，hover 才显形。
+// 全部画成 stroke="currentColor" 让父元素 color 控色，不依赖外部图标库。
+const _ICONS = {
+  copy: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="5" width="9" height="9" rx="1.2" />
+      <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8.5l3.2 3 6.8-7" />
+    </svg>
+  ),
+  edit: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 2.5l2.5 2.5L5.8 12.7l-3.2.7.7-3.2z" />
+      <path d="M10 3.5l2.5 2.5" />
+    </svg>
+  ),
+  refresh: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" />
+      <path d="M13.5 2.5v3h-3" />
+    </svg>
+  ),
+  stop: (
+    <svg viewBox="0 0 16 16" fill="currentColor">
+      <rect x="4" y="4" width="8" height="8" rx="1" />
+    </svg>
+  ),
+};
+
+function IconButton({ icon, label, onClick, disabled, danger }) {
+  return (
+    <button
+      type="button"
+      className={'msg-action-btn' + (danger ? ' msg-action-btn-danger' : '')}
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+    >
+      {_ICONS[icon]}
+    </button>
+  );
+}
+
+// 相对时间 — "刚刚 / 5 分钟前 / 2 天前 / 04.30"。给消息行 hover 时露的时间戳
+// 用，跟 hepan 历史的 _relativeTime 同款实现，重复一份避免跨模块依赖。
+function _relativeTime(ts) {
+  if (!ts) return '';
+  const t = typeof ts === 'number' ? ts : Date.parse(ts);
+  if (!Number.isFinite(t)) return '';
+  const diff = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (diff < 30) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60) || 1} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} 天前`;
+  const d = new Date(t);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 复制文本到剪贴板，带 fallback。返回 boolean 给调用方决定要不要 toast。
+async function _copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // http / 私密模式 / 无 focus → fallback 到老的 textarea + execCommand
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  }
+}
+
 function findPreviousUserIndex(history, index) {
   for (let i = index - 1; i >= 0; i -= 1) {
     if (history[i]?.role === 'user') return i;
@@ -236,6 +321,9 @@ export default function Chat() {
   const [chatTrace, setChatTrace] = useState(null);
   const [editingUserIndex, setEditingUserIndex] = useState(null);
   const [editingText, setEditingText] = useState('');
+  // 复制按钮的"已复制"反馈用 Map 记一下哪条消息刚复制了 — 用 message
+  // index 当 key，1.4 秒后清掉。同时点多条互不影响（虽然概率低）。
+  const [copiedKey, setCopiedKey] = useState(null);
   // Rotating placeholder example: random first index per session, advance
   // every PROMPT_ROTATE_INTERVAL_MS while the input is empty + idle.
   const [exampleIdx, setExampleIdx] = useState(
@@ -709,21 +797,54 @@ export default function Chat() {
                       rows={3}
                       autoFocus
                     />
-                    <div className="chat-turn-actions user-turn-actions">
-                      <button onClick={() => regenerateFromUser(i, editingText)} disabled={!String(editingText).trim() || busy}>
-                        重新回答
-                      </button>
-                      <button onClick={cancelEditUserMessage} disabled={busy}>取消</button>
+                    {/* 编辑态保留文字按钮 — 这是主操作不该藏；icon 形态只
+                        给静态消息上的"次操作"用 */}
+                    <div className="chat-edit-actions">
+                      <button
+                        type="button"
+                        className="btn-primary chat-edit-confirm"
+                        onClick={() => regenerateFromUser(i, editingText)}
+                        disabled={!String(editingText).trim() || busy}
+                      >重新回答</button>
+                      <button
+                        type="button"
+                        className="btn-inline"
+                        onClick={cancelEditUserMessage}
+                        disabled={busy}
+                      >取消</button>
                     </div>
                   </div>
                 </div>
               );
             }
+            const userKey = `u-${i}`;
+            const userCopied = copiedKey === userKey;
             return (
               <div className="msg msg-user" key={i}>
                 <span className="bubble">{m.content}</span>
-                <div className="chat-turn-actions user-turn-actions">
-                  <button onClick={() => beginEditUserMessage(i, m.content)} disabled={busy}>修改问题</button>
+                <div className="msg-actions msg-actions-user">
+                  {m.ts ? (
+                    <span className="msg-time" title={new Date(m.ts).toLocaleString()}>
+                      {_relativeTime(m.ts)}
+                    </span>
+                  ) : null}
+                  <IconButton
+                    icon={userCopied ? 'check' : 'copy'}
+                    label={userCopied ? '已复制' : '复制'}
+                    onClick={async () => {
+                      const ok = await _copyToClipboard(m.content || '');
+                      if (ok) {
+                        setCopiedKey(userKey);
+                        setTimeout(() => setCopiedKey((k) => (k === userKey ? null : k)), 1400);
+                      }
+                    }}
+                  />
+                  <IconButton
+                    icon="edit"
+                    label="修改问题"
+                    onClick={() => beginEditUserMessage(i, m.content)}
+                    disabled={busy}
+                  />
                 </div>
               </div>
             );
@@ -785,10 +906,42 @@ export default function Chat() {
                 const userIndex = findPreviousUserIndex(history, i);
                 if (userIndex < 0) return null;
                 const question = history[userIndex]?.content || '';
+                const aiKey = `a-${i}`;
+                const aiCopied = copiedKey === aiKey;
+                const streaming = isLast && busy;
+                // 流式中只露"停止"按钮 —— 复制 / 重答都是"完成态"才有意义
+                if (streaming) {
+                  return (
+                    <div className="msg-actions msg-actions-ai msg-actions-streaming">
+                      <IconButton icon="stop" label="停止生成" onClick={stopStreaming} />
+                    </div>
+                  );
+                }
+                // 没内容（占位 placeholder 或空消息）— 没东西可复制 / 重答
+                if (!m.content) return null;
                 return (
-                  <div className="chat-turn-actions ai-turn-actions">
-                    {isLast && busy ? <button onClick={stopStreaming}>停止</button> : null}
-                    {!busy ? <button onClick={() => regenerateFromUser(userIndex, question)}>重新回答</button> : null}
+                  <div className="msg-actions msg-actions-ai">
+                    <IconButton
+                      icon={aiCopied ? 'check' : 'copy'}
+                      label={aiCopied ? '已复制' : '复制'}
+                      onClick={async () => {
+                        const ok = await _copyToClipboard(m.content || '');
+                        if (ok) {
+                          setCopiedKey(aiKey);
+                          setTimeout(() => setCopiedKey((k) => (k === aiKey ? null : k)), 1400);
+                        }
+                      }}
+                    />
+                    <IconButton
+                      icon="refresh"
+                      label="重新回答"
+                      onClick={() => regenerateFromUser(userIndex, question)}
+                    />
+                    {m.ts ? (
+                      <span className="msg-time" title={new Date(m.ts).toLocaleString()}>
+                        {_relativeTime(m.ts)}
+                      </span>
+                    ) : null}
                   </div>
                 );
               })()}

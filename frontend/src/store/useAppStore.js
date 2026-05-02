@@ -10,15 +10,19 @@ import { chartListItemToEntry, chartResponseToEntry } from '../lib/chartUi.js';
 export const CLASSICS_VERSION = 'skill-index-v7-polished';
 
 function _serverMsgToUiMsg(m) {
+  // 服务端 created_at 保留下来 — 给 chat UI 渲染相对时间戳（"5 分钟前"）
+  // 用。本地 push 的 message 在 pushChat / appendMessage 里补上 ts，让两条
+  // 路的消息都能用同一个字段。
+  const ts = m.created_at ? Date.parse(m.created_at) : null;
   if (m.role === 'gua') {
     const { gua, body, question } = m.meta || {};
-    return { role: 'gua', content: { ...(gua || {}), body, question, streaming: false } };
+    return { role: 'gua', content: { ...(gua || {}), body, question, streaming: false }, ts };
   }
   if (m.role === 'cta') {
     const { question } = m.meta || {};
-    return { role: 'cta', content: { question, manual: false } };
+    return { role: 'cta', content: { question, manual: false }, ts };
   }
-  return { role: m.role, content: m.content || '' };
+  return { role: m.role, content: m.content || '', ts };
 }
 
 function blankVerdicts() {
@@ -430,9 +434,15 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
-  appendMessage: (msg) => set(s => ({ chatHistory: [...s.chatHistory, msg] })),
+  appendMessage: (msg) => set(s => ({
+    chatHistory: [...s.chatHistory, msg.ts ? msg : { ...msg, ts: Date.now() }],
+  })),
   pushChat: (msg) => set(s => {
-    const chatHistory = appendChatMessage(s.chatHistory, msg);
+    // 给本地 push 的消息盖一层 ts 戳，跟服务端 created_at 同语义。streaming
+    // 占位的 assistant message 也会拿到 ts —— 流式完成后这条 ts 就是"本轮
+    // 开始时间"，对 UI 上"5 秒前 → 1 分钟前" 的演进足够准。
+    const stamped = msg.ts ? msg : { ...msg, ts: Date.now() };
+    const chatHistory = appendChatMessage(s.chatHistory, stamped);
     return { chatHistory };
   }),
   replaceLastAssistant: (content) => set(s => {
