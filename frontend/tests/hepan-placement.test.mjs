@@ -117,6 +117,16 @@ test('CardWorkspace wires invite-pair button to /api/hepan/invite', () => {
   assert.match(source, /handleInvitePair/);
 });
 
+test('topbar hepan invite popover keeps clicks inside the dialog', () => {
+  const source = fs.readFileSync(new URL('../src/components/hepan/HepanInviteButton.jsx', import.meta.url), 'utf8');
+  assert.match(source, /aria-label="打开合盘邀请"/);
+  assert.match(source, /handleTriggerClick/);
+  assert.match(source, /onMouseDown=\{\(e\) => e\.stopPropagation\(\)\}/);
+  assert.match(source, /handlePopoverClick/);
+  assert.match(source, /handleGenerateInviteMouseDown/);
+  assert.match(source, /creatingRef/);
+});
+
 test('hepan art keeps old relation assets versioned for compatibility', () => {
   const art = fs.readFileSync(new URL('../src/lib/hepanArt.js', import.meta.url), 'utf8');
   assert.match(art, /天作搭子/);

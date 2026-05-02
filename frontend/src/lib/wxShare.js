@@ -25,18 +25,36 @@ export async function copyShareLink(url, {
   clipboard = (typeof navigator !== 'undefined' ? navigator.clipboard : null),
   notify = (message) => alert(message),
 } = {}) {
-  if (!clipboard || typeof clipboard.writeText !== 'function') {
-    notify('复制失败，请手动复制浏览器地址栏链接');
-    return false;
+  async function fallbackCopy() {
+    if (typeof document === 'undefined') return false;
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute?.('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand?.('copy') === true;
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
   }
 
   try {
+    if (!clipboard || typeof clipboard.writeText !== 'function') {
+      throw new Error('clipboard unavailable');
+    }
     await clipboard.writeText(url);
     notify('链接已复制');
     return true;
   } catch {
-    notify('复制失败，请手动复制浏览器地址栏链接');
-    return false;
+    const copied = await fallbackCopy();
+    notify(copied ? '链接已复制' : '复制失败，请手动复制浏览器地址栏链接');
+    return copied;
   }
 }
 

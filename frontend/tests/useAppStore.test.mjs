@@ -34,10 +34,10 @@ function _resetStore() {
 test('appendMessage adds to chatHistory ephemerally', () => {
   _resetStore();
   useAppStore.getState().appendMessage({ role: 'user', content: 'hi' });
-  assert.deepEqual(
-    useAppStore.getState().chatHistory,
-    [{ role: 'user', content: 'hi' }]
-  );
+  const [message] = useAppStore.getState().chatHistory;
+  assert.equal(message.role, 'user');
+  assert.equal(message.content, 'hi');
+  assert.equal(typeof message.ts, 'number');
 });
 
 

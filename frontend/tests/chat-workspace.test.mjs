@@ -113,3 +113,19 @@ test('chat waiting state uses animated thinking indicator instead of trace recei
   assert.doesNotMatch(source, /ChatReceipts/);
   assert.doesNotMatch(source, /TraceReceipt/);
 });
+
+test('chat sends force the conversation to follow the newest streamed answer', () => {
+  const source = fs.readFileSync(new URL('../src/components/Chat.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /forceFollowNextRender/);
+  assert.match(source, /shouldForceFollowRef/);
+});
+
+test('chat layout keeps a single internal scroll area so the composer stays visible', () => {
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.right-pane\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(css, /\.chat-body\s*\{[^}]*min-height:\s*0/s);
+  assert.match(css, /\.chat-input-wrap\s*\{[^}]*flex:\s*0 0 auto/s);
+  assert.match(css, /\.chat-input textarea\s*\{[^}]*min-height:\s*26px/s);
+});

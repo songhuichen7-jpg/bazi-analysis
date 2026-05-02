@@ -344,6 +344,7 @@ export default function Chat() {
   //     滚动位置存住、新会话进入时按记忆恢复，否则默认贴底。
   const scrollMemoryRef = useRef(new Map());
   const prevConvIdRef = useRef(currentConversationId);
+  const shouldForceFollowRef = useRef(false);
   const [stuckToBottom, setStuckToBottom] = useState(true);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
@@ -367,6 +368,12 @@ export default function Chat() {
     const el = bodyRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    setStuckToBottom(true);
+    setShowJumpToBottom(false);
+  }
+
+  function forceFollowNextRender() {
+    shouldForceFollowRef.current = true;
     setStuckToBottom(true);
     setShowJumpToBottom(false);
   }
@@ -404,7 +411,8 @@ export default function Chat() {
       setShowJumpToBottom(distanceFromBottom(el) > 120);
       return;
     }
-    if (stuckToBottom) {
+    if (shouldForceFollowRef.current || stuckToBottom) {
+      shouldForceFollowRef.current = false;
       el.scrollTop = el.scrollHeight;
       setShowJumpToBottom(false);
     } else {
@@ -549,6 +557,7 @@ export default function Chat() {
       pushChat({ role: 'user', content: q });
       pushChat({ role: 'assistant', content: '' });
     }
+    forceFollowNextRender();
 
     if (!convId) {
       replaceLastAssistant('（请先创建一个对话）');
@@ -564,6 +573,7 @@ export default function Chat() {
         signal: controller.signal,
         onDelta: (_t, running) => {
           replaceLastAssistant(running);
+          forceFollowNextRender();
           updateTrace({ type: 'delta' });
         },
         onIntent: (intent, reason, source) =>
@@ -574,6 +584,7 @@ export default function Chat() {
         onRedirect: (to, redirQ) => {
           setChatTrace(null);
           if (to === 'gua') replacePlaceholderWithCta(redirQ || q, false);
+          forceFollowNextRender();
         },
         onModel: (m) => {
           console.log('[chat] modelUsed=' + m);
@@ -585,6 +596,7 @@ export default function Chat() {
         },
         onDone: (full) => {
           if (full) replaceLastAssistant(full);
+          forceFollowNextRender();
           updateTrace({ type: 'done' });
         },
       });
@@ -622,15 +634,18 @@ export default function Chat() {
         onGua: (g) => {
           guaData = g;
           pushGuaCard({ ...g, question: question.trim(), body: '' });
+          forceFollowNextRender();
         },
         onDelta: (_t, running) => {
           runningBody = running;
           updateLastGuaCard(running, false);
+          forceFollowNextRender();
         },
         onModel: (m) => console.log('[gua] model=' + m),
       });
       const finalBody = final || runningBody;
       updateLastGuaCard(finalBody, true);
+      forceFollowNextRender();
       setGuaCurrent({ ...(guaData || {}), question: question.trim(), body: finalBody, ts: Date.now() });
       // Note: gua history is now server-backed (each gua becomes a role='gua' message);
       // we no longer call pushGuaHistory.
@@ -668,6 +683,7 @@ export default function Chat() {
         signal: controller.signal,
         onDelta: (_t, running) => {
           replaceLastAssistant(running);
+          forceFollowNextRender();
           updateTrace({ type: 'delta' });
         },
         onIntent: (intent, reason, source) => {
@@ -684,6 +700,7 @@ export default function Chat() {
         },
         onDone: (full) => {
           if (full) replaceLastAssistant(full);
+          forceFollowNextRender();
           updateTrace({ type: 'done' });
         },
       });

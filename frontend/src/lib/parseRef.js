@@ -97,6 +97,11 @@ function isClassicsTitle(title) {
 
 function rescueQuotedTitles(text, kind) {
   if (!kind) return text;
+  if (TOKEN_RE.test(text)) {
+    TOKEN_RE.lastIndex = 0;
+    return text;
+  }
+  TOKEN_RE.lastIndex = 0;
   // 只 rescue **第一个** 《XX》。"用一首诗 / 一部电影" 类问题答案通常就一个
   // 主题标题；后面再出现的 《XX》 多半是引文 / 古籍 / 例子，rescue 了反伤。
   let rescued = false;
@@ -115,6 +120,7 @@ export function parseRef(text, options = {}) {
   if (inferredKind) text = rescueQuotedTitles(text, inferredKind);
   const out = [];
   let last = 0;
+  let renderedMedia = false;
   TOKEN_RE.lastIndex = 0;
   let m;
   while ((m = TOKEN_RE.exec(text)) !== null) {
@@ -128,20 +134,32 @@ export function parseRef(text, options = {}) {
     }
     let cursor = m.index + m[0].length;
     if (m[1]) {
-      out.push({
-        type: 'media',
-        kind: m[1],
-        title: (m[2] || '').trim(),
-        subtitle: (m[3] || '').trim(),
-      });
-      // Eat trailing sentence punct + any whitespace that follows the card,
-      // for the same reason: card margin handles spacing, raw \n\n adds
-      // a visible blank line on top.
-      const tail = text.slice(cursor);
-      const tm = tail.match(MEDIA_TRAILING_RE);
-      if (tm && tm[0]) {
-        cursor += tm[0].length;
-        TOKEN_RE.lastIndex = cursor;
+      if (!renderedMedia) {
+        out.push({
+          type: 'media',
+          kind: m[1],
+          title: (m[2] || '').trim(),
+          subtitle: (m[3] || '').trim(),
+        });
+        renderedMedia = true;
+        // Eat trailing sentence punct + any whitespace that follows the card,
+        // for the same reason: card margin handles spacing, raw \n\n adds
+        // a visible blank line on top.
+        const tail = text.slice(cursor);
+        const tm = tail.match(MEDIA_TRAILING_RE);
+        if (tm && tm[0]) {
+          cursor += tm[0].length;
+          TOKEN_RE.lastIndex = cursor;
+        }
+      } else {
+        const title = (m[2] || '').trim();
+        if (title) out.push({ type: 'text', value: `《${title}》` });
+        const tail = text.slice(cursor);
+        const whitespace = tail.match(new RegExp(`^[\\s${NBSP}]+`));
+        if (whitespace && whitespace[0]) {
+          cursor += whitespace[0].length;
+          TOKEN_RE.lastIndex = cursor;
+        }
       }
     } else {
       out.push({ type: 'ref', id: m[4], label: m[5] });

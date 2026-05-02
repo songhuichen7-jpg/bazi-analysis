@@ -5,9 +5,10 @@
 // 一页式克制叙事：
 //   1. Hero          命 · 盘 · 读 + 一个理性的命理工具 + 命盘档案双框 mockup
 //   2. 二十种人格    给你的命盘一个名字 + 4 张卡片图鉴
-//   3. 关系          你和 TA 是哪种搭子 + 合盘卡 + chip
-//   4. 凭据          古籍真本 + 4 个数字
-//   5. 时序收尾      万事有时 + CTA
+//   3. 好玩问法      电影 / 音乐 / 起卦卡片
+//   4. 关系          你和 TA 是哪种搭子 + 合盘卡 + chip
+//   5. 凭据          古籍真本 + 4 个数字
+//   6. 时序收尾      万事有时 + CTA
 //
 // 设计语言: 超大宋体衬线 (Songti SC) + 黑/暖灰为主 + 暖米底 + 大留白.
 // 卡片本身保留产品标志性的暖色, 但页面 chrome 几乎是黑白灰.
@@ -16,6 +17,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
 import { cardIllustrationSrc } from '../../lib/cardArt.js';
+import { MediaCard } from '../MediaCard.jsx';
 import { HepanCardPreview } from './HepanCardPreview.jsx';
 
 // Hero mockup 轮播：左边一柱日干 + 日支 + 格局，右边配一句"有意思"的问题。
@@ -71,8 +73,74 @@ const TRUST_METRICS = [
   { value: '210', label: '种关系组合' },
 ];
 
+const PLAY_CARDS = [
+  {
+    kind: 'movie',
+    mark: 'MOVIE',
+    prompt: '用一部电影形容我这盘。',
+    title: '花样年华',
+    subtitle: '王家卫',
+    cta: '豆瓣搜索',
+    note: '克制、绕远，但情绪一直在场。',
+  },
+  {
+    kind: 'song',
+    mark: 'MUSIC',
+    prompt: '用一首歌形容我的关系模式。',
+    title: '慢慢喜欢你',
+    subtitle: '莫文蔚',
+    cta: '网易云搜索',
+    note: '不是一眼上头，是越相处越有温度。',
+  },
+  {
+    kind: 'gua',
+    mark: 'GUA',
+    prompt: '这件事现在要不要推进？',
+    symbol: '䷷',
+    title: '旅',
+    subtitle: '上离 · 下艮',
+    guaci: '小亨，旅贞吉。',
+    note: '可以走，但每一步都要明慎。',
+  },
+];
+
 function Eyebrow({ children }) {
   return <p className="landing-eyebrow">{children}</p>;
+}
+
+function MiniGuaCard({ card }) {
+  return (
+    <div className="landing-play-gua">
+      <div className="landing-play-gua-header">
+        <span className="landing-play-gua-symbol">{card.symbol}</span>
+        <div>
+          <div className="landing-play-gua-name">{card.title}</div>
+          <div className="landing-play-gua-sub">{card.subtitle}</div>
+        </div>
+      </div>
+      <div className="landing-play-gua-text">
+        <b>卦辞：</b>{card.guaci}
+      </div>
+    </div>
+  );
+}
+
+function PlayCardPreview({ card }) {
+  return (
+    <article className={`landing-play-card landing-play-card-${card.kind}`}>
+      <div className="landing-play-card-head">
+        <span>{card.mark}</span>
+        <span>有时</span>
+      </div>
+      <p className="landing-play-prompt">「{card.prompt}」</p>
+      <div className="landing-play-object">
+        {card.kind === 'gua'
+          ? <MiniGuaCard card={card} />
+          : <MediaCard kind={card.kind} title={card.title} subtitle={card.subtitle} />}
+      </div>
+      <p className="landing-play-note">{card.note}</p>
+    </article>
+  );
 }
 
 // 二十种人格 — 无限左右轮播。轨道把 PERSONA_POOL 拼两遍 → translate
@@ -213,7 +281,26 @@ export function LandingHome() {
         </div>
       </section>
 
-      {/* ── 3. 关系 ─────────────────────────────────────────────────── */}
+      {/* ── 3. 好玩问法 ─────────────────────────────────────────────── */}
+      <section className="landing-section landing-play-section">
+        <Eyebrow>对话里的小展品</Eyebrow>
+        <h2 className="landing-section-title">
+          把命盘问成<br />
+          电影、音乐和一卦
+        </h2>
+        <p className="landing-section-sub">
+          它不只给结论，也会把你的性格、关系和当下问题，<br />
+          变成一张可以收藏的回答卡片。
+        </p>
+
+        <div className="landing-play-grid">
+          {PLAY_CARDS.map(card => (
+            <PlayCardPreview key={card.kind} card={card} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── 4. 关系 ─────────────────────────────────────────────────── */}
       <section className="landing-section">
         <Eyebrow>你和 TA 的关系</Eyebrow>
         <h2 className="landing-section-title">
@@ -240,7 +327,7 @@ export function LandingHome() {
         </div>
       </section>
 
-      {/* ── 4. 凭据 ─────────────────────────────────────────────────── */}
+      {/* ── 5. 凭据 ─────────────────────────────────────────────────── */}
       <section className="landing-section">
         <Eyebrow>凭 据</Eyebrow>
         <h2 className="landing-section-title">
@@ -266,7 +353,7 @@ export function LandingHome() {
         </p>
       </section>
 
-      {/* ── 5. 时序收尾 — 纯诗意收束, 无重复 CTA ────────────────────── */}
+      {/* ── 6. 时序收尾 — 纯诗意收束, 无重复 CTA ────────────────────── */}
       <section className="landing-final">
         <Eyebrow>有 · 时</Eyebrow>
         <h2 className="landing-final-title">

@@ -29,13 +29,13 @@ export default function HepanInviteButton() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [copied, setCopied] = useState(null);    // slug 高亮"已复制"
   const rootRef = useRef(null);
+  const creatingRef = useRef(false);
 
   // 弹层打开/关闭：拉历史 + 关闭时清掉一次性状态
   // 注意 hooks 必须无条件调 — 不渲染按钮的判断放在所有 hooks 之后做。
   useEffect(() => {
     if (!open) {
       setError('');
-      setInvite(null);
       setCopied(null);
       return undefined;
     }
@@ -67,7 +67,8 @@ export default function HepanInviteButton() {
   if (!user || !meta?.input) return null;
 
   async function generateInvite() {
-    if (creating || !meta?.input) return;
+    if (creatingRef.current || !meta?.input) return;
+    creatingRef.current = true;
     setCreating(true);
     setError('');
     try {
@@ -119,7 +120,37 @@ export default function HepanInviteButton() {
     } catch (e) {
       setError(e?.message || '生成失败，再试一次');
     } finally {
+      creatingRef.current = false;
       setCreating(false);
+    }
+  }
+
+  function handleGenerateInviteMouseDown(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    void generateInvite();
+  }
+
+  function handleGenerateInviteClick(event) {
+    event.stopPropagation();
+    void generateInvite();
+  }
+
+  function handlePopoverClick(event) {
+    event.stopPropagation();
+    if (invite || creating) return;
+    const target = event.target;
+    const insideGenerateButton = target?.closest?.('.hepan-invite-generate');
+    if (insideGenerateButton || target === event.currentTarget) {
+      void generateInvite();
+    }
+  }
+
+  function handleTriggerClick() {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (nextOpen && !invite) {
+      void generateInvite();
     }
   }
 
@@ -184,12 +215,19 @@ export default function HepanInviteButton() {
       <button
         type="button"
         className="btn-inline hepan-invite-button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleTriggerClick}
         title="给这盘的人发一份邀请，让 TA 跟你合盘"
+        aria-label="打开合盘邀请"
       >合盘</button>
 
       {open ? (
-        <div className="hepan-invite-popover" role="dialog" aria-label="邀请合盘">
+        <div
+          className="hepan-invite-popover"
+          role="dialog"
+          aria-label="邀请合盘"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={handlePopoverClick}
+        >
           <div className="hepan-invite-head">
             <div className="hepan-invite-title">邀请合盘</div>
             <div className="hepan-invite-sub muted">
@@ -220,7 +258,8 @@ export default function HepanInviteButton() {
             <button
               type="button"
               className="btn-primary hepan-invite-generate"
-              onClick={generateInvite}
+              onMouseDown={handleGenerateInviteMouseDown}
+              onClick={handleGenerateInviteClick}
               disabled={creating}
             >{creating ? '生成中…' : '生成邀请链接'}</button>
           )}
