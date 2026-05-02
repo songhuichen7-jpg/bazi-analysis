@@ -27,9 +27,11 @@
 }
 
 .hepan-screen-split {
-  max-width: 1180px;
+  max-width: 1080px;
   display: grid;
-  grid-template-columns: minmax(0, 540px) minmax(0, 1fr);
+  /* 卡片网页上不必撑到导出尺寸（saveCardAsImage 自己 resize 到 1080），缩到
+   * 420 视觉上跟右边长文 visual weight 更平衡 */
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
   gap: 40px;
   align-items: start;
 }
@@ -193,6 +195,10 @@
   --card-accent: var(--theme, #b07a3c);
   --card-ink: #1f1610;
 
+  /* 网页上 420 是 grid 左栏的目标宽 — 大于这个值就被 grid track 限制，
+   * 小屏（pending screen 单列）能放大到 540。导出图走 saveCardAsImage 时
+   * 会临时把 element 缩放到 1080px wide 再截图，所以这里的显示宽度跟
+   * 导出像素宽不挂钩。*/
   width: min(540px, 100%);
   aspect-ratio: 3 / 4;
   margin: 0 auto;

@@ -726,6 +726,14 @@
     align-items: center;
     gap: 10px;
   }
+  /* split 布局里把右栏的第一个子元素顶到 stage-right 顶部，跟左边卡片
+     齐顶。reading panel / chat 自带的 margin-top: 32/36 是单列布局下与
+     上方分隔用，两栏 stage 内部不需要再额外推一段。
+     selector 用 *:first-child 一次盖住所有可能的首块（reading-cta /
+     reading / reading-error / chat — 任一种都是 stage-right 的孩子）。*/
+  .hepan-screen-split .hepan-stage-right > *:first-child {
+    margin-top: 0;
+  }
   .hepan-reading-hook {
     font-size: 15px;
     color: var(--ink);
