@@ -13,6 +13,7 @@ LLM 已经"知道"这段关系，不需要用户每次重新解释背景。
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import AsyncIterator, Optional
 
@@ -31,6 +32,20 @@ from app.services.hepan.loader import DYNAMICS, find_pair
 from app.services.hepan.mapping import (
     classify, state_pair_icon_key, state_pair_key,
 )
+
+
+# 同一个 hepan slug 同时只允许一条 stream — 跟 conversation_chat 同款防护。
+# 创建者只有 1 个，跨标签发同一条 hepan chat 的概率不大，但万一中招 DB
+# 会写入错位的消息序列。in-memory 进程级锁，单 worker 完美防护。
+_SLUG_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _slug_lock(slug: str) -> asyncio.Lock:
+    lock = _SLUG_LOCKS.get(slug)
+    if lock is None:
+        lock = asyncio.Lock()
+        _SLUG_LOCKS[slug] = lock
+    return lock
 
 
 # 上下文里塞多少历史消息进 LLM。再老的对话由 LLM 用 reading 兜底，
@@ -116,9 +131,37 @@ async def stream_chat(
     message → emit done. 同样 commit-before-done：race 超额时 emit error，
     assistant message 不落库。
 
-    user message 的 INSERT 在 stream 开始前 flush — 即便 LLM 报错，user 也
-    能在历史里看到自己刚发的那条（保留意图，不掉消息）。"""
-    # 1) 先落 user message — flush 但不 commit (caller 全责 commit)
+    并发保护：同一个 slug 同时只允许一条 stream。多标签同发 → 第二条
+    立刻收 CONVERSATION_BUSY，不污染消息顺序。
+
+    abort/error/quota 三类异常路径都会在 finally 里把 accumulated 持久化
+    成一条 interrupted=True 的 assistant 行 — 用户在屏幕上看到过的内容
+    不会因为关页/网络断而丢。
+    """
+    lock = _slug_lock(invite.slug)
+    if lock.locked():
+        yield sse_pack({
+            "type": "error",
+            "code": "CONVERSATION_BUSY",
+            "message": "这条合盘对话另一个回答正在生成中，请等它完成或停止后再发。",
+        })
+        return
+
+    async with lock:
+        async for chunk in _stream_chat_locked(db, user, invite, user_message, ticket=ticket):
+            yield chunk
+
+
+async def _stream_chat_locked(
+    db: AsyncSession,
+    user: User,
+    invite: HepanInvite,
+    user_message: str,
+    *,
+    ticket,
+) -> AsyncIterator[bytes]:
+    """主流程 — 假设外面已经拿到 slug lock。"""
+    # 1) 先落 user message
     user_row = HepanMessage(
         hepan_slug=invite.slug,
         role="user",
@@ -141,72 +184,103 @@ async def stream_chat(
     prompt_tok = completion_tok = total_tok = 0
     t_start = time.monotonic()
     err: UpstreamLLMError | None = None
+    # exited_normally=True → success / LLM 错 / quota race 三类显式 return
+    # 路径，不持久化 partial（保持原有"未完成的回答不留 assistant"语义）。
+    # =False → 客户端 abort (GeneratorExit/CancelledError)，落 partial。
+    exited_normally = False
 
     try:
-        async for ev in chat_stream_with_fallback(
-            messages=messages, tier="primary",
-            temperature=0.75, max_tokens=1600,
-            first_delta_timeout_ms=0,
-        ):
-            if ev["type"] == "model":
-                model_used = ev["modelUsed"]
-                yield sse_pack(ev)
-            elif ev["type"] == "delta":
-                accumulated += ev["text"]
-                yield sse_pack(ev)
-            elif ev["type"] == "done":
-                prompt_tok = ev.get("prompt_tokens", 0)
-                completion_tok = ev.get("completion_tokens", 0)
-                total_tok = ev.get("tokens_used", 0)
-    except UpstreamLLMError as e:
-        err = e
-        yield sse_pack({"type": "error", "code": e.code, "message": e.message})
-
-    duration_ms = int((time.monotonic() - t_start) * 1000)
-
-    if err is not None:
-        await insert_llm_usage_log(
-            db, user_id=user.id, chart_id=None,
-            endpoint="hepan_chat", model=model_used,
-            prompt_tokens=None, completion_tokens=None,
-            duration_ms=duration_ms, error=f"{err.code}: {err.message}",
-        )
-        return
-
-    # 3) Commit-before-done — race 超额则 emit error 不写 assistant
-    if ticket is not None:
         try:
-            await ticket.commit()
-        except Exception as e:  # noqa: BLE001
-            yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
+            async for ev in chat_stream_with_fallback(
+                messages=messages, tier="primary",
+                temperature=0.75, max_tokens=1600,
+                first_delta_timeout_ms=0,
+            ):
+                if ev["type"] == "model":
+                    model_used = ev["modelUsed"]
+                    yield sse_pack(ev)
+                elif ev["type"] == "delta":
+                    accumulated += ev["text"]
+                    yield sse_pack(ev)
+                elif ev["type"] == "done":
+                    prompt_tok = ev.get("prompt_tokens", 0)
+                    completion_tok = ev.get("completion_tokens", 0)
+                    total_tok = ev.get("tokens_used", 0)
+        except UpstreamLLMError as e:
+            err = e
+            yield sse_pack({"type": "error", "code": e.code, "message": e.message})
+
+        duration_ms = int((time.monotonic() - t_start) * 1000)
+
+        if err is not None:
             await insert_llm_usage_log(
                 db, user_id=user.id, chart_id=None,
                 endpoint="hepan_chat", model=model_used,
                 prompt_tokens=None, completion_tokens=None,
-                duration_ms=duration_ms, error=f"QUOTA_EXCEEDED: {e}",
+                duration_ms=duration_ms, error=f"{err.code}: {err.message}",
             )
+            exited_normally = True
             return
 
-    # 4) 落 assistant message
-    asst_row = HepanMessage(
-        hepan_slug=invite.slug,
-        role="assistant",
-        content=accumulated,
-        model_used=model_used,
-        tokens_used=total_tok,
-    )
-    db.add(asst_row)
-    await db.flush()
+        # 3) Commit-before-done — race 超额则 emit error 不写 assistant
+        if ticket is not None:
+            try:
+                await ticket.commit()
+            except Exception as e:  # noqa: BLE001
+                yield sse_pack({"type": "error", "code": "QUOTA_EXCEEDED", "message": str(e)})
+                await insert_llm_usage_log(
+                    db, user_id=user.id, chart_id=None,
+                    endpoint="hepan_chat", model=model_used,
+                    prompt_tokens=None, completion_tokens=None,
+                    duration_ms=duration_ms, error=f"QUOTA_EXCEEDED: {e}",
+                )
+                exited_normally = True
+                return
 
-    await insert_llm_usage_log(
-        db, user_id=user.id, chart_id=None,
-        endpoint="hepan_chat", model=model_used,
-        prompt_tokens=prompt_tok, completion_tokens=completion_tok,
-        duration_ms=duration_ms,
-    )
-    yield sse_pack({
-        "type": "done",
-        "full": accumulated,
-        "tokens_used": total_tok,
-        "assistant_id": str(asst_row.id),
-    })
+        # 4) 落 assistant message
+        asst_row = HepanMessage(
+            hepan_slug=invite.slug,
+            role="assistant",
+            content=accumulated,
+            model_used=model_used,
+            tokens_used=total_tok,
+        )
+        db.add(asst_row)
+        await db.flush()
+
+        await insert_llm_usage_log(
+            db, user_id=user.id, chart_id=None,
+            endpoint="hepan_chat", model=model_used,
+            prompt_tokens=prompt_tok, completion_tokens=completion_tok,
+            duration_ms=duration_ms,
+        )
+        yield sse_pack({
+            "type": "done",
+            "full": accumulated,
+            "tokens_used": total_tok,
+            "assistant_id": str(asst_row.id),
+        })
+        exited_normally = True
+    finally:
+        # 只在 abort 路径（exited_normally=False）落 partial。LLM 错 / quota
+        # race 都是显式 return，原行为是不留 assistant，保持。
+        # commit 也在这里 — caller 的 await db.commit() 在 abort 路径不会执
+        # 行，user message 的 INSERT 也会被回滚。完成路径 caller 会再 commit，
+        # SQLAlchemy 二次 commit 是 no-op，安全。
+        if not exited_normally and accumulated:
+            try:
+                partial = HepanMessage(
+                    hepan_slug=invite.slug,
+                    role="assistant",
+                    content=accumulated,
+                    model_used=model_used,
+                    tokens_used=0,
+                )
+                db.add(partial)
+                await db.flush()
+            except Exception:  # noqa: BLE001 — best-effort
+                pass
+        try:
+            await db.commit()
+        except Exception:  # noqa: BLE001 — session 可能已经关
+            pass
