@@ -190,7 +190,18 @@ def _looks_like_tiaohou(kind: str, user_message: str | None) -> bool:
 
 
 def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = None) -> RetrievalPolicy:
-    """Return the ranking policy for one retrieval request."""
+    """Return the ranking policy for one retrieval request.
+
+    NOTE: caller (api/charts.py:316) passes ``kind=f"section:{name}"`` for
+    section LLM streams (wealth / relationship / health / etc.), but the
+    dispatch logic below matches bare names like "wealth". Without stripping
+    the prefix, **every section retrieval falls back to bare BM25+KG with
+    no domain filtering** — caught by 4 failing tests + reproducible on the
+    prod index. Strip once at entry so all sub-policies see the canonical
+    name. ``kind`` field on the returned policy keeps the original value
+    for telemetry / selector hint context.
+    """
+    dispatch_kind = kind.removeprefix("section:") if kind.startswith("section:") else kind
     if _looks_like_tiaohou(kind, user_message):
         return RetrievalPolicy(
             kind=kind,
@@ -206,7 +217,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("专用", "先取", "次用", "寒", "暖", "燥", "湿"),
         )
 
-    if kind == "relationship":
+    if dispatch_kind == "relationship":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("六亲",),
@@ -222,7 +233,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("夫妻", "妻", "夫", "婚", "配偶", "财以妻"),
         )
 
-    if kind == "wealth":
+    if dispatch_kind == "wealth":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("财官",),
@@ -243,7 +254,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("财气", "财星", "财格", "正财", "偏财", "食伤生财"),
         )
 
-    if kind == "meta" and _main_shishen(chart) == "七杀":
+    if dispatch_kind == "meta" and _main_shishen(chart) == "七杀":
         day_gan = _day_gan(chart)
         month_zhi = _month_zhi(chart)
         month_name = _MONTH_NAME_BY_ZHI.get(month_zhi, "")
@@ -294,7 +305,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             ),
         )
 
-    if kind == "liunian":
+    if dispatch_kind == "liunian":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("行运",),
@@ -315,7 +326,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("行运", "岁运", "流年", "太岁", "成格", "变格"),
         )
 
-    if kind in {"timing", "dayun_step"}:
+    if dispatch_kind in {"timing", "dayun_step"}:
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("行运",),
@@ -337,7 +348,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("行运", "岁运", "流年", "太岁", "成格", "变格", "取运"),
         )
 
-    if kind == "health":
+    if dispatch_kind == "health":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("疾病",),
@@ -346,7 +357,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("疾病", "病", "偏枯", "寒", "燥", "湿"),
         )
 
-    if kind == "appearance":
+    if dispatch_kind == "appearance":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("外貌", "性情"),
@@ -358,7 +369,7 @@ def build_policy(chart: dict[str, Any], kind: str, user_message: str | None = No
             term_boosts=("性情", "相貌", "形体", "貌", "天干体象", "地支体象"),
         )
 
-    if kind == "personality":
+    if dispatch_kind == "personality":
         return RetrievalPolicy(
             kind=kind,
             positive_domains=("性情", "外貌"),

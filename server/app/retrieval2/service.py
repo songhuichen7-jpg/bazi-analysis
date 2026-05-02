@@ -272,6 +272,7 @@ def _promote_bm25_anchors(
     claims: dict[str, ClaimUnit],
     bm25_idx,
     intents,
+    policy: RetrievalPolicy | None = None,
     *,
     n: int,
     per_intent_k: int = 2,
@@ -287,7 +288,22 @@ def _promote_bm25_anchors(
     BM25 text match. Without this anchor, "甲日戊辰時 偏财" queries lose
     to generic 财 essays despite being a literal substring match.
 
-    Idempotent: anchors that are already in ``fused`` are not duplicated."""
+    Idempotent: anchors that are already in ``fused`` are not duplicated.
+
+    Anchor 不能 outrank policy.preferred_files / preferred_file_fragments
+    --------------------------------------------------------------------
+    历史 bug：anchor 被赋成 top_fused_score 然后插到 ``out`` 头部，因为
+    insertion order 决定 ``use_selector=False`` 路径的最终排序，policy
+    精挑出来的"夫妻 / 何知章 / 论行运"被 三命通会 anchor 一句"甲日壬申时"
+    顶下来。test_relationship_prefers_spouse_not_children 等 4 条专门 pin
+    住的失败用例就是这个 — 连续 N 个月 4 fail 没人收。
+
+    修法：
+      1. 跳过 policy.rejects 的 anchor（policy 已经说"这个文件错主题"，
+         BM25 文本巧合不该把它救回来）
+      2. anchor 留 ``policy.preferred_files`` / ``preferred_file_fragments``
+         匹配的"主力位"在最前；anchor 滑到主力之后、其它 fused 之前
+    """
     if bm25_idx is None or not intents:
         return fused[:n]
 
@@ -300,9 +316,19 @@ def _promote_bm25_anchors(
     seen_ids: set[str] = set()
     for it in anchor_intents:
         for cid, _score in bm25_idx.query(it.text, k=per_intent_k):
-            if cid in claims and cid not in seen_ids:
-                anchor_ids.append(cid)
-                seen_ids.add(cid)
+            if cid not in claims or cid in seen_ids:
+                continue
+            # 跳过 policy 已经显式拒绝的 anchor — 说"夫妻"问题不要 zi-nv
+            # 章节的话，BM25 别拐弯把 zi-nv 救回来。无 policy（None）时
+            # 退回原行为兼容老调用方。
+            if policy is not None:
+                # rejects 需要 tags；这里没有 tags 字典，但 policy.rejects
+                # 容许传入空 tags 仍然能基于文件名拒绝
+                from .types import ClaimTags as _T
+                if policy.rejects(claims[cid], _T(claim_id=cid)):
+                    continue
+            anchor_ids.append(cid)
+            seen_ids.add(cid)
 
     if not anchor_ids:
         return fused[:n]
@@ -316,9 +342,34 @@ def _promote_bm25_anchors(
     # 把 anchor 抬到 top fused_score 等高（不超过它），保证 sort 稳定后
     # anchor 仍然在 top 区，且不会超过原本 KG/policy 双高的"主力"条目。
     top_fused_score = max((s for _, s, _ in fused), default=1.0)
+
+    # 算 policy "主力位" — 已经在 fused 里且匹配 preferred_files /
+    # preferred_file_fragments 的条目。这些不能被 anchor 顶下来。
+    main_seats: list[tuple[str, float, dict[str, float]]] = []
+    if policy is not None and (policy.preferred_files or policy.preferred_file_fragments):
+        for item in fused:
+            cid = item[0]
+            claim = claims.get(cid)
+            if claim is None:
+                continue
+            file_name = claim.chapter_file
+            if file_name in policy.preferred_files or any(
+                frag in file_name for frag in policy.preferred_file_fragments
+            ):
+                main_seats.append(item)
+
     out: list[tuple[str, float, dict[str, float]]] = []
     placed: set[str] = set()
+    # 主力位先占（policy 算出的 winner），anchor 排到主力之后
+    for item in main_seats:
+        out.append(item)
+        placed.add(item[0])
+        if len(out) >= n:
+            return out
+
     for cid in anchor_ids:
+        if cid in placed:
+            continue
         existing = fused_by_id.get(cid)
         if existing is not None:
             base_score, meta = existing[1], dict(existing[2])
@@ -433,7 +484,7 @@ async def retrieve_for_chart(
     fused = _promote_preferred_files(fused, claims, policy, n=fused_top_n)
     fused = _diversify_fused(fused, claims, n=fused_top_n)
     fused = _promote_bm25_anchors(
-        fused, claims, bm25_idx, intents, n=fused_top_n,
+        fused, claims, bm25_idx, intents, policy, n=fused_top_n,
     )
     candidates = [
         selector_mod.Candidate(
