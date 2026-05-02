@@ -11,15 +11,29 @@ Lifecycle:
   - status='pending' when A creates the invite (B not in yet).
   - status='completed' when B opens the link and submits their birth.
   - share_count tracks GET /api/hepan/{slug} hits for analytics.
+
+Relationship to users:
+  - ``user_id`` is set when A creates the invite while logged in. NULL when
+    A is anonymous (or for old invites pre-0011). Used by ``GET /api/hepan/mine``.
+  - B is never recorded — they may not even have an account.
+
+LLM reading (Plan 5+):
+  - ``reading_text`` 缓存"完整解读"流式生成的最终文本 (EncryptedText)。
+  - ``reading_version`` 跟 prompt / pairs / dynamics 的版本号绑定，prompt 改版后
+    旧 invite 的 reading 失效，下次 GET reading 时重新生成。
+  - ``reading_generated_at`` 是落库时间，便于运维侧排查。
 """
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.db_types import EncryptedText
 from app.models import Base
 
 
@@ -45,7 +59,12 @@ class HepanInvite(Base):
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending")
 
     # ── Bookkeeping ────────────────────────────────────────────────────
-    user_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    # 0011 之前是 BigInteger placeholder，没在用；现在跟 users.id (UUID) 对齐
+    user_id: Mapped[Optional[UUID]] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False,
     )
@@ -53,3 +72,10 @@ class HepanInvite(Base):
         DateTime(timezone=True), nullable=True,
     )
     share_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # ── LLM 完整解读缓存 (Plan 5+) ──────────────────────────────────
+    reading_text: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
+    reading_version: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    reading_generated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )

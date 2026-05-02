@@ -1,6 +1,7 @@
 """Pydantic request/response schemas for the hepan (合盘) API."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -75,3 +76,25 @@ class HepanInviteResponse(BaseModel):
     slug: str
     a: HepanSide
     invite_url: str  # e.g. /hepan/{slug}
+
+
+# ── 我的合盘列表（GET /api/hepan/mine） ───────────────────────────────
+
+class HepanMineItem(BaseModel):
+    """单条合盘记录的列表展示。比 HepanResponse 轻 — 列表上不还原完整解读。"""
+    slug: str
+    status: Literal["pending", "completed"]
+    a_nickname: Optional[str] = None
+    b_nickname: Optional[str] = None
+    a_cosmic_name: str
+    b_cosmic_name: Optional[str] = None
+    category: Optional[str] = None
+    label: Optional[str] = None
+    pair_theme_color: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    share_count: int
+
+
+class HepanMineResponse(BaseModel):
+    items: list[HepanMineItem]

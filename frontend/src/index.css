@@ -548,6 +548,132 @@
     cursor: not-allowed;
   }
 
+  /* 合盘邀请弹层 — 命盘页 top-bar 触发，盖在 chart 内容上面 */
+  .hepan-invite-trigger { position: relative; }
+  .hepan-invite-button {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+  .hepan-invite-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 360px;
+    max-width: 92vw;
+    z-index: 90;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 14px 40px rgba(0,0,0,.10);
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hepan-invite-head { display: flex; flex-direction: column; gap: 4px; }
+  .hepan-invite-title {
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .hepan-invite-sub {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .hepan-invite-current {
+    border: 1px dashed var(--line);
+    background: #faf6ec;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hepan-invite-url {
+    font-size: 12px;
+    color: var(--ink);
+    word-break: break-all;
+    font-feature-settings: "tnum";
+    font-family: -apple-system, "SF Mono", Menlo, Consolas, monospace;
+    line-height: 1.6;
+  }
+  .hepan-invite-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .hepan-invite-actions .btn-primary {
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+  .hepan-invite-actions .btn-inline {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .hepan-invite-generate {
+    padding: 9px 16px;
+    font-size: 13px;
+    align-self: flex-start;
+  }
+  .hepan-invite-history {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hepan-invite-history-head {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .hepan-invite-history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hepan-invite-history-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .hepan-invite-history-left {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .hepan-invite-status {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: .04em;
+    border: 1px solid var(--line);
+  }
+  .hepan-invite-status-completed {
+    color: #4d6f4a;
+    background: #ecf3e8;
+    border-color: #d3e2c9;
+  }
+  .hepan-invite-status-pending {
+    color: var(--mute);
+    background: transparent;
+  }
+  .hepan-invite-history-name {
+    color: var(--ink);
+    font-family: "Songti SC", serif;
+  }
+  .hepan-invite-history-label {
+    color: var(--mute);
+    font-size: 11px;
+  }
+
   /* paywall toast 的强调按钮 — 跳 /pricing。复用 .btn-primary 形态但
      在 ErrorState 里语义是 link，所以用 a/Link 元素。 */
   .error-state-cta {

@@ -12,6 +12,7 @@ import { buildChartVisibility } from '../lib/chartVisibility';
 import { getShellTopbarClassName } from '../lib/shellChrome';
 import ClassicsPanel from './ClassicsPanel';
 import { CardWorkspace } from './card/CardWorkspace';
+import HepanInviteButton from './hepan/HepanInviteButton';
 
 const MIN_RIGHT = 320;
 const MAX_RIGHT = 900;
@@ -123,6 +124,7 @@ export default function Shell() {
                 >卡 片</button>
               </div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <HepanInviteButton />
                 <ChartSwitcher onNewChart={() => startNewChart()} />
                 <button
                   className={'muted' + (resetPending ? ' shell-reset-pending' : '')}
