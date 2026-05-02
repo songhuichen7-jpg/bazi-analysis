@@ -40,12 +40,19 @@ export default function MyHepanPage() {
     else navigate('/app', { replace: true });
   }
 
-  async function copyUrl(slug) {
+  async function copyUrl(slug, item) {
     const url = `${window.location.origin}/hepan/${slug}`;
-    try { await navigator.clipboard.writeText(url); }
+    // 跟 HepanInviteButton 同套话术：邀请人 + URL，粘到 IM 里上下文清楚。
+    // 这里 item.a_nickname 是发邀请那一刻的 nickname snapshot。
+    const name = (item?.a_nickname || '').trim();
+    const prefix = name && name !== '游客'
+      ? `${name} 邀请你来合个盘`
+      : '想跟你合个盘';
+    const text = `${prefix} — ${url}`;
+    try { await navigator.clipboard.writeText(text); }
     catch {
       const ta = document.createElement('textarea');
-      ta.value = url; document.body.appendChild(ta); ta.select();
+      ta.value = text; document.body.appendChild(ta); ta.select();
       try { document.execCommand('copy'); } catch { /* ignore */ }
       document.body.removeChild(ta);
     }
@@ -143,7 +150,7 @@ function MineGroup({ title, hint, items, busySlug, onCopy, onDelete }) {
             key={it.slug}
             item={it}
             busy={busySlug === it.slug}
-            onCopy={() => onCopy(it.slug)}
+            onCopy={() => onCopy(it.slug, it)}
             onDelete={() => onDelete(it.slug)}
           />
         ))}

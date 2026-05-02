@@ -110,12 +110,18 @@ async def stream_message(
         sources = " + ".join(h.get("source", "?") for h in retrieved)
         yield sse_pack({"type": "retrieval", "source": sources})
 
+    # Hepan-aware context — 给 LLM 注入 "你跟过谁合过盘" 的简表，方便用户在
+    # chart 对话里引用合盘关系。没合过盘的用户拿空串，跳过 inject。
+    from app.services.hepan.context import recent_hepan_summaries_for_user
+    hepan_summary = await recent_hepan_summaries_for_user(db, user.id)
+
     messages_llm = prompts_expert.build_messages(
         paipan=chart.paipan, history=history,
         user_message=message, intent=effective_intent,
         retrieved=retrieved,
         client_context=client_context,
         memory_summary=memory_summary,
+        hepan_summary=hepan_summary,
     )
 
     accumulator = ""

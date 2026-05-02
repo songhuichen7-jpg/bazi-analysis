@@ -97,15 +97,27 @@ export default function HepanInviteButton() {
     }
   }
 
+  // 复制时带上一句邀请话 — 用户粘到微信 / 飞书里直接就是 "@昵称 邀请你来
+  // 合一盘 — URL"。比起裸 URL，对方收到时少一层"这是什么链接？"的猜测。
+  // 想要纯 URL 的（粘到代码 / 文档里）可以二次手动选取删描述。
+  function _composeShareText(url) {
+    const name = (user.nickname || '').trim();
+    const prefix = name && name !== '游客'
+      ? `${name} 邀请你来合个盘`
+      : '想跟你合个盘';
+    return `${prefix} — ${url}`;
+  }
+
   async function copyUrl(url, slug) {
+    const text = _composeShareText(url);
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(text);
       setCopied(slug);
       setTimeout(() => setCopied((s) => s === slug ? null : s), 1800);
     } catch {
       // clipboard API 在 http 或私密模式下会拒绝；fallback 选中告知
       const ta = document.createElement('textarea');
-      ta.value = url;
+      ta.value = text;
       document.body.appendChild(ta);
       ta.select();
       try { document.execCommand('copy'); setCopied(slug); }

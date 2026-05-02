@@ -247,10 +247,15 @@ def build_messages(
     retrieved: list[dict],
     client_context: dict[str, Any] | None = None,
     memory_summary: str | None = None,
+    hepan_summary: str | None = None,
 ) -> list[dict]:
     """Build expert messages (system + prebudgeted history + user with time anchor).
 
     NOTE: prompts.js:604-656.
+
+    ``hepan_summary``: 调用方拿 services.hepan.context.recent_hepan_summaries_for_user
+    生成的 1-N 行 plain text，描述用户跟谁有过合盘。空串就跳过 — 没合过
+    盘的用户不会被这段碎信息打扰。
     """
     parts: list[str] = []
     parts.append(_runtime_constraints())
@@ -266,6 +271,11 @@ def build_messages(
     rendered_memory = _render_memory_summary(memory_summary)
     if rendered_memory:
         parts.append(rendered_memory)
+
+    # Hepan 关系记忆 — 跟 memory_summary 一样属于"用户长期事实"，紧挨着摆。
+    # 用 .strip() 防御传入的字符串带前后空行；空串自然跳过。
+    if hepan_summary and hepan_summary.strip():
+        parts.append(hepan_summary.strip())
 
     # Chart slice
     sliced = pick_chart_slice(paipan, intent)

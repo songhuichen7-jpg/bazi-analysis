@@ -1,6 +1,16 @@
 import { clearAuthSessionHint, hasAuthSessionHint, setAuthSessionHint } from './authSessionHint.js';
 import { clearAuthPhoneHint, readAuthPhoneHint } from './authPhoneHint.js';
 import { readGuestToken, writeGuestToken } from './guestToken.js';
+import { checkHepanInbox } from './hepanInbox.js';
+
+// 后台异步跑一次 hepan inbox 检查 — 用户登录态恢复后立刻派发。fire-and-forget
+// 不 await：bootstrap 流程不等它，toast 后到也行。错误吞掉，不影响主路径。
+function _kickOffHepanInbox(store) {
+  void Promise.resolve().then(() =>
+    checkHepanInbox({ setAppNotice: store.getState().setAppNotice })
+      .catch(() => { /* 静默 */ })
+  );
+}
 
 async function tryGuestRestore({ guestLogin, store }) {
   // 内测访客 silent restore — localStorage 有 guest_token 时直接调
@@ -15,6 +25,7 @@ async function tryGuestRestore({ guestLogin, store }) {
       setAuthSessionHint();
       clearAuthPhoneHint();
       store.getState().setUser(result.user);
+      _kickOffHepanInbox(store);
       return result.user;
     }
   } catch {
@@ -36,6 +47,7 @@ export async function bootstrapAuthGate({ store, me, guestLogin }) {
         if (result.quota_snapshot) {
           store.getState().setQuotaSnapshot(result.quota_snapshot);
         }
+        _kickOffHepanInbox(store);
         return result.user;
       }
       // me() 拿到 null = 401，清理 hint。但不 return — 继续往下试 guest_token
