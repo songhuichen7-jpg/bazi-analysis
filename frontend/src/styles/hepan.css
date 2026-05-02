@@ -84,8 +84,13 @@
   max-width: 480px;
 }
 
+/* ── invite form (B 填生日) ─────────────────────────────────────────
+   原版用 #fffdf7/#ecdfc8/#b07a3c 一套暖棕，跟主站冷黑白对不齐 —
+   主站调色板是 var(--ink: #111) + var(--line: #e5e5e5) + 白底，
+   按钮是 .btn-primary（黑底白字直角）。这一段全部翻成 site neutrals
+   并去圆角，跟 user-center / 命盘表单同款。 */
 .hepan-invite-kicker {
-  color: #b07a3c;
+  color: var(--mute);
   font-size: 11px;
   letter-spacing: 0.28em;
   margin: 0 0 8px;
@@ -96,28 +101,29 @@
   font-size: 32px;
   font-weight: 600;
   line-height: 1.3;
-  color: #1f1610;
+  color: var(--ink);
 }
 
 .hepan-invite-sub {
-  color: #5d4f3a;
+  color: var(--ink-2);
   font-size: 15px;
   line-height: 1.7;
   margin: 0;
 }
 
 .hepan-invite-sub strong {
-  color: #b07a3c;
+  color: var(--ink);
   font-weight: 600;
 }
 
 .hepan-form {
   max-width: 420px;
   margin: 0 auto;
-  padding: 22px 22px 18px;
-  background: #fffdf7;
-  border: 1px solid #ecdfc8;
-  border-radius: 16px;
+  padding: 24px 24px 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  /* 直角 — 跟主站 .btn-primary / .card / user-center 表单一致，
+     不用 16px 圆角的 ios-cream 风。 */
 }
 
 .hepan-form-row {
@@ -129,48 +135,52 @@
 .hepan-form-row input {
   flex: 1 1 0;
   min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid #ecdfc8;
-  border-radius: 10px;
-  background: #fffaf0;
-  font-size: 14px;
-  color: #1f1610;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-bottom-color: var(--ink);
+  background: var(--bg-2);
+  font-size: 13.5px;
+  color: var(--ink);
+  /* 数字框单字符 placeholder（年/月/日/时）居中看着整齐 — 昵称行
+     用单独 .hepan-form-row-text 覆盖回左对齐 */
+  text-align: center;
 }
 
 .hepan-form-row input:focus {
   outline: none;
-  border-color: #b07a3c;
-  background: #fff;
+  border-color: var(--ink);
+}
+
+.hepan-form-row-text input {
+  /* 昵称是自由文本，左对齐更顺手 — 居中只是给单字符数字框用的 */
+  text-align: left;
 }
 
 .hepan-form-error {
   margin: 8px 0 12px;
   padding: 9px 12px;
-  background: rgba(176, 70, 50, 0.06);
+  background: #fbf3f1;
   border-left: 3px solid #b04632;
   color: #6e2418;
   font-size: 13px;
   line-height: 1.5;
-  border-radius: 0 8px 8px 0;
 }
 
 .hepan-form-submit {
   width: 100%;
   margin-top: 6px;
-  padding: 12px 18px;
-  background: #b07a3c;
-  color: #fffdf7;
-  border: none;
-  border-radius: 999px;
+  padding: 11px 18px;
+  background: var(--ink);
+  color: #fff;
+  border: 1px solid var(--ink);
   font-size: 14px;
-  font-weight: 500;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 0.15s, transform 0.05s;
+  transition: opacity 0.15s, transform 0.05s;
 }
 
 .hepan-form-submit:hover:not(:disabled) {
-  background: #8c5e2b;
+  opacity: 0.85;
 }
 
 .hepan-form-submit:active:not(:disabled) {
@@ -178,14 +188,14 @@
 }
 
 .hepan-form-submit:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .hepan-privacy-note {
   margin: 14px 0 0;
   text-align: center;
-  color: #9a8866;
+  color: var(--mute);
   font-size: 11px;
   letter-spacing: 0.04em;
 }

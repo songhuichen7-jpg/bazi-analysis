@@ -202,7 +202,7 @@ export function HepanScreen() {
           <input aria-label="时（可选）" type="number" min="0" max="23" placeholder="时"
                  value={hour} onChange={e => setHour(e.target.value)} />
         </div>
-        <div className="hepan-form-row">
+        <div className="hepan-form-row hepan-form-row-text">
           <input aria-label="昵称" type="text" placeholder="你的昵称（可选）"
                  maxLength={10}
                  value={nickname} onChange={e => setNickname(e.target.value)} />

@@ -187,14 +187,20 @@ export default function HepanChat({ slug, hepan }) {
       ) : null}
 
       <div className="hepan-chat-input">
-        <textarea
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKey}
-          placeholder={streaming ? '正在回答…' : '问点什么 — Enter 发送'}
-          disabled={streaming}
-        />
+        {/* textarea 自己不会垂直居中文字（不像 div），所以套一层
+            min-height + flex align-center 的 wrap，让单行 placeholder /
+            短问句跟右边的「发送」按钮在视觉中线对齐。模式跟主 chat 的
+            .chat-textarea-wrap 一致。 */}
+        <div className="hepan-chat-textarea-wrap">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKey}
+            placeholder={streaming ? '正在回答…' : '问点什么 — Enter 发送'}
+            disabled={streaming}
+          />
+        </div>
         <button
           type="button"
           className={streaming ? 'btn-inline' : 'btn-primary'}

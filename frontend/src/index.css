@@ -966,6 +966,15 @@
     padding: 8px;
     align-items: center;
   }
+  .hepan-chat-textarea-wrap {
+    /* 跟主 chat 的 .chat-textarea-wrap 同思路 — 垂直居中靠 wrap 的 flex，
+       不靠 textarea 自身 padding 撑。这样空 placeholder 跟单行短问句
+       都会跟「发送」按钮中线对齐，不再贴顶。 */
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+  }
   .hepan-chat-input textarea {
     border: none !important;
     padding: 0 10px;
@@ -976,7 +985,6 @@
     resize: none;
     overflow-y: auto;
     max-height: 140px;
-    min-height: 40px;
   }
   .hepan-chat-input .btn-primary,
   .hepan-chat-input .btn-inline {
