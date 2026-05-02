@@ -193,6 +193,23 @@ export function friendlyError(error, context) {
   const quotaResult = tryQuotaExceeded(error);
   if (quotaResult) return quotaResult;
 
+  // 401 / 403 在 status code 上比 message 字符串可靠多了 — 后端可能返回
+  // 中文 "未登录"，老版本 isAuth 列表只匹英文 keyword (401/unauthorized)，
+  // 中文落到下面 paipan 兜底变成 "请检查出生日期和城市"，把"鉴权问题"
+  // 误导成"输入问题"，B 从 hepan funnel 跳到 /app 后撞到这里就懵了。
+  // 在这一档统一拦截，给明确文案 + 引到首页让用户走登录流。
+  if (error?.status === 401) {
+    return result(
+      '请先登录再继续',
+      detail,
+      false,
+      { label: '去登录 →', to: '/' },
+    );
+  }
+  if (error?.status === 403) {
+    return result('权限不够', detail, false);
+  }
+
   if (ctx.kind === 'storage_load') {
     if (isStorageUnavailable(lower)) return result('本地记录暂时读不了', detail, false);
     return result('本地记录读不出来了', detail, false);

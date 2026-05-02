@@ -79,9 +79,16 @@ export default function HepanInviteButton() {
         minute: meta.input.minute ?? 0,
         city: meta.input.city || null,
       };
+      // 把"游客"过滤成 null — 游客账号默认 nickname 是字符串 "游客"，
+      // 直接当邀请人名字会让 B 看到 "@游客 邀请你来合盘"，又冷又像群发，
+      // 直接卡漏斗转化率。null 时后端 a_nickname 留空，前端展示
+      // fallback 到 cosmic_name（小夜灯 / 多肉 这类有人味的代号）。
+      const realNickname = user.nickname && user.nickname !== '游客'
+        ? user.nickname
+        : null;
       const result = await postHepanInvite({
         birth,
-        nickname: user.nickname || null,
+        nickname: realNickname,
       });
       const fullUrl = `${window.location.origin}${result.invite_url}`;
       setInvite({ ...result, full_url: fullUrl });
@@ -89,7 +96,7 @@ export default function HepanInviteButton() {
       const newRow = {
         slug: result.slug,
         status: 'pending',
-        a_nickname: result.a?.nickname || user.nickname || null,
+        a_nickname: result.a?.nickname || realNickname || null,
         b_nickname: null,
         a_cosmic_name: result.a?.cosmic_name || '',
         b_cosmic_name: null,
@@ -119,9 +126,12 @@ export default function HepanInviteButton() {
   // 复制时带上一句邀请话 — 用户粘到微信 / 飞书里直接就是 "@昵称 邀请你来
   // 合一盘 — URL"。比起裸 URL，对方收到时少一层"这是什么链接？"的猜测。
   // 想要纯 URL 的（粘到代码 / 文档里）可以二次手动选取删描述。
+  // 游客账号 nickname='游客' 时也走"想跟你合个盘"分支 — 跟 invite a_nickname
+  // 的过滤逻辑保持一致，避免分享文案出现 "游客 邀请你来合个盘"。
   function _composeShareText(url) {
     const name = (user.nickname || '').trim();
-    const prefix = name && name !== '游客'
+    const meaningful = name && name !== '游客';
+    const prefix = meaningful
       ? `${name} 邀请你来合个盘`
       : '想跟你合个盘';
     return `${prefix} — ${url}`;
@@ -247,8 +257,29 @@ export default function HepanInviteButton() {
   );
 }
 
+// 相对时间 — "5 分钟前 / 2 天前"。给历史行做行内时间戳，让用户能区分多条
+// 同名待回复邀请（A 给 5 个朋友发，邀请没填都显示 "等回复 @小夜灯"，没法
+// 区分哪条对哪人）。粒度刻意粗 — 精确分钟没用，知道是"刚发的"还是"很久
+// 没回"就够了。
+function _relativeTime(isoString) {
+  if (!isoString) return '';
+  const t = Date.parse(isoString);
+  if (!Number.isFinite(t)) return '';
+  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (diffSec < 60) return '刚刚';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} 分钟前`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} 小时前`;
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} 天前`;
+  // 7 天以上转成日期 — 月/日，比"X 周前"信息量更大
+  const d = new Date(t);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${m}.${day}`;
+}
+
 function HistoryRow({ item, copied, onCopy, onDelete }) {
   const completed = item.status === 'completed';
+  const ts = _relativeTime(item.created_at);
   return (
     <li className={'hepan-invite-history-row hepan-invite-' + (completed ? 'done' : 'pending')}>
       <div className="hepan-invite-history-left">
@@ -261,6 +292,9 @@ function HistoryRow({ item, copied, onCopy, onDelete }) {
         </span>
         {completed && item.label ? (
           <span className="hepan-invite-history-label">· {item.label}</span>
+        ) : null}
+        {ts ? (
+          <span className="hepan-invite-history-time muted">· {ts}</span>
         ) : null}
         {completed && item.has_reading ? (
           <span className="hepan-invite-history-tag" title="已生成过完整解读">已读</span>

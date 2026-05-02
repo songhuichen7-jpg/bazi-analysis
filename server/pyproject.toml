@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "zhconv>=1.4",
     "colorthief>=0.2.1",
+    "uvicorn>=0.46.0",
 ]
 
 [project.optional-dependencies]

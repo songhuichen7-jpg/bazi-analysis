@@ -803,6 +803,18 @@ export const useAppStore = create((set, get) => ({
     clearAuthPhoneHint();
     clearSession();
     clearClientSessionStorage();
+    // module 级缓存（hepan SWR）也得清 — 不然 "A 退出 → B 在同一浏览器
+    // 登录 → B 点合盘按钮第一帧看到的是 A 的历史"，是隐私 + 正确性问题。
+    // 用 dynamic import 避免循环依赖：useAppStore 启动期就被引；hepanApi
+    // 不一定在那时候已经初始化。
+    try {
+      const { invalidateHepanMine } = await import('../lib/hepanApi.js');
+      invalidateHepanMine();
+    } catch { /* 静默 — logout 是 best-effort，没必要因为缓存清理失败而阻断 */ }
+    try {
+      const { clearBBirth } = await import('../lib/hepanBContext.js');
+      clearBBirth();
+    } catch { /* 同上 */ }
     set((state) => ({
       ...initialState,
       ...makeBlankChart(),

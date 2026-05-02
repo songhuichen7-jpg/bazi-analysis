@@ -712,6 +712,12 @@
     color: var(--mute);
     font-size: 11px;
   }
+  .hepan-invite-history-time {
+    /* 行内时间戳 — 让一堆"等回复 @同一个昵称"能区分开（5 分钟前 / 2 天前）。
+       字号比 label 还低，不抢主信息。 */
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+  }
 
   /* 合盘 — 完整解读 panel（HepanReadingPanel） */
   .hepan-reading-cta {

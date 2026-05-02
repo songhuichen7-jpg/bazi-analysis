@@ -62,8 +62,22 @@ export function HepanScreen() {
     const y = parseInt(year, 10);
     const m = parseInt(month, 10);
     const d = parseInt(day, 10);
-    if (!y || !m || !d || y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) {
+    // 拆开校验 — 一锅炖会让"年填了但越界"的人看到"年月日都要填"的错误，
+    // 莫名其妙。分三档分别说话。
+    if (!y || !m || !d) {
       setFormError('生日填写不完整，年月日都要填。');
+      return;
+    }
+    if (y < 1900 || y > 2100) {
+      setFormError('出生年份要在 1900-2100 之间。');
+      return;
+    }
+    if (m < 1 || m > 12) {
+      setFormError('月份要在 1-12 之间。');
+      return;
+    }
+    if (d < 1 || d > 31) {
+      setFormError('日期要在 1-31 之间。');
       return;
     }
     const h = hour === '' ? -1 : parseInt(hour, 10);
@@ -188,7 +202,12 @@ export function HepanScreen() {
   }
 
   // pending: show A's profile + B's form
-  const inviterName = hepan.a?.nickname || '一位朋友';
+  // 游客账号默认 nickname 是字符串 "游客" — 直接显示成 "@游客 邀请你来合盘"
+  // 又冷又像群发，导致 B 转化率掉。这里做一道 fallback：把 "游客" / 空 当
+  // null 处理，优先用 cosmic_name（小夜灯 / 多肉 这类有人味的代号）。
+  const _aNick = hepan.a?.nickname;
+  const _meaningfulNick = _aNick && _aNick !== '游客' ? _aNick : null;
+  const inviterName = _meaningfulNick || hepan.a?.cosmic_name || '一位朋友';
   const inviterCosmic = hepan.a?.cosmic_name || '?';
 
   return (
@@ -203,14 +222,16 @@ export function HepanScreen() {
         </p>
       </header>
 
-      <form className="hepan-form" onSubmit={handleSubmit}>
+      {/* noValidate — 整站错误样式都是自定义 .hepan-form-error；不让浏览
+          器原生气泡跳出来抢走焦点。所有校验在 handleSubmit 里走一遍。 */}
+      <form className="hepan-form" onSubmit={handleSubmit} noValidate>
         <div className="hepan-form-row">
-          <input aria-label="年" type="number" placeholder="年"
-                 value={year} onChange={e => setYear(e.target.value)} required />
+          <input aria-label="年" type="number" min="1900" max="2100" placeholder="年"
+                 value={year} onChange={e => setYear(e.target.value)} />
           <input aria-label="月" type="number" min="1" max="12" placeholder="月"
-                 value={month} onChange={e => setMonth(e.target.value)} required />
+                 value={month} onChange={e => setMonth(e.target.value)} />
           <input aria-label="日" type="number" min="1" max="31" placeholder="日"
-                 value={day} onChange={e => setDay(e.target.value)} required />
+                 value={day} onChange={e => setDay(e.target.value)} />
           <input aria-label="时（可选）" type="number" min="0" max="23" placeholder="时"
                  value={hour} onChange={e => setHour(e.target.value)} />
         </div>

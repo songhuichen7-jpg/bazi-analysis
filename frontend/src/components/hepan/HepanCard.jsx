@@ -14,6 +14,17 @@
 import { forwardRef } from 'react';
 import { RelationIllustration } from './relationIllustrations.jsx';
 
+// 卡片昵称 fallback — "游客" 是后端给游客账号的默认 nickname 字面量，
+// 直接显示成 "@游客 × @测试B" 又冷又像群发。把它跟空串当一个等价类，
+// fallback 顺序：cosmic_name → 占位词。HepanScreen 的 pending header 也用同
+// 套规则，保持一致。
+function _displayNick(side, fallback) {
+  if (!side) return fallback;
+  const nick = side.nickname;
+  if (nick && nick !== '游客') return nick;
+  return side.cosmic_name || fallback;
+}
+
 export const HepanCard = forwardRef(function HepanCard({ hepan }, ref) {
   const a = hepan.a;
   const b = hepan.b;
@@ -55,9 +66,9 @@ export const HepanCard = forwardRef(function HepanCard({ hepan }, ref) {
           <h1 className="hepan-card-label">{hepan.label}</h1>
 
           <div className="hepan-nicks">
-            <span className="hepan-nick hepan-nick-a">@{a?.nickname || '邀请人'}</span>
+            <span className="hepan-nick hepan-nick-a">@{_displayNick(a, '邀请人')}</span>
             <span className="hepan-x">×</span>
-            <span className="hepan-nick hepan-nick-b">@{b?.nickname || '你'}</span>
+            <span className="hepan-nick hepan-nick-b">@{_displayNick(b, '你')}</span>
           </div>
         </div>
       </section>

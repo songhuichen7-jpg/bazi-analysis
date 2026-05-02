@@ -88,7 +88,14 @@ export default function HepanBFunnel({ hepan, slug }) {
   // 留空让 FormScreen 用各自默认值（"长沙" / "male"），用户自己再确认。
   // 没 bBirth 时（24h 后回来 / 私密模式 / 强刷过 storage）就让 /app 重新走一遍
   // 表单 — 不是空跳，至少进了主产品漏斗。
-  function viewMyChart() {
+  //
+  // 关键 — 未登录就别强制 setScreen('input')。早期版本直接绕过 auth gate
+  // 让 B 看到表单，结果点"生成命盘"撞 401 + friendlyError 误报"请检查出
+  // 生日期和城市"，B 直接懵掉。现在分两条路：
+  //   · 已登录 → setScreen('input') + navigate('/app') 直达表单
+  //   · 未登录 → enterFromLanding() 走"试试 guest_token / 否则 auth"那条
+  //     标准路径，过完后表单已经预填，B 不必重新输生日。
+  async function viewMyChart() {
     if (bBirth) {
       const dateStr = `${bBirth.year}-${String(bBirth.month).padStart(2, '0')}-${String(bBirth.day).padStart(2, '0')}`;
       const hourValid = bBirth.hour >= 0 && bBirth.hour <= 23;
@@ -106,13 +113,24 @@ export default function HepanBFunnel({ hepan, slug }) {
         ziConvention: 'early',
         trueSolar: true,
       });
-      // 强制让 AppShell 走表单分支 — 不然有命盘的话默认 shell。
-      // B 是新流量，几乎都没账号 → 大概率会先撞 AuthScreen，过完 auth
-      // 再回到这个 input 状态。
-      setScreen('input');
     }
-    track('hepan_b_view_chart', { from_slug: slug, has_prefill: !!bBirth });
-    navigate('/app');
+    track('hepan_b_view_chart', {
+      from_slug: slug,
+      has_prefill: !!bBirth,
+      logged_in: !!user,
+    });
+    if (user) {
+      // 登录用户：bypass auth，直接落到表单（已经预填）
+      setScreen('input');
+      navigate('/app');
+    } else {
+      // 未登录：走标准入口 — guest_token 复活 / AuthScreen 注册 / 都
+      // 落在合适的 screen 上，birthInfo 已经在 store 里，过完 auth 进
+      // FormScreen 时直接预填好。
+      const enter = useAppStore.getState().enterFromLanding;
+      try { await enter(); } catch { /* 静默 — 失败也无所谓，下面照样导航 */ }
+      navigate('/app');
+    }
   }
 
   return (
