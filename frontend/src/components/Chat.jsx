@@ -441,9 +441,22 @@ export default function Chat() {
     if (!bootstrapped) setChips([]);
   }, [history.length, meta, currentConversationId]);
 
+  // 切换对话时的清理：原版只是把 ref 置 null，留了 4 个真问题：
+  //   1. 没真正 abort 在飞的 stream — onDelta 继续 fire，写到新对话的
+  //      末尾 assistant 占位符 → 用户在新对话里看到旧对话的乱码
+  //   2. ref 被置空后再点"停止"是 no-op，UI 死按钮直到 stream 自然结束
+  //   3. editingUserIndex 没清 → 切到新对话还停在编辑态，index 错位
+  //   4. chatError 没清 → 切到无错的新对话还显示错误条
+  // 切对话就是个明确的"扔掉这一轮"信号，全套清理掉。
   useEffect(() => {
     setChatTrace(null);
-    streamAbortRef.current = null;
+    setChatError(null);
+    setEditingUserIndex(null);
+    setEditingText('');
+    if (streamAbortRef.current) {
+      try { streamAbortRef.current.abort(); } catch { /* AbortController.abort 不抛 */ }
+      streamAbortRef.current = null;
+    }
   }, [currentConversationId]);
 
   async function ensureConversationId() {

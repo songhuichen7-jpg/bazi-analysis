@@ -35,7 +35,30 @@ export async function streamSSE(url, body, handlers = {}) {
       else if (ev.type === 'retrieval') handlers.onRetrieval?.(ev.source);
       else if (ev.type === 'gua') handlers.onGua?.(ev.data);
       else if (ev.type === 'redirect') handlers.onRedirect?.(ev.to, ev.question);
-      else if (ev.type === 'error') throw new Error(ev.message || 'LLM error');
+      else if (ev.type === 'error') {
+        // 后端 sse_pack({type:'error', code:'QUOTA_EXCEEDED', message:...}) 的
+        // code 字段以前直接被扔掉，friendlyError 看不到 code 就匹配不到
+        // paywall CTA。给 Error 挂上 friendlyError 期望的 payload 结构
+        // (detail.code/message/details)，跟 HTTP 429 的形态对齐 — 这样
+        // tryQuotaExceeded() 能跑、PLAN_UPGRADE_REQUIRED / QUOTA_EXCEEDED /
+        // CHART_LIMIT_EXCEEDED 流式触发时也能正确弹 paywall。
+        const errMsg = typeof ev.message === 'string' && ev.message
+          ? ev.message
+          : 'LLM error';
+        const sseError = new Error(errMsg);
+        if (ev.code) {
+          sseError.payload = {
+            detail: {
+              code: ev.code,
+              message: errMsg,
+              details: ev.details || {},
+            },
+          };
+          // status 留空 — friendlyError 头部按 status 拦的是 401/403/etc，
+          // SSE error 没有 HTTP status，依靠 payload.detail.code 走分支
+        }
+        throw sseError;
+      }
     }
   }
   return full;
