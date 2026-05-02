@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
-import { deleteHepanInvite, getHepanMine, postHepanInvite } from '../../lib/hepanApi.js';
+import {
+  deleteHepanInvite,
+  getHepanMine,
+  getHepanMineCached,
+  patchHepanMineCache,
+  postHepanInvite,
+} from '../../lib/hepanApi.js';
 
 // 合盘邀请按钮 — 命盘页 top-bar 唯一入口。点开弹层：
 //   · 用当前命盘的 birth_input + user.nickname 自动 POST /api/hepan/invite
@@ -17,7 +23,9 @@ export default function HepanInviteButton() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [invite, setInvite] = useState(null);   // { slug, url, full_url, a }
-  const [history, setHistory] = useState([]);    // 过去的 invite 列表
+  // 缓存优先 — appBootstrap 跑过 inbox 检查后 _mineCache 就有数据，
+  // 用户点开按钮第一帧就能看到历史，不用等网络。
+  const [history, setHistory] = useState(() => getHepanMineCached()?.items || []);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [copied, setCopied] = useState(null);    // slug 高亮"已复制"
   const rootRef = useRef(null);
@@ -33,12 +41,15 @@ export default function HepanInviteButton() {
     }
     let cancelled = false;
     (async () => {
-      setHistoryLoading(true);
+      // 已经有缓存数据先静默 revalidate — 不亮 spinner，避免"已经看到列表
+      // 又跳成 loading"的闪。空缓存才走 loading 态。
+      const hasCache = getHepanMineCached() != null;
+      if (!hasCache) setHistoryLoading(true);
       try {
         const result = await getHepanMine();
         if (!cancelled) setHistory(result?.items || []);
       } catch { /* 静默 — 历史拉不到不阻塞主流程 */ }
-      finally { if (!cancelled) setHistoryLoading(false); }
+      finally { if (!cancelled && !hasCache) setHistoryLoading(false); }
     })();
     function onDocClick(event) {
       if (rootRef.current && !rootRef.current.contains(event.target)) {
@@ -75,7 +86,7 @@ export default function HepanInviteButton() {
       const fullUrl = `${window.location.origin}${result.invite_url}`;
       setInvite({ ...result, full_url: fullUrl });
       // 历史前置插一条 — 不重新 fetch，避免用户看到"消失再出现"的闪烁
-      setHistory((prev) => [{
+      const newRow = {
         slug: result.slug,
         status: 'pending',
         a_nickname: result.a?.nickname || user.nickname || null,
@@ -89,7 +100,15 @@ export default function HepanInviteButton() {
         completed_at: null,
         share_count: 0,
         has_reading: false,
-      }, ...prev]);
+        message_count: 0,
+      };
+      setHistory((prev) => [newRow, ...prev]);
+      // 把同一行也塞进 module 级缓存，下次别处（MyHepanPage / 重开弹层）
+      // 拿到的是包含新邀请的快照，不会"刚发完看不见"
+      patchHepanMineCache((prev) => ({
+        ...prev,
+        items: [newRow, ...(prev.items || [])],
+      }));
     } catch (e) {
       setError(e?.message || '生成失败，再试一次');
     } finally {

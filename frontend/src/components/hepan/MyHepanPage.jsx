@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { deleteHepanInvite, getHepanMine } from '../../lib/hepanApi.js';
+import { deleteHepanInvite, getHepanMine, getHepanMineCached } from '../../lib/hepanApi.js';
 import { formatYearMonthDay } from '../../lib/userMenu.js';
 
 // /hepan/mine — 登录用户的"我邀请过的合盘"管理页。
@@ -9,7 +9,11 @@ import { formatYearMonthDay } from '../../lib/userMenu.js';
 //
 // 软删后行立刻消失（局部更新），不重新拉接口；完整刷新走 F5。
 export default function MyHepanPage() {
-  const [items, setItems] = useState(null);  // null = 加载中；[] = 空
+  // 缓存优先 — bootstrap inbox 检查或上一次弹层都已经拉过 /mine。这里直接
+  // 用缓存渲染，再后台 revalidate。null 仅在彻底没缓存（第一次进站直接深
+  // 链到 /hepan/mine）时出现。
+  const cached = getHepanMineCached();
+  const [items, setItems] = useState(cached?.items || null);
   const [error, setError] = useState('');
   const [busySlug, setBusySlug] = useState(null);
   const navigate = useNavigate();
@@ -18,7 +22,9 @@ export default function MyHepanPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getHepanMine();
+        // force:true — 进列表页就要看权威新数据（已合状态变化、message_count
+        // 涨一类弹层缓存追不上的更新）。代价是一次网络，可接受。
+        const data = await getHepanMine({ force: true });
         if (!cancelled) setItems(data?.items || []);
       } catch (e) {
         if (cancelled) return;
@@ -28,10 +34,11 @@ export default function MyHepanPage() {
           return;
         }
         setError(e?.message || '拉取失败');
-        setItems([]);
+        if (!cached) setItems([]);
       }
     })();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   function goBack() {
