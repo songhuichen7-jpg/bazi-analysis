@@ -620,10 +620,49 @@
     flex-direction: column;
     gap: 6px;
   }
+  .hepan-invite-history-head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
   .hepan-invite-history-head {
     font-size: 11px;
     letter-spacing: .12em;
     text-transform: uppercase;
+  }
+  .hepan-invite-history-more {
+    font-size: 11px;
+    color: var(--mute);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+  .hepan-invite-history-more:hover { color: var(--ink); }
+  .hepan-invite-history-tag {
+    margin-left: 6px;
+    font-size: 10px;
+    color: #4d6f4a;
+    background: #ecf3e8;
+    border: 1px solid #d3e2c9;
+    border-radius: 999px;
+    padding: 1px 6px;
+    letter-spacing: .04em;
+  }
+  .hepan-invite-history-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hepan-invite-row-delete {
+    color: var(--mute);
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+    border-radius: 50%;
+    transition: background .15s, color .15s;
+  }
+  .hepan-invite-row-delete:hover {
+    background: #fdf5f5;
+    color: #b44343;
   }
   .hepan-invite-history-list {
     list-style: none;
@@ -923,6 +962,159 @@
     color: #7a2626;
     font-size: 13px;
     line-height: 1.6;
+  }
+
+  /* 我的合盘列表页 (/hepan/mine) */
+  .mine-screen { background: var(--bg); }
+  .mine-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 32px 96px;
+  }
+  .mine-title {
+    margin-top: 12px;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: .03em;
+  }
+  .mine-lede {
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 1.85;
+  }
+  .mine-loading { margin-top: 18px; font-size: 13px; }
+  .mine-empty {
+    margin-top: 56px;
+    padding: 36px 24px;
+    border: 1px dashed var(--line);
+    text-align: center;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .mine-empty p { margin: 0; font-size: 14px; }
+  .mine-empty-cta {
+    margin-top: 14px;
+    text-decoration: none;
+    padding: 9px 20px;
+    font-size: 13px;
+  }
+  .mine-groups {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+  }
+  .mine-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .mine-group-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    margin: 0;
+    letter-spacing: .04em;
+  }
+  .mine-group-count {
+    font-size: 12px;
+    font-feature-settings: "tnum";
+  }
+  .mine-group-hint {
+    font-size: 12px;
+    line-height: 1.7;
+    flex: 1 1 100%;
+    margin: 0;
+  }
+  .mine-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mine-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    background: #fff;
+    transition: border-color .15s, transform .15s;
+  }
+  .mine-row:hover { border-color: var(--pair-theme, var(--ink)); transform: translateY(-1px); }
+  .mine-row-completed {
+    /* 已合的行用 pair_theme 染左侧细条，让用户一眼区分关系类别 */
+    border-left: 3px solid var(--pair-theme, var(--ink));
+    padding-left: 14px;
+  }
+  .mine-row-pending {
+    background: #fbf9f3;
+  }
+  .mine-row-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .mine-row-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .mine-row-pair {
+    font-size: 17px;
+    color: var(--ink);
+  }
+  .mine-row-pair .serif { font-size: 18px; }
+  .mine-row-x { color: var(--mute); margin: 0 4px; }
+  .mine-row-label {
+    font-size: 13px;
+    color: var(--mute);
+  }
+  .mine-row-meta {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .mine-row-dot { color: #cfcfcf; }
+  .mine-row-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    border: 1px solid var(--line);
+    letter-spacing: .04em;
+  }
+  .mine-row-tag-read {
+    color: #4d6f4a;
+    background: #ecf3e8;
+    border-color: #d3e2c9;
+  }
+  .mine-row-tag-unread {
+    color: var(--mute);
+    background: transparent;
+  }
+  .mine-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .mine-row-actions .btn-inline {
+    text-decoration: none;
+    padding: 5px 12px;
+    font-size: 11.5px;
+  }
+  .mine-row-delete:hover {
+    color: #b44343;
   }
 
   /* 法律页 — 关于 / 服务条款 / 隐私 */

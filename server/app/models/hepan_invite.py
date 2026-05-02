@@ -72,6 +72,10 @@ class HepanInvite(Base):
         DateTime(timezone=True), nullable=True,
     )
     share_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # 软删 — 0013 加的；非空时所有读取端点 404。30 天后可硬删（cron 未做）
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
 
     # ── LLM 完整解读缓存 (Plan 5+) ──────────────────────────────────
     # deferred=True 关键 — 公开的 GET /api/hepan/{slug} 端点没 DEK 上下文，

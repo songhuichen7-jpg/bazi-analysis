@@ -94,6 +94,10 @@ class HepanMineItem(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime] = None
     share_count: int
+    # True = 已经跑过完整解读 (reading_text 在缓存里)。Mine 列表 + 邀请弹窗
+    # 历史用这个标"已读" / "未读" 区分。reading_generated_at 不直接暴露 —
+    # bool 够 UI 用了，时间戳是后台分析数据。
+    has_reading: bool = False
 
 
 class HepanMineResponse(BaseModel):

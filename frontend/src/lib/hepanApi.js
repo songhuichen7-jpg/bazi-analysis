@@ -28,6 +28,17 @@ export async function getHepanMine({ fetchImpl = fetch, baseUrl = DEFAULT_BASE }
   return data;
 }
 
+// 软删一条邀请。后端只允许创建者本人删；其他人 / 不存在 / 已删都 404。
+export async function deleteHepanInvite(slug, { fetchImpl = fetch, baseUrl = DEFAULT_BASE } = {}) {
+  const resp = await fetchImpl(
+    `${baseUrl}/api/hepan/${encodeURIComponent(slug)}`,
+    { method: 'DELETE', credentials: 'include' },
+  );
+  if (resp.status === 204) return { ok: true };
+  const data = await resp.json().catch(() => ({}));
+  throw new ApiError(data.detail || `request failed (${resp.status})`, resp.status);
+}
+
 export async function postHepanComplete(slug, payload, { fetchImpl = fetch, baseUrl = DEFAULT_BASE } = {}) {
   const resp = await fetchImpl(
     `${baseUrl}/api/hepan/${encodeURIComponent(slug)}/complete`,

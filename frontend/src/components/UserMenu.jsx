@@ -403,6 +403,13 @@ function MainView(props) {
             </span>
           </button>
         ) : null}
+        <Link className="user-center-action" to="/hepan/mine">
+          <span className="user-center-action-icon">↔</span>
+          <span className="user-center-action-text">
+            <span>我的合盘</span>
+            <span className="user-center-action-hint">已邀请过的人 + 完整解读</span>
+          </span>
+        </Link>
         <button
           type="button"
           className="user-center-action"

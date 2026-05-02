@@ -108,15 +108,20 @@ async def get_mine(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> HepanMineResponse:
-    """登录用户创建过的合盘列表。最近创建在前。
+    """登录用户创建过的合盘列表。最近创建在前。软删的不返。
 
     每行只回轻量元数据 — 列表 UI 不展开完整解读 / 角色对照，进 detail
-    页（``GET /api/hepan/{slug}``）才有完整 HepanResponse。"""
+    页（``GET /api/hepan/{slug}``）才有完整 HepanResponse。
+    ``has_reading`` 标记是否已经生成过完整解读，让 mine 列表 / 弹窗历史
+    都能给出"已读" 标记。"""
     _ensure_data_loaded()
 
     rows = (await db.execute(
         select(HepanInvite)
-        .where(HepanInvite.user_id == user.id)
+        .where(
+            HepanInvite.user_id == user.id,
+            HepanInvite.deleted_at.is_(None),
+        )
         .order_by(desc(HepanInvite.created_at))
         .limit(200)
     )).scalars().all()
@@ -147,8 +152,29 @@ async def get_mine(
             created_at=r.created_at,
             completed_at=r.completed_at,
             share_count=r.share_count,
+            has_reading=bool(r.reading_generated_at),
         ))
     return HepanMineResponse(items=items)
+
+
+@router.delete("/{slug}", status_code=204)
+async def delete_invite(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """软删邀请。只有创建者本人能删；其他用户撞 404 (跟"不存在"同应答防枚举)。
+    deleted_at 之后所有公共读取端点都 404，老链接立刻失效。"""
+    row = (await db.execute(
+        select(HepanInvite).where(
+            HepanInvite.slug == slug,
+            HepanInvite.deleted_at.is_(None),
+        )
+    )).scalar_one_or_none()
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="invite not found")
+    row.deleted_at = datetime.now(timezone.utc)
+    return None
 
 
 @router.post("/{slug}/complete", response_model=HepanResponse)
@@ -157,11 +183,15 @@ async def post_complete(
     req: HepanCompleteRequest,
     db: AsyncSession = Depends(get_db),
 ) -> HepanResponse:
-    """B submits their birth → fills in the row → returns the full reading."""
+    """B submits their birth → fills in the row → returns the full reading.
+    软删的 invite 跟"不存在"同 404，B 这边链接立刻失效。"""
     _ensure_data_loaded()
 
     row = (await db.execute(
-        select(HepanInvite).where(HepanInvite.slug == slug)
+        select(HepanInvite).where(
+            HepanInvite.slug == slug,
+            HepanInvite.deleted_at.is_(None),
+        )
     )).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="invite not found")
@@ -194,7 +224,10 @@ async def get_hepan(
     _ensure_data_loaded()
 
     row = (await db.execute(
-        select(HepanInvite).where(HepanInvite.slug == slug)
+        select(HepanInvite).where(
+            HepanInvite.slug == slug,
+            HepanInvite.deleted_at.is_(None),
+        )
     )).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="invite not found")
@@ -231,7 +264,10 @@ async def post_reading(
         ))
 
     row = (await db.execute(
-        select(HepanInvite).where(HepanInvite.slug == slug)
+        select(HepanInvite).where(
+            HepanInvite.slug == slug,
+            HepanInvite.deleted_at.is_(None),
+        )
     )).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="invite not found")

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
-import { getHepanMine, postHepanInvite } from '../../lib/hepanApi.js';
+import { deleteHepanInvite, getHepanMine, postHepanInvite } from '../../lib/hepanApi.js';
 
 // 合盘邀请按钮 — 命盘页 top-bar 唯一入口。点开弹层：
 //   · 用当前命盘的 birth_input + user.nickname 自动 POST /api/hepan/invite
@@ -87,6 +88,7 @@ export default function HepanInviteButton() {
         created_at: new Date().toISOString(),
         completed_at: null,
         share_count: 0,
+        has_reading: false,
       }, ...prev]);
     } catch (e) {
       setError(e?.message || '生成失败，再试一次');
@@ -122,6 +124,18 @@ export default function HepanInviteButton() {
         url,
       });
     } catch { /* 用户取消 / 不支持 — 静默 */ }
+  }
+
+  async function deleteOne(slug) {
+    if (!window.confirm('删除这条邀请？删除后链接立即失效，对方无法再打开。')) return;
+    try {
+      await deleteHepanInvite(slug);
+      setHistory((prev) => prev.filter((it) => it.slug !== slug));
+      // 如果删的是刚生成的当前 invite，清掉主区
+      setInvite((cur) => (cur?.slug === slug ? null : cur));
+    } catch (e) {
+      setError(e?.message || '删除失败');
+    }
   }
 
   return (
@@ -175,14 +189,20 @@ export default function HepanInviteButton() {
           {/* 历史折叠区 */}
           {history.length > 0 ? (
             <div className="hepan-invite-history">
-              <div className="hepan-invite-history-head muted">已发出的邀请</div>
+              <div className="hepan-invite-history-head-row">
+                <span className="hepan-invite-history-head muted">已发出的邀请</span>
+                <Link className="hepan-invite-history-more" to="/hepan/mine">
+                  全部 →
+                </Link>
+              </div>
               <ul className="hepan-invite-history-list">
-                {history.slice(0, 8).map((it) => (
+                {history.slice(0, 5).map((it) => (
                   <HistoryRow
                     key={it.slug}
                     item={it}
                     copied={copied === it.slug}
                     onCopy={() => copyUrl(`${window.location.origin}/hepan/${it.slug}`, it.slug)}
+                    onDelete={() => deleteOne(it.slug)}
                   />
                 ))}
               </ul>
@@ -196,7 +216,7 @@ export default function HepanInviteButton() {
   );
 }
 
-function HistoryRow({ item, copied, onCopy }) {
+function HistoryRow({ item, copied, onCopy, onDelete }) {
   const completed = item.status === 'completed';
   return (
     <li className={'hepan-invite-history-row hepan-invite-' + (completed ? 'done' : 'pending')}>
@@ -211,10 +231,21 @@ function HistoryRow({ item, copied, onCopy }) {
         {completed && item.label ? (
           <span className="hepan-invite-history-label">· {item.label}</span>
         ) : null}
+        {completed && item.has_reading ? (
+          <span className="hepan-invite-history-tag" title="已生成过完整解读">已读</span>
+        ) : null}
       </div>
-      <button type="button" className="user-center-link" onClick={onCopy}>
-        {copied ? '已复制' : '复制链接'}
-      </button>
+      <div className="hepan-invite-history-actions">
+        <button type="button" className="user-center-link" onClick={onCopy}>
+          {copied ? '已复制' : '复制'}
+        </button>
+        <button
+          type="button"
+          className="user-center-link hepan-invite-row-delete"
+          onClick={onDelete}
+          title="删除后链接立即失效"
+        >×</button>
+      </div>
     </li>
   );
 }
