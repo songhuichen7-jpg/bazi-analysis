@@ -5077,5 +5077,395 @@
       "gender": "female",
       "useTrueSolarTime": true
     }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-before5-early",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 13,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-before5-late",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 13,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-on-early",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 18,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-on-late",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 18,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-after5-early",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 23,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1984-after5-late",
+    "birth_input": {
+      "year": 1984,
+      "month": 2,
+      "day": 4,
+      "hour": 23,
+      "minute": 23,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-before5-early",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 4,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-before5-late",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 4,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-on-early",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 9,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-on-late",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 9,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-after5-early",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 14,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-lichun-1980-after5-late",
+    "birth_input": {
+      "year": 1980,
+      "month": 2,
+      "day": 5,
+      "hour": 0,
+      "minute": 14,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-before5-early",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 22,
+      "minute": 57,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-before5-late",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 22,
+      "minute": 57,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-on-early",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 23,
+      "minute": 2,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-on-late",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 23,
+      "minute": 2,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-after5-early",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 23,
+      "minute": 7,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-hanlu-1982-after5-late",
+    "birth_input": {
+      "year": 1982,
+      "month": 10,
+      "day": 8,
+      "hour": 23,
+      "minute": 7,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-before5-early",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 0,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-before5-late",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 0,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-on-early",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 5,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-on-late",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 5,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-after5-early",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 10,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-jingzhe-1981-after5-late",
+    "birth_input": {
+      "year": 1981,
+      "month": 3,
+      "day": 6,
+      "hour": 0,
+      "minute": 10,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-before5-early",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 12,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-before5-late",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 12,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-on-early",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 17,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-on-late",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 17,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-after5-early",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 22,
+      "gender": "male",
+      "ziConvention": "early",
+      "useTrueSolarTime": false
+    }
+  },
+  {
+    "case_id": "jieqi-zi-daxue-2024-after5-late",
+    "birth_input": {
+      "year": 2024,
+      "month": 12,
+      "day": 6,
+      "hour": 23,
+      "minute": 22,
+      "gender": "male",
+      "ziConvention": "late",
+      "useTrueSolarTime": false
+    }
   }
 ]

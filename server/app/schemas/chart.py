@@ -7,10 +7,11 @@ handles actual encryption transparently.
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import datetime as _datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---- request bodies ---------------------------------------------------
@@ -31,6 +32,21 @@ class BirthInput(BaseModel):
     gender: Literal["male", "female"]
     ziConvention: Literal["early", "late"] = "early"
     useTrueSolarTime: bool = True
+
+    @model_validator(mode="after")
+    def _validate_calendar_date(self) -> "BirthInput":
+        # 字段级 ge/le 只能验单字段，组合非法日（2025-02-29 / 2024-04-31）会
+        # 沿到 paipan.compute → lunar_python.Solar → datetime() 抛 ValueError，
+        # FastAPI 兜不住返 500。在 schema 层早一步拦下，转 ValidationError →
+        # 自动 422 + 字段错误。
+        try:
+            _datetime(self.year, self.month, self.day)
+        except ValueError as e:
+            raise ValueError(
+                f"invalid date: {self.year}-{self.month:02d}-{self.day:02d} "
+                f"is not a real calendar day ({e})"
+            ) from e
+        return self
 
 
 class ChartCreateRequest(BaseModel):

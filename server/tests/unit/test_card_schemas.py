@@ -26,6 +26,38 @@ def test_birth_input_rejects_hour_24():
         BirthInput(year=1998, month=7, day=15, hour=24, minute=0)
 
 
+# ── 复合日历日合法性 ─────────────────────────────────────────────────
+# 字段级 ge/le 只能保证 day∈[1,31]、month∈[1,12]，组合却可能非法日
+# (2025-02-29 / 2024-04-31)。以前会沿到 paipan.compute → datetime() 抛
+# ValueError → FastAPI 返 500。BirthInput 的 model_validator 现在拦下，
+# 转 ValidationError → 422。
+def test_birth_input_rejects_feb_29_in_non_leap_year():
+    with pytest.raises(ValidationError) as excinfo:
+        BirthInput(year=2025, month=2, day=29, hour=12, minute=0)
+    assert "invalid date" in str(excinfo.value)
+
+
+def test_birth_input_accepts_feb_29_in_leap_year():
+    b = BirthInput(year=2024, month=2, day=29, hour=12, minute=0)
+    assert b.day == 29
+
+
+def test_birth_input_rejects_april_31():
+    with pytest.raises(ValidationError):
+        BirthInput(year=2024, month=4, day=31, hour=12, minute=0)
+
+
+def test_birth_input_rejects_feb_30():
+    with pytest.raises(ValidationError):
+        BirthInput(year=2024, month=2, day=30, hour=12, minute=0)
+
+
+def test_birth_input_accepts_hour_unknown_with_invalid_date_still_rejects():
+    # hour=-1 (时辰未知) 不能绕过日期校验 — 校验是模型级，独立于 hour 字段
+    with pytest.raises(ValidationError):
+        BirthInput(year=2025, month=2, day=29, hour=-1, minute=0)
+
+
 def test_card_request_nickname_optional_and_length_capped():
     r = CardRequest(birth=BirthInput(year=1998, month=7, day=15, hour=14, minute=0))
     assert r.nickname is None

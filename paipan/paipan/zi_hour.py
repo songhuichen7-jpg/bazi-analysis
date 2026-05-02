@@ -38,6 +38,31 @@ def convert_to_late_zi_convention(year: int, month: int, day: int,
     只有 hour == 23 时需要加 1 小时（进入次日 00:xx）。
 
     Returns: {year, month, day, hour, minute, converted}
+
+    ⚠ 语义注意 — late-zi 滚动会顺带影响年柱/月柱
+    -------------------------------------
+    本函数把 23:xx 整体加 1h 推到次日 00:xx，下游 paipan() 把这个时间一锅
+    传给 lunar-python，所以 *年柱、月柱、日柱、时柱* 全都按"次日 00:xx"
+    重新算。在大多数情况这跟"日柱归次日，年月按出生原时"的传统读法
+    结果一致 —— 因为 23:xx 加 1h 不会跨节气。
+
+    但在 jieqi 落在 23:xx 这种 case，会出现"年/月柱被滚动 1h 跨过节气"：
+        eg. 立春 1984-02-04 23:18:44
+            出生时间 23:13 (立春前 5 min) + late-zi
+            → 滚动到 1984-02-05 00:13 → 越过立春
+            → 引擎报 年=甲子 月=丙寅 (新立春年)
+            而严格 doctrine 认为：年/月按 23:13 (立春前) → 年=癸亥 月=乙丑
+
+    这是有意保留的 Node port 一致行为（oracle parity）。两种读法在 命理
+    圈都有人用，不算 bug —— 但用户可能期望严格读法时会感觉错。
+    paipan/tests/regression/birth_inputs.json 的 jieqi-zi-* case 把当前
+    行为 pin 住，未来若要改成严格读法需有意为之 + 重生 oracle。
+
+    另一个 lunar-python 自身的怪癖（paipan 不修）：23:00-23:59 段，日柱用
+    当日，但时柱按"次日 00:00 子时"用次日的天干起 五鼠遁。所以 戊day
+    23:30 给出 day=戊辰 / time=甲子 (取己日的甲子时)，而不是 戊日的壬
+    子时。下游用户做 五鼠遁 手算可能对不上 —— 这是 lunar-javascript /
+    lunar-python 的设计选择，paipan port 不去改写它。
     """
     # NOTE: ziHourAndJieqi.js:25-27
     if hour != 23:

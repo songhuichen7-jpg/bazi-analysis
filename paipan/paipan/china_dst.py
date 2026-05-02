@@ -4,6 +4,35 @@ Only 1986-05-04 ~ 1991-09-15 summers had DST in China.
 
 During DST the wall clock was advanced +1h, so to recover real (standard)
 time we subtract 1 hour from the clock reading.
+
+⚠ KNOWN DIVERGENCE FROM IANA tzdata
+-----------------------------------
+The _DST_TABLE below is copied byte-for-byte from the original Node port
+(paipan-engine), which uses a slightly different start-date for some years
+than IANA's Asia/Shanghai zone:
+
+    | year | this table       | IANA tzdata      |
+    |------|------------------|------------------|
+    | 1986 | 05/04 ~ 09/14    | 05/04 ~ 09/14    | match
+    | 1987 | 04/12 ~ 09/13    | 04/12 ~ 09/13    | match
+    | 1988 | 04/10 ~ 09/11    | 04/17 ~ 09/11    | start differs by 7 days
+    | 1989 | 04/16 ~ 09/17    | 04/16 ~ 09/17    | match
+    | 1990 | 04/15 ~ 09/16    | 04/15 ~ 09/16    | match
+    | 1991 | 04/14 ~ 09/15    | 04/14 ~ 09/15    | match
+
+Practical impact: a person born **1988-04-10 ~ 1988-04-16 wall-clock 02:00+**
+will have their hour subtracted by 1 here, but IANA-aware tools (Python
+zoneinfo, etc.) will say no DST applies. ~10 days × 1 year = ~10K affected
+births.
+
+We deliberately keep the Node table for byte-for-byte regression parity with
+the JS oracle. If a user's chart looks 1 hour off and falls in this window,
+that's the reason — they should manually subtract 1 hour from their input or
+use a different排盘 tool to cross-check.
+
+If we ever decide to switch to IANA, we lose JS oracle parity (regression
+fixtures need regeneration) but gain "matches what Python's stdlib + most
+serious historical clocks say".
 """
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
