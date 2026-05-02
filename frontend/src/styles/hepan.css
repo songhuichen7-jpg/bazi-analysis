@@ -499,6 +499,31 @@
   background: #1f1610;
 }
 
+/* "导出全文" — 文字版导出按钮，跟"导出合盘图" 同列同高，但走 ghost
+   样式区分主辅：合盘图是分享给别人看的、有视觉冲击力；全文是给自己
+   留存 / 跨平台粘贴的，应当低调一些。 */
+.hepan-export-text-button {
+  min-height: 42px;
+  padding: 0 22px;
+  margin: 0 0 16px 8px;
+  border: 1px solid #c0a98a;
+  border-radius: 999px;
+  background: transparent;
+  color: #2a1d10;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.hepan-export-text-button:hover {
+  background: #fdf5e1;
+  border-color: #a08665;
+}
+.hepan-export-text-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 .hepan-cta-hook {
   margin: 0;
   font-size: 14px;

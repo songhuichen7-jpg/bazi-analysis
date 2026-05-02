@@ -70,6 +70,11 @@ class HepanResponse(BaseModel):
 
     version: str = ""
 
+    # 当前请求者是不是这条邀请的创建者（A）— 用 optional_user 注入；登录态
+    # + user_id 匹配才 true。前端用这个决定是否展示 chat 区块 / "导出全文"
+    # 按钮里的对话段。匿名 / B 一律 false。
+    is_creator: bool = False
+
 
 class HepanInviteResponse(BaseModel):
     """Returned from POST /api/hepan/invite — gives A back a slug + share link."""
@@ -98,6 +103,9 @@ class HepanMineItem(BaseModel):
     # 历史用这个标"已读" / "未读" 区分。reading_generated_at 不直接暴露 —
     # bool 够 UI 用了，时间戳是后台分析数据。
     has_reading: bool = False
+    # 这条邀请下的对话总数（user + assistant 都算）。Mine 行展示"X 轮对话"
+    # 当大于 0；为 0 时不显示，避免给用户增加紧迫感。
+    message_count: int = 0
 
 
 class HepanMineResponse(BaseModel):

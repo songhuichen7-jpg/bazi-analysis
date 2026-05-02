@@ -1247,6 +1247,11 @@
     color: var(--mute);
     background: transparent;
   }
+  .mine-row-tag-chat {
+    color: #4a3a8a;
+    background: #efeaff;
+    border-color: #d9cffb;
+  }
   .mine-row-actions {
     display: flex;
     align-items: center;

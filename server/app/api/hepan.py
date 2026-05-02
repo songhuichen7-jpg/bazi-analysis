@@ -13,13 +13,14 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
 from app.auth.deps import check_quota, current_user, optional_user
 from app.core.db import get_db
 from app.models.hepan_invite import HepanInvite
+from app.models.hepan_message import HepanMessage
 from app.models.user import User
 from app.schemas.hepan import (
     HepanChatMessageItem,
@@ -131,6 +132,18 @@ async def get_mine(
         .limit(200)
     )).scalars().all()
 
+    # 一次查所有 slug 的消息计数 — 比每行单独 COUNT 省 N 个 round-trip。
+    # GROUP BY 后转 dict 给下面 lookup。空列表时 SQL 走 IN ()，PG 直接零行。
+    slugs = [r.slug for r in rows]
+    counts: dict[str, int] = {}
+    if slugs:
+        rows_count = (await db.execute(
+            select(HepanMessage.hepan_slug, func.count(HepanMessage.id))
+            .where(HepanMessage.hepan_slug.in_(slugs))
+            .group_by(HepanMessage.hepan_slug)
+        )).all()
+        counts = {r[0]: int(r[1]) for r in rows_count}
+
     items: list[HepanMineItem] = []
     for r in rows:
         a_info = TYPES.get(r.a_type_id) or {}
@@ -158,6 +171,7 @@ async def get_mine(
             completed_at=r.completed_at,
             share_count=r.share_count,
             has_reading=bool(r.reading_generated_at),
+            message_count=counts.get(r.slug, 0),
         ))
     return HepanMineResponse(items=items)
 
@@ -225,6 +239,7 @@ async def post_complete(
 async def get_hepan(
     slug: str,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(optional_user),
 ) -> HepanResponse:
     _ensure_data_loaded()
 
@@ -238,7 +253,9 @@ async def get_hepan(
         raise HTTPException(status_code=404, detail="invite not found")
 
     row.share_count += 1
-    return _row_to_response(row)
+    response = _row_to_response(row)
+    response.is_creator = bool(user is not None and row.user_id == user.id)
+    return response
 
 
 @router.post("/{slug}/reading")

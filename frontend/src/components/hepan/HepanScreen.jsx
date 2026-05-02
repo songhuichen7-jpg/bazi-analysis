@@ -11,6 +11,7 @@ import { saveCardAsImage } from '../../lib/saveImage.js';
 import { HepanCard } from './HepanCard.jsx';
 import HepanChat from './HepanChat.jsx';
 import HepanReadingPanel from './HepanReadingPanel.jsx';
+import { downloadHepanMarkdown } from '../../lib/hepanExport.js';
 
 export function HepanScreen() {
   const { slug } = useParams();
@@ -101,6 +102,22 @@ export function HepanScreen() {
     });
   }
 
+  // 文字版导出 — markdown：卡片 + 完整解读 + 创建者的对话历史。
+  // 创建者拿全套；非创建者只拿卡片 + reading（如果有）。
+  const [exporting, setExporting] = useState(false);
+  async function handleExportText() {
+    if (!hepan || exporting) return;
+    setExporting(true);
+    try {
+      await downloadHepanMarkdown({ slug, isCreator: !!hepan.is_creator });
+      track('hepan_text_export', { slug, is_creator: !!hepan.is_creator });
+    } catch (e) {
+      console.error('[hepan] export failed', e);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading) {
     return <main className="hepan-screen hepan-loading"><p>正在打开邀请…</p></main>;
   }
@@ -129,14 +146,24 @@ export function HepanScreen() {
           >
             导出合盘图
           </button>
+          <button
+            type="button"
+            className="hepan-export-text-button"
+            onClick={handleExportText}
+            disabled={exporting}
+            title="把卡片 + 完整解读 + 对话历史打包成 markdown 下载"
+          >
+            {exporting ? '打包中…' : '导出全文 (Markdown)'}
+          </button>
         </div>
         {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
             HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
         <HepanReadingPanel slug={slug} />
 
-        {/* 多轮对话 — 只有创建者本人能进；后端 401/404 时组件自动隐身。
-            B 跟匿名访客不会看到这个区块。 */}
-        <HepanChat slug={slug} hepan={hepan} />
+        {/* 多轮对话 — 只有创建者本人能进。后端 is_creator 决定是否挂出，
+            HepanChat 内部 401/404 fallback 是双重保险（万一接口先回但
+            is_creator 还没传到）。B 跟匿名访客不会看到这个区块。 */}
+        {hepan.is_creator ? <HepanChat slug={slug} hepan={hepan} /> : null}
       </main>
     );
   }

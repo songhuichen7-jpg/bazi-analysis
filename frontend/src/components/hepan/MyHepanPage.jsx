@@ -196,6 +196,16 @@ function MineRow({ item, busy, onCopy, onDelete }) {
               </>
             )
           ) : null}
+          {/* 对话条数：N/2 轮（user + assistant 各算一条，所以 // 2 是真实轮数）。
+              0 轮不显示，避免 UI 上每行都贴一个 "0 轮" 给用户压力。*/}
+          {completed && item.message_count > 0 ? (
+            <>
+              <span className="mine-row-dot">·</span>
+              <span className="mine-row-tag mine-row-tag-chat">
+                对话 {Math.ceil(item.message_count / 2)} 轮
+              </span>
+            </>
+          ) : null}
         </div>
       </div>
       <div className="mine-row-actions">
