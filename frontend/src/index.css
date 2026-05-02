@@ -730,9 +730,97 @@
      齐顶。reading panel / chat 自带的 margin-top: 32/36 是单列布局下与
      上方分隔用，两栏 stage 内部不需要再额外推一段。
      selector 用 *:first-child 一次盖住所有可能的首块（reading-cta /
-     reading / reading-error / chat — 任一种都是 stage-right 的孩子）。*/
+     reading / reading-error / chat / b-funnel — 任一种都是 stage-right
+     的孩子）。*/
   .hepan-screen-split .hepan-stage-right > *:first-child {
     margin-top: 0;
+  }
+
+  /* ── HepanBFunnel — B 引流面板 ──────────────────────────────────
+     B（非创建者）首屏的主视觉。两条 CTA：邀请朋友（病毒环）+ 看自
+     己完整命盘（主漏斗）。底色用偏暖的奶白把它跟下面 reading-cta
+     的虚线灰区分开 — 让 B 第一眼落在这块。 */
+  .hepan-b-funnel {
+    margin-top: 32px;
+    padding: 22px 24px 20px;
+    border: 1px solid var(--line);
+    background: #fcfaf4;
+  }
+  .hepan-b-funnel-head { margin-bottom: 16px; }
+  .hepan-b-funnel-eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    color: var(--mute);
+    margin-bottom: 6px;
+  }
+  .hepan-b-funnel-title {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+  .hepan-b-funnel-sub {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .hepan-b-funnel-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hepan-b-funnel-cta-primary {
+    /* btn-primary 已经是黑底白字直角，这里加 width:100% + 12px 高 */
+    width: 100%;
+    padding: 11px 16px;
+    font-size: 14px;
+  }
+  .hepan-b-funnel-cta-secondary {
+    /* btn-inline (1px 黑边白底) — 副 CTA，跟主 CTA 拉开权重 */
+    width: 100%;
+    padding: 9px 16px;
+    font-size: 13px;
+  }
+  .hepan-b-funnel-soft-note {
+    margin: 4px 0 0;
+    font-size: 11.5px;
+    line-height: 1.6;
+    text-align: center;
+  }
+  .hepan-b-funnel-share {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+  }
+  .hepan-b-funnel-share-head {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .hepan-b-funnel-url {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+    word-break: break-all;
+    background: #f7f3e9;
+    padding: 6px 8px;
+    line-height: 1.5;
+  }
+  .hepan-b-funnel-copy {
+    align-self: stretch;
+  }
+  .hepan-b-funnel-error {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    background: #fbf3f1;
+    border-left: 3px solid #b04632;
+    color: #6e2418;
+    font-size: 12px;
+    line-height: 1.5;
   }
   .hepan-reading-hook {
     font-size: 15px;

@@ -11,7 +11,9 @@ import { saveCardAsImage } from '../../lib/saveImage.js';
 import { HepanCard } from './HepanCard.jsx';
 import HepanChat from './HepanChat.jsx';
 import HepanReadingPanel from './HepanReadingPanel.jsx';
+import HepanBFunnel from './HepanBFunnel.jsx';
 import { downloadHepanMarkdown } from '../../lib/hepanExport.js';
+import { rememberBBirth } from '../../lib/hepanBContext.js';
 
 export function HepanScreen() {
   const { slug } = useParams();
@@ -72,11 +74,15 @@ export function HepanScreen() {
 
     setSubmitting(true);
     try {
+      const birth = { year: y, month: m, day: d, hour: h, minute: 0 };
       const data = await postHepanComplete(slug, {
-        birth: { year: y, month: m, day: d, hour: h, minute: 0 },
+        birth,
         nickname: nickname.trim() || null,
       });
       setHepan(data);
+      // 给 HepanBFunnel 记一笔 — 服务端只存 birth_hash，本地这一份是
+      // 之后 "用 B 的生日发邀请 / 跳 /app 预填表单" 的唯一来源（TTL 24h）
+      rememberBBirth(slug, birth);
       track('hepan_complete', {
         slug,
         category: data.category,
@@ -162,6 +168,12 @@ export function HepanScreen() {
           </div>
         </div>
         <div className="hepan-stage hepan-stage-right">
+          {/* B 引流面板 — 只在非创建者视角出现。位置故意排在 reading 上面：
+              B 没有 unlock 完整解读的入口（要么 401 要么 paywall），所以
+              首屏的视觉权重应该让给"邀请朋友 / 看自己完整命盘"两个能往
+              前走的动作。A 看自己的盘时这块不出现 — A 走的是 chat 路径。 */}
+          {!hepan.is_creator ? <HepanBFunnel hepan={hepan} slug={slug} /> : null}
+
           {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
               HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
           <HepanReadingPanel slug={slug} />
