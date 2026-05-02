@@ -203,7 +203,7 @@
 /* ── Hepan card (3:4 portrait, export 1080×1440) ────────────────────── */
 .hepan-card {
   --card-accent: var(--theme, #b07a3c);
-  --card-ink: #1f1610;
+  --card-ink: #17130f;
 
   /* 网页上 420 是 grid 左栏的目标宽 — 大于这个值就被 grid track 限制，
    * 小屏（pending screen 单列）能放大到 540。导出图走 saveCardAsImage 时
@@ -212,11 +212,13 @@
   width: min(540px, 100%);
   aspect-ratio: 3 / 4;
   margin: 0 auto;
-  padding: 26px 28px 20px;
-  border-radius: 18px;
+  padding: 25px 27px 19px;
+  border: 1px solid #eee8dd;
+  border-radius: 0;
   background:
-    radial-gradient(118% 82% at 50% -12%, color-mix(in srgb, var(--card-accent) 10%, #fffdf7) 0%, #fffdf7 58%),
-    #fffdf7;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.84)),
+    radial-gradient(90% 46% at 50% 18%, color-mix(in srgb, var(--card-accent) 8%, transparent), transparent 72%),
+    #fffefa;
   color: var(--card-ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
   display: flex;
@@ -225,19 +227,16 @@
   text-align: center;
   position: relative;
   box-shadow:
-    0 18px 38px rgba(60, 36, 14, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    0 24px 70px rgba(38, 31, 23, 0.13),
+    0 1px 0 rgba(255, 255, 255, 0.96) inset;
   overflow: hidden;
 }
 
 .hepan-card::before {
   content: "";
   position: absolute;
-  right: -25%;
-  top: -40%;
-  width: 70%;
-  height: 70%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 10%, transparent), transparent 70%);
+  inset: 12px;
+  border: 1px solid rgba(23, 19, 15, 0.055);
   pointer-events: none;
 }
 
@@ -340,32 +339,109 @@
 .hepan-nick-a { color: var(--theme-a, var(--card-accent)); font-weight: 500; }
 .hepan-nick-b { color: var(--theme-b, var(--card-accent)); font-weight: 500; }
 
-/* Relation illustration */
+/* Pair art — A/B personal-card illustrations fused into one relationship scene */
 .hepan-card-illustration {
-  width: 214px;
-  max-width: 46%;
-  margin: 10px 0 6px;
-  aspect-ratio: 1 / 1;
+  width: min(300px, 74%);
+  max-width: none;
+  margin: 10px 0 5px;
+  aspect-ratio: 1.2 / 1;
   flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.hepan-pair-art {
+  background: transparent;
+}
+
+.hepan-pair-art::before {
+  content: "";
+  position: absolute;
+  inset: 12% 8% 7%;
+  background:
+    radial-gradient(closest-side at 62% 50%, color-mix(in srgb, var(--theme-b, var(--card-accent)) 13%, transparent), transparent 70%),
+    radial-gradient(closest-side at 39% 53%, color-mix(in srgb, var(--theme-a, var(--card-accent)) 10%, transparent), transparent 72%);
+  filter: blur(10px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.hepan-pair-art-line {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 16%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card-accent) 34%, transparent), transparent);
+}
+
+.hepan-pair-orbit {
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  top: 35%;
+  height: 36%;
+  border-top: 1px solid color-mix(in srgb, var(--card-accent) 28%, transparent);
+  border-radius: 50%;
+  transform: rotate(-8deg);
+  opacity: 0.62;
+}
+
+.hepan-pair-side {
+  position: absolute;
+  top: 9%;
+  bottom: 9%;
+  width: 48%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.hepan-card-illustration img {
+.hepan-pair-side-a {
+  left: 3%;
+  transform: translateX(5%) rotate(-1.5deg);
+}
+
+.hepan-pair-side-b {
+  right: 3%;
+  transform: translateX(-5%) rotate(1.5deg);
+}
+
+.hepan-pair-side img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
-  filter: saturate(.96) contrast(1.03);
-  transform: scale(1.28);
+  filter: saturate(0.96) contrast(1.03);
+  mix-blend-mode: multiply;
+}
+
+.hepan-pair-side-a img {
+  transform: scale(1.02);
   transform-origin: center;
+}
+
+.hepan-pair-side-b img {
+  transform: scale(0.98);
+  transform-origin: center;
+}
+
+.hepan-pair-spark {
+  position: absolute;
+  left: 49%;
+  top: 55%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--theme-b, var(--card-accent)) 22%, #fff7b5) 0 18%, color-mix(in srgb, var(--card-accent) 22%, transparent) 52%, transparent 72%);
+  transform: translate(-50%, -50%);
 }
 
 /* Relation label — biggest text */
 .hepan-card-label {
   margin: 4px 0 0;
-  font-size: 46px;
+  font-size: clamp(36px, 8.5vw, 46px);
   font-weight: 600;
   line-height: 1.04;
   letter-spacing: 0.02em;
@@ -381,14 +457,14 @@
   gap: 6px;
   list-style: none;
   padding: 0;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   width: 100%;
   align-items: stretch;
 }
 
 .hepan-card-subtags li {
   min-width: 0;
-  min-height: 42px;
+  min-height: 40px;
   padding: 6px 5px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--card-accent) 8%, #fffaf0);
@@ -424,7 +500,7 @@
   grid-template-columns: 1fr 1px 1fr;
   gap: 12px;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 8px;
   padding-top: 0;
   width: 100%;
   text-align: center;
@@ -455,21 +531,25 @@
 
 .hepan-role-text {
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 14px;
+  font-size: 13px;
   color: #2a1d10;
-  line-height: 1.34;
+  line-height: 1.28;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .hepan-copy-stack {
   width: 100%;
   min-height: 0;
-  margin-top: 12px;
+  margin-top: 8px;
   display: grid;
-  gap: 6px;
-  flex: 1 1 auto;
-  align-content: center;
+  gap: 5px;
+  flex: 0 1 auto;
+  align-content: start;
   text-align: center;
 }
 
@@ -477,33 +557,45 @@
 .hepan-description {
   margin: 0;
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 12.2px;
-  line-height: 1.5;
+  font-size: 11.7px;
+  line-height: 1.42;
   color: #3a2c1d;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Modifier (04b dynamic) */
 .hepan-modifier {
   margin: 0;
-  padding: 0 6px;
-  font-size: 11.3px;
-  line-height: 1.46;
+  padding: 0 4px;
+  font-size: 10.8px;
+  line-height: 1.36;
   color: #5f513b;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* CTA quote */
 .hepan-cta {
   margin: 0;
-  padding: 2px 0 0;
+  padding: 0;
   font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
-  font-size: 14px;
-  line-height: 1.42;
+  font-size: 13px;
+  line-height: 1.32;
   color: var(--card-ink);
   text-align: center;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .hepan-quote {
@@ -519,8 +611,8 @@
 /* Footer */
 .hepan-card-foot {
   width: 100%;
-  margin-top: 0;
-  padding-top: 10px;
+  margin-top: auto;
+  padding-top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -626,9 +718,9 @@
   }
 
   .hepan-card-illustration {
-    width: 160px;
-    max-width: 44%;
-    margin: 8px 0 3px;
+    width: min(214px, 72%);
+    max-width: none;
+    margin: 6px 0 3px;
   }
 
   .hepan-state-row {
@@ -643,7 +735,7 @@
 
   .hepan-card-label {
     margin-top: 4px;
-    font-size: 34px;
+    font-size: clamp(30px, 10vw, 34px);
   }
 
   .hepan-card-subtags {
@@ -670,29 +762,29 @@
   }
 
   .hepan-role-text {
-    font-size: 10px;
-    line-height: 1.2;
+    font-size: 9.8px;
+    line-height: 1.18;
   }
 
   .hepan-copy-stack {
-    margin-top: 9px;
-    gap: 5px;
+    margin-top: 7px;
+    gap: 4px;
   }
 
   .hepan-description {
-    font-size: 10.1px;
-    line-height: 1.34;
+    font-size: 9.8px;
+    line-height: 1.26;
   }
 
   .hepan-modifier {
-    padding: 5px 0 0;
-    font-size: 9.2px;
-    line-height: 1.3;
+    padding: 0;
+    font-size: 9px;
+    line-height: 1.22;
   }
 
   .hepan-cta {
-    font-size: 10.8px;
-    line-height: 1.3;
+    font-size: 10.2px;
+    line-height: 1.22;
   }
 
   .hepan-card-foot {

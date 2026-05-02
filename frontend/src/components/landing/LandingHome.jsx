@@ -13,7 +13,7 @@
 // 卡片本身保留产品标志性的暖色, 但页面 chrome 几乎是黑白灰.
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
 import { cardIllustrationSrc } from '../../lib/cardArt.js';
 import { HepanCardPreview } from './HepanCardPreview.jsx';
@@ -279,7 +279,18 @@ export function LandingHome() {
             开始排盘 →
           </button>
         </div>
-        <p className="landing-final-foot">有时 · youshi.app</p>
+        <footer className="landing-final-footer">
+          <div className="landing-final-brand">
+            <span>有时</span>
+            <p>一个理性的命盘与关系解读工具</p>
+          </div>
+          <nav className="landing-final-links" aria-label="页脚链接">
+            <Link to="/legal/about">关于</Link>
+            <Link to="/legal/privacy">隐私政策</Link>
+            <Link to="/legal/terms">服务条款</Link>
+            <a href="mailto:songhuichen7@gmail.com?subject=有时%20·%20反馈">反馈</a>
+          </nav>
+        </footer>
       </section>
 
     </main>

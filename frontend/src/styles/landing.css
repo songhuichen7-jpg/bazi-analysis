@@ -644,11 +644,60 @@
 }
 .landing-cta-quiet:active { transform: translateY(1px); }
 
-.landing-final-foot {
-  margin: 56px 0 0;
+.landing-final-footer {
+  margin: 62px auto 0;
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.landing-final-brand {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.landing-final-brand span {
   color: var(--landing-mute);
   font-size: 11px;
   letter-spacing: 0.42em;
+}
+
+.landing-final-brand p {
+  margin: 0;
+  color: var(--landing-mute);
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+}
+
+.landing-final-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 18px;
+}
+
+.landing-final-links a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: #8f8b84;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  transition: color .18s ease;
+}
+
+.landing-final-links a:hover {
+  color: var(--landing-ink);
+}
+
+.landing-final-links a:focus-visible {
+  outline: 1px solid var(--landing-ink);
+  outline-offset: 4px;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
@@ -894,12 +943,13 @@
   --card-accent: var(--theme);
   aspect-ratio: 3 / 4;
   padding: 18px 16px 12px;
-  border-radius: 12px;
+  border-radius: 0;
   background:
-    radial-gradient(118% 82% at 50% -12%, color-mix(in srgb, var(--card-accent) 10%, #fffdf7) 0%, #fffdf7 58%),
-    #fffdf7;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.84)),
+    radial-gradient(90% 46% at 50% 18%, color-mix(in srgb, var(--card-accent) 8%, transparent), transparent 72%),
+    #fffefa;
   box-shadow: 0 22px 42px rgba(40, 28, 14, 0.12);
-  border: 1px solid rgba(40, 28, 14, 0.04);
+  border: 1px solid #eee8dd;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -913,11 +963,8 @@
 .landing-hepan-preview::before {
   content: "";
   position: absolute;
-  right: -25%;
-  top: -40%;
-  width: 70%;
-  height: 70%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--card-accent) 10%, transparent), transparent 70%);
+  inset: 9px;
+  border: 1px solid rgba(23, 19, 15, 0.055);
   pointer-events: none;
 }
 
@@ -998,23 +1045,95 @@
 }
 
 .landing-hepan-illust {
-  width: 134px;
-  max-width: 46%;
+  width: min(210px, 78%);
+  max-width: none;
   margin: 8px 0 3px;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1.2 / 1;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.landing-hepan-pair-art::before {
+  content: "";
+  position: absolute;
+  inset: 12% 8% 7%;
+  background:
+    radial-gradient(closest-side at 62% 50%, color-mix(in srgb, var(--theme-b, var(--card-accent)) 13%, transparent), transparent 70%),
+    radial-gradient(closest-side at 39% 53%, color-mix(in srgb, var(--theme-a, var(--card-accent)) 10%, transparent), transparent 72%);
+  filter: blur(8px);
+  opacity: .72;
+}
+
+.landing-hepan-pair-line {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 16%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card-accent) 34%, transparent), transparent);
+}
+
+.landing-hepan-pair-orbit {
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  top: 35%;
+  height: 36%;
+  border-top: 1px solid color-mix(in srgb, var(--card-accent) 28%, transparent);
+  border-radius: 50%;
+  transform: rotate(-8deg);
+  opacity: .62;
+}
+
+.landing-hepan-pair-side {
+  position: absolute;
+  top: 9%;
+  bottom: 9%;
+  width: 48%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.landing-hepan-illust img {
+.landing-hepan-pair-side-a {
+  left: 3%;
+  transform: translateX(5%) rotate(-1.5deg);
+}
+
+.landing-hepan-pair-side-b {
+  right: 3%;
+  transform: translateX(-5%) rotate(1.5deg);
+}
+
+.landing-hepan-pair-side img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
   filter: saturate(.96) contrast(1.03);
-  transform: scale(1.24);
+  mix-blend-mode: multiply;
+}
+
+.landing-hepan-pair-side-a img {
+  transform: scale(1.02);
   transform-origin: center;
+}
+
+.landing-hepan-pair-side-b img {
+  transform: scale(.98);
+  transform-origin: center;
+}
+
+.landing-hepan-pair-spark {
+  position: absolute;
+  left: 49%;
+  top: 55%;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--theme-b, var(--card-accent)) 22%, #fff7b5) 0 18%, color-mix(in srgb, var(--card-accent) 22%, transparent) 52%, transparent 72%);
+  transform: translate(-50%, -50%);
 }
 
 .landing-hepan-label {

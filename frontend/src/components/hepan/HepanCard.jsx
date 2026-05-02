@@ -12,7 +12,6 @@
 //
 // 视觉复用 share-card 设计语言, 使用 pair_theme_color (两侧主题色融合)。
 import { forwardRef } from 'react';
-import { RelationIllustration } from './relationIllustrations.jsx';
 
 // 卡片昵称 fallback — "游客" 是后端给游客账号的默认 nickname 字面量，
 // 直接显示成 "@游客 × @测试B" 又冷又像群发。把它跟空串当一个等价类，
@@ -52,10 +51,21 @@ export const HepanCard = forwardRef(function HepanCard({ hepan }, ref) {
       </header>
 
       <section className="hepan-card-hero">
-        <RelationIllustration
-          category={hepan.category}
-          className="hepan-card-illustration"
-        />
+        <figure className="hepan-card-illustration hepan-pair-art" aria-label={`${a?.cosmic_name || 'A'}与${b?.cosmic_name || 'B'}融合插画`}>
+          <div className="hepan-pair-art-line" aria-hidden="true" />
+          <div className="hepan-pair-orbit" aria-hidden="true" />
+          <div className="hepan-pair-side hepan-pair-side-a">
+            {a?.illustration_url ? (
+              <img src={a.illustration_url} alt="" loading="lazy" decoding="async" />
+            ) : null}
+          </div>
+          <div className="hepan-pair-side hepan-pair-side-b">
+            {b?.illustration_url ? (
+              <img src={b.illustration_url} alt="" loading="lazy" decoding="async" />
+            ) : null}
+          </div>
+          <span className="hepan-pair-spark" aria-hidden="true" />
+        </figure>
 
         <div className="hepan-card-hero-copy">
           <div className="hepan-state-row">

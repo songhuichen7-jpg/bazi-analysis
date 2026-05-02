@@ -16,7 +16,8 @@ test('hepan card surfaces label, subtags, dual roles, modifier, cta', () => {
   assert.match(source, /hepan-card-head/);
   assert.match(source, /hepan-card-hero/);
   assert.match(source, /hepan-state-pair/);          // readable state rhythm label
-  assert.match(source, /hepan-card-illustration/);   // 6 大类占位插画
+  assert.match(source, /hepan-card-illustration/);   // A/B 单人卡融合插画
+  assert.match(source, /hepan-pair-art/);
   assert.match(source, /hepan-card-label/);          // 关系标签 (大字)
   assert.match(source, /hepan-card-subtags/);        // 3 chip
   assert.match(source, /hepan-roles/);               // A/B 角色对照
@@ -53,6 +54,21 @@ test('hepan card protects long relationship tags from clipping', () => {
   assert.match(css, /\.hepan-copy-stack[\s\S]*min-height:\s*0/);
 });
 
+test('hepan card clamps variable copy so text cannot overlap footer', () => {
+  const css = fs.readFileSync(new URL('../src/styles/hepan.css', import.meta.url), 'utf8');
+  const roleRule = css.match(/\.hepan-role-text\s*\{[\s\S]*?\n\}/)?.[0] || '';
+  const descRule = css.match(/\.hepan-description\s*\{[\s\S]*?\n\}/)?.[0] || '';
+  const modifierRule = css.match(/\.hepan-modifier\s*\{[\s\S]*?\n\}/)?.[0] || '';
+  const ctaRule = css.match(/\.hepan-cta\s*\{[\s\S]*?\n\}/)?.[0] || '';
+  const footRule = css.match(/\.hepan-card-foot\s*\{[\s\S]*?\n\}/)?.[0] || '';
+
+  assert.match(roleRule, /-webkit-line-clamp:\s*2/);
+  assert.match(descRule, /-webkit-line-clamp:\s*2/);
+  assert.match(modifierRule, /-webkit-line-clamp:\s*2/);
+  assert.match(ctaRule, /-webkit-line-clamp:\s*2/);
+  assert.match(footRule, /margin-top:\s*auto/);
+});
+
 test('hepan card follows the editorial paper visual system', () => {
   const source = fs.readFileSync(new URL('../src/components/hepan/HepanCard.jsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../src/styles/hepan.css', import.meta.url), 'utf8');
@@ -60,10 +76,14 @@ test('hepan card follows the editorial paper visual system', () => {
 
   assert.match(css, /\.hepan-card::before/);
   assert.match(css, /\.hepan-card-hero[\s\S]*flex-direction:\s*column/);
-  assert.match(css, /\.hepan-card-illustration[\s\S]*max-width:\s*46%/);
-  assert.match(css, /\.hepan-card-illustration img[\s\S]*transform:\s*scale\(1\.28\)/);
+  assert.match(css, /\.hepan-card-illustration[\s\S]*aspect-ratio:\s*1\.2\s*\/\s*1/);
+  assert.match(css, /\.hepan-pair-side-a/);
+  assert.match(css, /\.hepan-pair-side-b/);
+  assert.match(css, /\.hepan-pair-orbit/);
   assert.match(chipRule, /background:\s*color-mix/);
   assert.match(chipRule, /overflow-wrap:\s*anywhere/);
+  assert.match(source, /a\.illustration_url/);
+  assert.match(source, /b\.illustration_url/);
   assert.doesNotMatch(source, /\{hepan\.state_pair\}/);
 });
 
@@ -97,8 +117,7 @@ test('CardWorkspace wires invite-pair button to /api/hepan/invite', () => {
   assert.match(source, /handleInvitePair/);
 });
 
-test('relationIllustrations exports 6 versioned PNG assets', () => {
-  const source = fs.readFileSync(new URL('../src/components/hepan/relationIllustrations.jsx', import.meta.url), 'utf8');
+test('hepan art keeps old relation assets versioned for compatibility', () => {
   const art = fs.readFileSync(new URL('../src/lib/hepanArt.js', import.meta.url), 'utf8');
   assert.match(art, /天作搭子/);
   assert.match(art, /镜像搭子/);
@@ -108,6 +127,4 @@ test('relationIllustrations exports 6 versioned PNG assets', () => {
   assert.match(art, /互补搭子/);
   assert.match(art, /\/static\/hepan\/illustrations/);
   assert.match(art, /HEPAN_ART_VERSION/);
-  assert.match(source, /relationIllustrationSrc/);
-  assert.doesNotMatch(source, /<svg/);
 });
