@@ -744,7 +744,10 @@
 
   .hepan-reading {
     margin: 32px auto 0;
-    max-width: 680px;
+    /* 跟 .hepan-chat 同宽 — reading 是长散文，chat 是问答串，视觉上用同一
+       条阅读栏宽度更连贯。780px ≈ 50 个汉字 / 行 (14px font + line-height 1.95)
+       是中文长文的舒服档。*/
+    max-width: 780px;
     padding: 24px 28px 26px;
     border-left: 2px solid var(--ink);
     background: #fff;
@@ -829,10 +832,10 @@
     padding: 6px 14px;
   }
 
-  /* 合盘多轮对话区块 — 在 reading panel 下面 */
+  /* 合盘多轮对话区块 — 在 reading panel 下面，跟 .hepan-reading 同宽 */
   .hepan-chat {
     margin: 36px auto 0;
-    max-width: 680px;
+    max-width: 780px;
     display: flex;
     flex-direction: column;
     gap: 14px;

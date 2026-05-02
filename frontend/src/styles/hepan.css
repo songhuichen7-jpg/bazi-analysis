@@ -13,10 +13,50 @@
  */
 
 /* ── Hepan invite landing page ──────────────────────────────────────── */
+/* completed 状态切左右两栏：左边 sticky 摆卡片 + 导出按钮，右边滚 reading +
+ * chat。pending 状态（B 填生日的表单）维持窄列居中。两种状态共用 .hepan-
+ * screen 基类，再 hepan-screen-split / hepan-screen-narrow 二选一。
+ */
 .hepan-screen {
-  max-width: 600px;
   margin: 32px auto;
-  padding: 20px;
+  padding: 24px;
+}
+
+.hepan-screen-narrow {
+  max-width: 600px;
+}
+
+.hepan-screen-split {
+  max-width: 1180px;
+  display: grid;
+  grid-template-columns: minmax(0, 540px) minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+/* 左栏 — 卡片 + 导出区。原本想 sticky 但 3:4 卡片接近 viewport 高，再
+ * 加导出按钮就溢出视口看不到了；改成自然流 — 用户读右边长文时左边滚
+ * 走没关系，回头看卡片就 scroll up；导出按钮也始终能 reach。
+ */
+.hepan-stage-left {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.hepan-stage-right {
+  display: flex;
+  flex-direction: column;
+  /* reading / chat 自带 margin-top，stage-right 不再额外加 gap */
+  min-width: 0;     /* 防止子元素 overflow 把 grid 撑爆 */
+}
+
+/* 窄屏 collapse 回单列 */
+@media (max-width: 920px) {
+  .hepan-screen-split {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
 }
 
 .hepan-loading {

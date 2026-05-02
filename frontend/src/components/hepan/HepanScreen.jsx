@@ -119,12 +119,12 @@ export function HepanScreen() {
   }
 
   if (loading) {
-    return <main className="hepan-screen hepan-loading"><p>正在打开邀请…</p></main>;
+    return <main className="hepan-screen hepan-screen-narrow hepan-loading"><p>正在打开邀请…</p></main>;
   }
 
   if (error) {
     return (
-      <main className="hepan-screen hepan-error" role="alert">
+      <main className="hepan-screen hepan-screen-narrow hepan-error" role="alert">
         <h1>邀请链接打不开</h1>
         <p>{error}</p>
         <Link to="/" className="primary-cta">回到首页 →</Link>
@@ -136,34 +136,41 @@ export function HepanScreen() {
 
   if (hepan.status === 'completed') {
     return (
-      <main className="hepan-screen">
-        <HepanCard ref={cardRef} hepan={hepan} />
-        <div className="hepan-cta-block">
-          <button
-            type="button"
-            className="hepan-save-button"
-            onClick={handleSaveHepan}
-          >
-            导出合盘图
-          </button>
-          <button
-            type="button"
-            className="hepan-export-text-button"
-            onClick={handleExportText}
-            disabled={exporting}
-            title="把卡片 + 完整解读 + 对话历史打包成 markdown 下载"
-          >
-            {exporting ? '打包中…' : '导出全文 (Markdown)'}
-          </button>
+      // 左右两栏：左边 sticky 摆卡片 + 导出按钮；右边滚 reading + chat。
+      // 视觉上模仿主 app 的 Shell（左命盘右对话），但 hepan 是阅读优先，
+      // 所以右边占主视区，卡片在左边做"身份证"样的 sticky 锚定。
+      <main className="hepan-screen hepan-screen-split">
+        <div className="hepan-stage hepan-stage-left">
+          <HepanCard ref={cardRef} hepan={hepan} />
+          <div className="hepan-cta-block">
+            <button
+              type="button"
+              className="hepan-save-button"
+              onClick={handleSaveHepan}
+            >
+              导出合盘图
+            </button>
+            <button
+              type="button"
+              className="hepan-export-text-button"
+              onClick={handleExportText}
+              disabled={exporting}
+              title="把卡片 + 完整解读 + 对话历史打包成 markdown 下载"
+            >
+              {exporting ? '打包中…' : '导出全文 (Markdown)'}
+            </button>
+          </div>
         </div>
-        {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
-            HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
-        <HepanReadingPanel slug={slug} />
+        <div className="hepan-stage hepan-stage-right">
+          {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
+              HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
+          <HepanReadingPanel slug={slug} />
 
-        {/* 多轮对话 — 只有创建者本人能进。后端 is_creator 决定是否挂出，
-            HepanChat 内部 401/404 fallback 是双重保险（万一接口先回但
-            is_creator 还没传到）。B 跟匿名访客不会看到这个区块。 */}
-        {hepan.is_creator ? <HepanChat slug={slug} hepan={hepan} /> : null}
+          {/* 多轮对话 — 只有创建者本人能进。后端 is_creator 决定是否挂出，
+              HepanChat 内部 401/404 fallback 是双重保险（万一接口先回但
+              is_creator 还没传到）。B 跟匿名访客不会看到这个区块。 */}
+          {hepan.is_creator ? <HepanChat slug={slug} hepan={hepan} /> : null}
+        </div>
       </main>
     );
   }
@@ -173,7 +180,7 @@ export function HepanScreen() {
   const inviterCosmic = hepan.a?.cosmic_name || '?';
 
   return (
-    <main className="hepan-screen hepan-invite">
+    <main className="hepan-screen hepan-screen-narrow hepan-invite">
       <header className="hepan-invite-head">
         <p className="hepan-invite-kicker">邀请合盘</p>
         <h1>
