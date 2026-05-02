@@ -63,6 +63,10 @@ export async function checkHepanInbox({ setAppNotice }) {
   const labelHint = head.label ? `「${head.label}」` : '合盘';
 
   setAppNotice({
+    // tone:'info' — 这是好消息（对方填了生日，能看搭子标签了），不是错误。
+    // 默认 ErrorState 渲染红边 + "!" 图标会让人以为是出错；info 走中性灰
+    // 边 + "✦" 图标
+    tone: 'info',
     title: more > 0
       ? `@${bName} 完成了${labelHint}（还有 ${more} 段新的）`
       : `@${bName} 完成了你们的${labelHint}`,

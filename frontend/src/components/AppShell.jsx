@@ -88,6 +88,7 @@ export default function AppShell() {
         <div className="app-toast">
           <ErrorState
             variant="toast"
+            tone={appNotice.tone || 'error'}
             title={appNotice.title}
             detail={appNotice.detail}
             retryable={false}

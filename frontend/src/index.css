@@ -1525,6 +1525,34 @@
     color: #8a5656;
   }
 
+  /* ── tone:info — 中性正向通知 ─────────────────────────────────────
+     默认 .error-state 整套是红色（出错语义）。tone="info" 用于 hepan
+     完成提醒这类"好消息" — 用主站冷暖灰底，避免被当成错误。覆盖颜色
+     即可，结构跟 .error-state 共用。 */
+  .error-state-tone-info {
+    border-left-color: var(--ink);
+    background: #faf7ee;
+    color: var(--ink);
+  }
+  .error-state-tone-info.error-state-toast {
+    border-color: #e6dfcb;
+    border-left-color: var(--ink);
+  }
+  .error-state-tone-info .error-state-icon {
+    background: rgba(17, 17, 17, 0.06);
+    color: var(--ink);
+    /* ✦ 字符稍小 — 比 "!" 字形更细，要给点重量才平衡 */
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .error-state-tone-info .error-state-title { color: var(--ink); }
+  .error-state-tone-info .error-state-details summary { color: var(--mute); }
+  .error-state-tone-info .error-state-detail-text { color: var(--ink-2); }
+  .error-state-tone-info .error-state-dismiss {
+    border-color: var(--line);
+    color: var(--ink-2);
+  }
+
   .section-num { font-size: 11px; color: var(--mute); letter-spacing: .25em; text-transform: uppercase; }
   .divider { height: 1px; background: var(--line); margin: 40px 0; }
 
