@@ -9,6 +9,7 @@ import { getHepan, postHepanComplete } from '../../lib/hepanApi.js';
 import { track } from '../../lib/analytics.js';
 import { saveCardAsImage } from '../../lib/saveImage.js';
 import { HepanCard } from './HepanCard.jsx';
+import HepanChat from './HepanChat.jsx';
 import HepanReadingPanel from './HepanReadingPanel.jsx';
 
 export function HepanScreen() {
@@ -132,6 +133,10 @@ export function HepanScreen() {
         {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
             HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
         <HepanReadingPanel slug={slug} />
+
+        {/* 多轮对话 — 只有创建者本人能进；后端 401/404 时组件自动隐身。
+            B 跟匿名访客不会看到这个区块。 */}
+        <HepanChat slug={slug} hepan={hepan} />
       </main>
     );
   }

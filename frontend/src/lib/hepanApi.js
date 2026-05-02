@@ -39,6 +39,17 @@ export async function deleteHepanInvite(slug, { fetchImpl = fetch, baseUrl = DEF
   throw new ApiError(data.detail || `request failed (${resp.status})`, resp.status);
 }
 
+// 合盘对话历史（仅创建者）。匿名 / 非创建者 → 401 / 404。
+export async function getHepanMessages(slug, { fetchImpl = fetch, baseUrl = DEFAULT_BASE } = {}) {
+  const resp = await fetchImpl(
+    `${baseUrl}/api/hepan/${encodeURIComponent(slug)}/messages`,
+    { credentials: 'include' },
+  );
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new ApiError(data.detail || `request failed (${resp.status})`, resp.status);
+  return data;
+}
+
 export async function postHepanComplete(slug, payload, { fetchImpl = fetch, baseUrl = DEFAULT_BASE } = {}) {
   const resp = await fetchImpl(
     `${baseUrl}/api/hepan/${encodeURIComponent(slug)}/complete`,

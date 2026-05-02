@@ -829,6 +829,151 @@
     padding: 6px 14px;
   }
 
+  /* 合盘多轮对话区块 — 在 reading panel 下面 */
+  .hepan-chat {
+    margin: 36px auto 0;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hepan-chat-loading {
+    text-align: center;
+    padding: 18px 0;
+    font-size: 12px;
+  }
+  .hepan-chat-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+  .hepan-chat-title {
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: .04em;
+  }
+  .hepan-chat-sub {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .hepan-chat-banner {
+    border-left: 2px solid #c66;
+    background: #fdf5f5;
+    padding: 12px 14px;
+    color: #7a2626;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hepan-chat-banner-title { font-size: 13px; color: var(--ink); }
+  .hepan-chat-banner-detail { font-size: 12px; line-height: 1.7; }
+  .hepan-chat-banner-cta {
+    align-self: flex-start;
+    margin-top: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    padding: 6px 14px;
+  }
+  .hepan-chat-history {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 40px;
+  }
+  .hepan-chat-msg {
+    display: flex;
+    width: 100%;
+  }
+  .hepan-chat-msg-user { justify-content: flex-end; }
+  .hepan-chat-msg-assistant { justify-content: flex-start; }
+  .hepan-chat-bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+  .hepan-chat-msg-user .hepan-chat-bubble {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .hepan-chat-bubble strong { font-weight: 600; }
+  .hepan-chat-bubble em { font-style: italic; color: var(--ink-2); }
+  .hepan-chat-caret {
+    display: inline-block;
+    margin-left: 2px;
+    color: var(--ink-2);
+    animation: hepan-reading-blink 0.8s steps(2, start) infinite;
+  }
+
+  .hepan-chat-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    border: 1px dashed var(--line);
+    background: #fcfaf4;
+  }
+  .hepan-chat-suggest-head {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .hepan-chat-suggest-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hepan-chat-suggest-chip {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    padding: 6px 12px;
+    font-size: 12.5px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .hepan-chat-suggest-chip:hover {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .hepan-chat-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 8px;
+    align-items: center;
+  }
+  .hepan-chat-input textarea {
+    border: none !important;
+    padding: 0 10px;
+    line-height: 1.8;
+    width: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    resize: none;
+    overflow-y: auto;
+    max-height: 140px;
+    min-height: 40px;
+  }
+  .hepan-chat-input .btn-primary,
+  .hepan-chat-input .btn-inline {
+    min-width: 76px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
   /* paywall toast 的强调按钮 — 跳 /pricing。复用 .btn-primary 形态但
      在 ErrorState 里语义是 link，所以用 a/Link 元素。 */
   .error-state-cta {

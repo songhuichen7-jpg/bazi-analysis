@@ -27,6 +27,7 @@ from app.models.quota import LlmUsageLog, QuotaUsage  # noqa: E402
 from app.models.card_share import CardShare  # noqa: E402
 from app.models.event import Event  # noqa: E402
 from app.models.hepan_invite import HepanInvite  # noqa: E402
+from app.models.hepan_message import HepanMessage  # noqa: E402
 from app.models.subscription import Payment, Subscription  # noqa: E402
 
 __all__ = [
@@ -36,6 +37,6 @@ __all__ = [
     "Conversation", "Message", "ConversationSummary",
     "QuotaUsage", "LlmUsageLog",
     "CardShare", "Event",
-    "HepanInvite",
+    "HepanInvite", "HepanMessage",
     "Subscription", "Payment",
 ]

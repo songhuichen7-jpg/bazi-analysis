@@ -102,3 +102,22 @@ class HepanMineItem(BaseModel):
 
 class HepanMineResponse(BaseModel):
     items: list[HepanMineItem]
+
+
+# ── Multi-turn chat (Plan 5+) ───────────────────────────────────────────
+
+class HepanChatMessageRequest(BaseModel):
+    """POST /api/hepan/{slug}/messages 的 body — 用户问的下一句话。"""
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+class HepanChatMessageItem(BaseModel):
+    """聊天历史里的单条消息。content 已经在 service 层 from-bytes 解过密。"""
+    id: str
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: datetime
+
+
+class HepanChatMessagesResponse(BaseModel):
+    items: list[HepanChatMessageItem]

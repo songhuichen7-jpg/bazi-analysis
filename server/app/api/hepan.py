@@ -15,12 +15,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from app.auth.deps import check_quota, current_user, optional_user
 from app.core.db import get_db
 from app.models.hepan_invite import HepanInvite
 from app.models.user import User
 from app.schemas.hepan import (
+    HepanChatMessageItem,
+    HepanChatMessageRequest,
+    HepanChatMessagesResponse,
     HepanCompleteRequest,
     HepanInviteRequest,
     HepanInviteResponse,
@@ -32,6 +36,7 @@ from app.services.card.loader import TYPES, load_all as load_card_data
 from app.services.card.payload import build_card_payload
 from app.services.card.slug import birth_hash
 from app.services.exceptions import PlanUpgradeRequiredError, ServiceError
+from app.services.hepan.chat import list_messages as hepan_list_messages, stream_chat
 from app.services.hepan.llm import stream_reading
 from app.services.hepan.loader import find_pair, load_all as load_hepan_data
 from app.services.hepan.payload import (
@@ -264,7 +269,9 @@ async def post_reading(
         ))
 
     row = (await db.execute(
-        select(HepanInvite).where(
+        select(HepanInvite)
+        .options(undefer(HepanInvite.reading_text))     # SSE 生成器里要读
+        .where(
             HepanInvite.slug == slug,
             HepanInvite.deleted_at.is_(None),
         )
@@ -292,6 +299,84 @@ async def post_reading(
     async def _gen():
         async for raw in stream_reading(
             db, user, row, force=force, ticket=ticket,
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+# ── Multi-turn chat ─────────────────────────────────────────────────────
+
+
+async def _load_creator_invite(
+    db: AsyncSession, slug: str, user: User,
+) -> HepanInvite:
+    """合盘对话只允许创建者本人。其他登录用户 / 不存在 / 已删 → 都 404。
+
+    显式 ``undefer(reading_text)`` — 那列默认是 deferred (避免无 DEK 的公共
+    端点解密)，但 chat / reading 后续要在 SSE 生成器里读它，那时已经出了
+    greenlet 友好上下文，lazy SELECT 会 MissingGreenlet。这里同步拉上。
+    """
+    row = (await db.execute(
+        select(HepanInvite)
+        .options(undefer(HepanInvite.reading_text))
+        .where(
+            HepanInvite.slug == slug,
+            HepanInvite.deleted_at.is_(None),
+        )
+    )).scalar_one_or_none()
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="invite not found")
+    return row
+
+
+@router.get("/{slug}/messages", response_model=HepanChatMessagesResponse)
+async def get_messages(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> HepanChatMessagesResponse:
+    """合盘对话历史 — 只创建者本人能拉。"""
+    row = await _load_creator_invite(db, slug, user)
+    msgs = await hepan_list_messages(db, row.slug)
+    return HepanChatMessagesResponse(items=[
+        HepanChatMessageItem(
+            id=str(m.id),
+            role=m.role,                       # type: ignore[arg-type]
+            content=m.content or "",
+            created_at=m.created_at,
+        )
+        for m in msgs
+    ])
+
+
+@router.post("/{slug}/messages")
+async def post_message(
+    slug: str,
+    body: HepanChatMessageRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """合盘多轮对话 — SSE。Plan 5+ 付费功能：lite 直接 402。"""
+    if user.plan == "lite":
+        raise _http_error(PlanUpgradeRequiredError(
+            feature="合盘对话", required_plan="standard",
+        ))
+
+    row = await _load_creator_invite(db, slug, user)
+    if row.status != "completed" or not row.b_day_stem:
+        raise HTTPException(status_code=409, detail={
+            "code": "HEPAN_NOT_COMPLETED",
+            "message": "对方还没填生日，等 TA 完成后再开始对话。",
+        })
+
+    check_dep = check_quota("chat_message")
+    ticket: QuotaTicket = await check_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in stream_chat(
+            db, user, row, body.message, ticket=ticket,
         ):
             yield raw
         await db.commit()
