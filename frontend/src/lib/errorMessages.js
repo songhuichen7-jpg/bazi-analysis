@@ -168,6 +168,18 @@ function tryQuotaExceeded(error) {
       PAYWALL_CTA,
     );
   }
+  if (code === 'PLAN_UPGRADE_REQUIRED') {
+    // 后端 PlanUpgradeRequiredError 给的 details: { feature, required_plan }
+    const required = error?.payload?.detail?.details?.required_plan || 'standard';
+    const feature = error?.payload?.detail?.details?.feature || '此功能';
+    const plan_zh = required === 'pro' ? 'Pro' : '标准';
+    return result(
+      `${feature}需要升级`,
+      `升级到 ${plan_zh} 档位即可解锁`,
+      false,
+      PAYWALL_CTA,
+    );
+  }
   return null;
 }
 

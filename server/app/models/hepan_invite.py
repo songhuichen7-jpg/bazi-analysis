@@ -74,7 +74,12 @@ class HepanInvite(Base):
     share_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # ── LLM 完整解读缓存 (Plan 5+) ──────────────────────────────────
-    reading_text: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
+    # deferred=True 关键 — 公开的 GET /api/hepan/{slug} 端点没 DEK 上下文，
+    # 默认 SELECT * 含 reading_text 时会触发解密 → RuntimeError。延迟到访问
+    # 才取，付费端点（POST /reading 走 current_user）已经把 DEK mount 了。
+    reading_text: Mapped[Optional[str]] = mapped_column(
+        EncryptedText, nullable=True, deferred=True,
+    )
     reading_version: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     reading_generated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True,

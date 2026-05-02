@@ -11,11 +11,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import current_user, optional_user
+from app.auth.deps import check_quota, current_user, optional_user
 from app.core.db import get_db
 from app.models.hepan_invite import HepanInvite
 from app.models.user import User
@@ -30,6 +31,8 @@ from app.schemas.hepan import (
 from app.services.card.loader import TYPES, load_all as load_card_data
 from app.services.card.payload import build_card_payload
 from app.services.card.slug import birth_hash
+from app.services.exceptions import PlanUpgradeRequiredError, ServiceError
+from app.services.hepan.llm import stream_reading
 from app.services.hepan.loader import find_pair, load_all as load_hepan_data
 from app.services.hepan.payload import (
     _blend_hex,                      # 复用：列表项要返回 pair_theme_color
@@ -37,6 +40,13 @@ from app.services.hepan.payload import (
     build_pending_payload,
 )
 from app.services.hepan.slug import generate_slug
+from app.services.quota import QuotaTicket
+
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _http_error(err: ServiceError) -> HTTPException:
+    return HTTPException(status_code=err.status, detail=err.to_dict())
 
 router = APIRouter(prefix="/api/hepan", tags=["hepan"])
 
@@ -191,6 +201,66 @@ async def get_hepan(
 
     row.share_count += 1
     return _row_to_response(row)
+
+
+@router.post("/{slug}/reading")
+async def post_reading(
+    slug: str,
+    force: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """SSE 流式生成完整解读（500-900 字）。
+
+    Plan 5+ 计费：
+      · lite     → 直接 402 PLAN_UPGRADE_REQUIRED，前端 paywall toast
+      · standard → 走 chat_message 配额（150/天）
+      · pro      → 同上但 600/天，事实上不限
+
+    缓存：reading_text + reading_version 命中时不消耗配额，replay_cached
+    重放整段。force=true 时无视缓存重新生成（也消耗配额）。
+
+    幂等保证：commit-before-done 模式 — race 超额时 emit error 而不是 done，
+    cache 不写。
+    """
+    _ensure_data_loaded()
+
+    if user.plan == "lite":
+        raise _http_error(PlanUpgradeRequiredError(
+            feature="合盘完整解读", required_plan="standard",
+        ))
+
+    row = (await db.execute(
+        select(HepanInvite).where(HepanInvite.slug == slug)
+    )).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="invite not found")
+    if row.status != "completed" or not row.b_day_stem:
+        raise HTTPException(status_code=409, detail={
+            "code": "HEPAN_NOT_COMPLETED",
+            "message": "对方还没填生日，等 TA 完成后再读完整解读。",
+        })
+
+    # 缓存命中分支：不发配额 ticket，直接 replay。让缓存重读永远免费。
+    expected_version_match = (
+        row.reading_text
+        and row.reading_version
+        and not force
+    )
+    ticket: QuotaTicket | None = None
+    if not expected_version_match:
+        # 需要走 LLM —— 先预检 chat_message 配额
+        check_dep = check_quota("chat_message")
+        ticket = await check_dep(user=user, db=db)
+
+    async def _gen():
+        async for raw in stream_reading(
+            db, user, row, force=force, ticket=ticket,
+        ):
+            yield raw
+        await db.commit()
+
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 def _row_to_response(row: HepanInvite) -> HepanResponse:

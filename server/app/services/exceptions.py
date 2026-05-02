@@ -108,6 +108,24 @@ class QuotaExceededError(ServiceError):
         )
 
 
+class PlanUpgradeRequiredError(ServiceError):
+    """付费档独占功能 — lite 用户访问时触发，前端用 cta=/pricing 接住。
+
+    跟 QUOTA_EXCEEDED 在 UX 上相似，但语义不同：QUOTA 是"今天用完了，明天
+    回来"；PLAN 是"档位本身就不到，要升级"。前端 friendlyError 各自渲染
+    不同文案 + 同一个 paywall CTA。
+    """
+    code = "PLAN_UPGRADE_REQUIRED"
+    message = "需要升级档位才能使用此功能"
+    status = 402     # Payment Required — semantically right, 浏览器不会有特殊行为
+
+    def __init__(self, feature: str, required_plan: str = "standard"):
+        super().__init__(
+            message=f"{feature} 需要 {required_plan} 及以上档位",
+            details={"feature": feature, "required_plan": required_plan},
+        )
+
+
 # ---- Plan 4: charts ---------------------------------------------------
 
 

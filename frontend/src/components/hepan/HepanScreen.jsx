@@ -9,6 +9,7 @@ import { getHepan, postHepanComplete } from '../../lib/hepanApi.js';
 import { track } from '../../lib/analytics.js';
 import { saveCardAsImage } from '../../lib/saveImage.js';
 import { HepanCard } from './HepanCard.jsx';
+import HepanReadingPanel from './HepanReadingPanel.jsx';
 
 export function HepanScreen() {
   const { slug } = useParams();
@@ -127,10 +128,10 @@ export function HepanScreen() {
           >
             导出合盘图
           </button>
-          <p className="hepan-cta-hook">想看你和 TA 的相处指南？</p>
-          <p className="hepan-cta-detail">谁主动谁跟随、可能的摩擦点、最佳协作方式。</p>
-          <Link to="/" className="hepan-cta-link">阅读完整解读 →</Link>
         </div>
+        {/* 完整解读 — Plan 5+ 付费功能。lite / 未登录会被后端 402 / 401，
+            HepanReadingPanel 内部接 friendlyError 走 paywall toast */}
+        <HepanReadingPanel slug={slug} />
       </main>
     );
   }
