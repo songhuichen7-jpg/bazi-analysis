@@ -122,19 +122,23 @@ async def test_create_label_null_ok(client):
 
 
 @pytest.mark.asyncio
-async def test_create_16th_returns_409(client):
-    cookie, _ = await _register(client)
+async def test_create_at_cap_returns_409(client):
+    # 升级到 pro 档位（chart_max=20）— 默认 lite cap=2 跑不到这条测试想验
+    # 的"超 cap 抛 409 + limit=N"行为；标的就是 cap 顶端的 enforcement。
+    from .conftest import upgrade_user_plan
+    cookie, user = await _register(client)
+    await upgrade_user_plan(user["id"], "pro")
     body = {
         "birth_input": {"year": 1990, "month": 5, "day": 12, "hour": 12, "gender": "male"},
     }
-    for _ in range(15):
+    for _ in range(20):
         r = await client.post("/api/charts", cookies={"session": cookie}, json=body)
         assert r.status_code == 201
     r = await client.post("/api/charts", cookies={"session": cookie}, json=body)
     assert r.status_code == 409
     err = r.json()["detail"]
     assert err["code"] == "CHART_LIMIT_EXCEEDED"
-    assert err["details"]["limit"] == 15
+    assert err["details"]["limit"] == 20
 
 
 @pytest.mark.asyncio

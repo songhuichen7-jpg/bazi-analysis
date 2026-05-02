@@ -27,11 +27,14 @@ async def db_session(database_url):
 
 @pytest_asyncio.fixture
 async def user_and_dek(db_session):
+    # NOTE: pro 档位 — 同 test_chart_service_create.py，lite 默认 chart_max=2
+    # 会让 list/sort 测试创建第 3 张时撞上限。
     from app.models.user import User
     dek = os.urandom(32)
     u = User(
         phone=f"+86138{uuid.uuid4().int % 10**8:08d}",
         dek_ciphertext=b"\x00" * 44,
+        plan="pro",
     )
     db_session.add(u)
     await db_session.flush()

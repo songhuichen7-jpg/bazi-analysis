@@ -256,12 +256,12 @@ def _find_owning_raw(quote: str, raw_hits: Sequence[dict[str, Any]]) -> int:
     """Search every raw_hit for the one whose text actually owns this quote.
     Returns the index of the matching raw, or -1 if no raw owns it.
 
-    The polisher LLM will occasionally shuffle id↔quote attributions when
-    digesting many candidates at once (we observed it citing a 滴天髓 段
-    under id=2 which is supposed to be 子平真诠). The previous code
-    treated this as a hallucinated quote and fell back to bare slicing,
-    losing the LLM's plain / match. With re-attribution we keep the
-    polish, just route it to the candidate that actually owns the text.
+    Used as a *diagnostic* for LLM mis-attributions — we don't auto-reroute
+    polished output to "true" owner because the LLM's plain / match commentary
+    references the *claimed* raw (it's discussing whatever it thought it was
+    citing). Re-routing would attach commentary about source A onto source B
+    in the UI, which is more misleading than the original mis-attribution.
+    Better to throw the bad polish away and surface the raw entry as-is.
     """
     for idx, raw in enumerate(raw_hits):
         if _quote_belongs_to_raw(quote, str(raw.get("text") or "")):
@@ -296,17 +296,23 @@ def _parse_items(
         quote = _clean_text(item.get("quote"), max_len=320)
         raw = raw_hits[idx]
         if quote and not _quote_belongs_to_raw(quote, str(raw.get("text") or "")):
-            # LLM mis-attributed the quote — search for the raw_hit that
-            # actually owns it and re-route the polish there. Falls back
-            # to the local quote slicer only if no raw owns the quote.
-            true_idx = _find_owning_raw(quote, raw_hits)
-            if true_idx < 0 or true_idx in seen:
-                fallback = _fallback_items(chart, [raw])[0]
-                out.append(fallback)
-                seen.add(idx)
-                continue
-            idx = true_idx
-            raw = raw_hits[idx]
+            # LLM 把 id↔quote 配错了：它在 id=N 下贴了一句不属于 raw[N]
+            # 文本的句子。源属性（"三命通会·卷四"这类标签）是用户面，
+            # 错挂会让人以为那本书里写了不存在的句。再加上 LLM 给的
+            # plain/match 评注是冲它"声称引用的源"写的，硬转挂到真正
+            # 拥有这句的 raw[k] 反而会把"评注 raw[N]"的话放到 raw[k]
+            # 名下，比原 mis-attribution 还要误导。
+            # 所以稳妥做法：扔掉这条 polish，回退到 raw[idx] 的本文。
+            # _find_owning_raw 仍可用作 telemetry 诊断 — 这里只参考它
+            # 输出 debug，不真去 reroute。
+            owner = _find_owning_raw(quote, raw_hits)
+            if owner >= 0:
+                # 留一行日志方便排查 LLM 习惯性把哪几本互调
+                pass  # （未接 logger 时占位，后续接 structured log）
+            fallback = _fallback_items(chart, [raw])[0]
+            out.append(fallback)
+            seen.add(idx)
+            continue
         plain = _clean_text(item.get("plain"), max_len=220)
         match = _clean_text(item.get("match"), max_len=220)
         display_text = quote or str(raw.get("text") or "").strip()

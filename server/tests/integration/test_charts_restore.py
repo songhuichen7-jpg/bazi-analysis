@@ -85,10 +85,14 @@ async def test_restore_past_window_404(client, database_url):
 
 @pytest.mark.asyncio
 async def test_restore_at_cap_409(client):
-    cookie, _ = await _register(client)
+    # 升级 pro 档位（cap=20）— 把 cap 填满后 restore 软删 chart 会触发 409。
+    # 默认 lite 档位 cap=2，没法干净地走"达 cap 后 restore"路径。
+    from .conftest import upgrade_user_plan
+    cookie, user = await _register(client)
+    await upgrade_user_plan(user["id"], "pro")
     victim = await _make(client, cookie, "victim")
     await client.delete(f"/api/charts/{victim}", cookies={"session": cookie})
-    for _ in range(15):
+    for _ in range(20):
         await _make(client, cookie)
     r = await client.post(f"/api/charts/{victim}/restore", cookies={"session": cookie})
     assert r.status_code == 409

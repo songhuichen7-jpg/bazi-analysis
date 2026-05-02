@@ -84,6 +84,24 @@ async def seed_invite_code(max_uses: int = 10) -> str:
     return invite
 
 
+async def upgrade_user_plan(user_id: str, plan: str = "pro") -> None:
+    """直接把用户 plan 升到指定档位 — 给"测命盘上限边界"这类要造 5+ 张
+    chart 的测试用。lite 默认 cap=2，跑不到正经的 cap-overflow 边界。
+
+    plan 取值参见 app/core/quotas.py CHART_MAX_BY_PLAN：
+      lite=2 / standard=5 / pro=20。
+    """
+    engine = create_async_engine(os.environ["DATABASE_URL"])
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as s:
+        await s.execute(
+            text("UPDATE users SET plan = :p WHERE id = :u"),
+            {"p": plan, "u": user_id},
+        )
+        await s.commit()
+    await engine.dispose()
+
+
 async def register_user(
     client: AsyncClient,
     phone: str,

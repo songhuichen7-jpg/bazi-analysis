@@ -35,7 +35,10 @@ async def test_list_empty(client):
 
 @pytest.mark.asyncio
 async def test_list_desc_order(client):
-    cookie, _ = await _register(client)
+    # 升级到 pro 档位 — lite 默认 cap=2，造第 3 张 chart 就 409。
+    from .conftest import upgrade_user_plan
+    cookie, user = await _register(client)
+    await upgrade_user_plan(user["id"], "pro")
     a = await _make(client, cookie, "A")
     b = await _make(client, cookie, "B")
     c = await _make(client, cookie, "C")

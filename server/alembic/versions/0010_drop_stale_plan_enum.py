@@ -54,7 +54,11 @@ def downgrade() -> None:
         "ALTER TABLE users ADD CONSTRAINT ck_users_ck_users_role_enum "
         "CHECK (role IN ('user','admin'))"
     )
-    op.execute(
-        "ALTER TABLE users ADD CONSTRAINT ck_users_ck_users_plan_enum "
-        "CHECK (plan IN ('free','pro'))"
-    )
+    # NOTE: plan 部分故意 no-op — 0010 的 upgrade 是清理 0008 留下的"双前缀
+    # 孤儿约束"，本质单向修复。要恢复"孤儿存在但被忽视"的状态做不到（要么
+    # 跟 plan_enum (lite/standard/pro) 冲突拒掉 lite 数据，要么跟 ck_users_
+    # ck_users_plan_enum (free/pro) 冲突拒掉 lite/standard 数据，无解）。
+    # 0008 的 downgrade 会负责真正把 plan 集合 + 默认值 + CHECK 全部回退
+    # 到 free/pro，那一步会处理数据 mapping 跟约束切换，所以 0010 这一步
+    # 只动 status/role 即可。
+    pass

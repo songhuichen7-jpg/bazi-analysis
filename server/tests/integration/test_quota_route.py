@@ -15,11 +15,13 @@ async def test_quota_unauthenticated_401(client):
 
 @pytest.mark.asyncio
 async def test_quota_happy(client):
+    # NOTE: migration 0008 把 plan 集合从 {free, pro} 重命名 {lite, standard, pro}，
+    # 新注册用户默认 'lite'。
     cookie, user = await register_user(client, f"+86138{uuid.uuid4().int % 10**8:08d}")
     r = await client.get("/api/quota", cookies={"session": cookie})
     assert r.status_code == 200
     body = r.json()
-    assert body["plan"] == "free"
+    assert body["plan"] == "lite"
     assert set(body["usage"].keys()) == {"chat_message","section_regen","verdicts_regen",
                                           "dayun_regen","liunian_regen","gua","sms_send"}
     for v in body["usage"].values():

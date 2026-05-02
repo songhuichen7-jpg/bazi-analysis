@@ -26,12 +26,19 @@ async def db_session(database_url):
 
 @pytest_asyncio.fixture
 async def user_and_dek(db_session):
-    """Create a fresh user with a real random DEK; yield (user, dek)."""
+    """Create a fresh user with a real random DEK; yield (user, dek).
+
+    NOTE: 钉到 pro 档位（chart_max=20）— 这一组测试目的是验"命盘上限的
+    enforcement 行为"，需要造大于 1-2 张的 chart。lite 档位 chart_max=2，
+    第 3 张就会撞上限，把 limit-enforcement 测试本身变成 limit-overflow
+    测试。pro 档给 20 张余量足够测各类边界。
+    """
     from app.models.user import User
     dek = os.urandom(32)
     u = User(
         phone=f"+86138{uuid.uuid4().int % 10**8:08d}",
         dek_ciphertext=b"\x00" * 44,  # placeholder; service uses contextvar not this
+        plan="pro",
     )
     db_session.add(u)
     await db_session.flush()
@@ -135,7 +142,10 @@ async def test_create_chart_hour_unknown(db_session, user_and_dek):
 
 
 @pytest.mark.asyncio
-async def test_create_chart_16th_raises_limit(db_session, user_and_dek):
+async def test_create_chart_over_cap_raises_limit(db_session, user_and_dek):
+    # 用户 plan=pro，chart_max=20。造满 20 张后第 21 张应抛 ChartLimitExceeded
+    # 并带 limit=20。原测试名/范围（"16th"/15 张）来自 plan 引入前的全局
+    # 15 上限——已经废弃。
     from app.db_types import user_dek_context
     from app.schemas.chart import BirthInput, ChartCreateRequest
     from app.services import chart as chart_service
@@ -146,15 +156,18 @@ async def test_create_chart_16th_raises_limit(db_session, user_and_dek):
         birth_input=BirthInput(year=1990, month=5, day=12, hour=12, gender="male"),
     )
     with user_dek_context(dek):
-        for _ in range(15):
+        for _ in range(20):
             await chart_service.create_chart(db_session, user, req)
         with pytest.raises(ChartLimitExceeded) as exc:
             await chart_service.create_chart(db_session, user, req)
-    assert exc.value.details == {"limit": 15}
+    assert exc.value.details == {"limit": 20}
 
 
 @pytest.mark.asyncio
 async def test_create_chart_soft_deleted_not_counted(db_session, user_and_dek):
+    # 软删的 chart 不计入 cap — 验在 cap 顶端发生 1 软删之后，新建仍能成功。
+    # 用户 plan=pro (cap=20)：造 20 张到顶 → 软删 1 → 第 21 次创建应该过
+    # （活跃数 19 + 1 新 = 20，没超 cap）。
     from app.db_types import user_dek_context
     from app.schemas.chart import BirthInput, ChartCreateRequest
     from app.services import chart as chart_service
@@ -165,8 +178,7 @@ async def test_create_chart_soft_deleted_not_counted(db_session, user_and_dek):
         birth_input=BirthInput(year=1990, month=5, day=12, hour=12, gender="male"),
     )
     with user_dek_context(dek):
-        # Create 15 then soft-delete 1 → 16th should succeed.
-        for _ in range(15):
+        for _ in range(20):
             await chart_service.create_chart(db_session, user, req)
         # NOTE: Postgres doesn't support UPDATE ... LIMIT; use a CTE.
         await db_session.execute(
@@ -179,6 +191,5 @@ async def test_create_chart_soft_deleted_not_counted(db_session, user_and_dek):
             {"uid": user.id},
         )
         await db_session.flush()
-        # 16th chart under active count of 14 + 1 new = 15 → still ok
         created, _ = await chart_service.create_chart(db_session, user, req)
     assert created.deleted_at is None

@@ -26,11 +26,13 @@ async def db_session(database_url):
 
 @pytest_asyncio.fixture
 async def user_and_dek(db_session):
+    # NOTE: pro 档位 — write 测试要造 15+ 张 chart 验 cap，lite 默认 2 张就上限。
     from app.models.user import User
     dek = os.urandom(32)
     u = User(
         phone=f"+86138{uuid.uuid4().int % 10**8:08d}",
         dek_ciphertext=b"\x00" * 44,
+        plan="pro",
     )
     db_session.add(u)
     await db_session.flush()
@@ -189,7 +191,9 @@ async def test_restore_beyond_window_404(db_session, user_and_dek):
 
 
 @pytest.mark.asyncio
-async def test_restore_at_15_cap_raises(db_session, user_and_dek):
+async def test_restore_at_cap_raises(db_session, user_and_dek):
+    # 用户 plan=pro (cap=20)：cap 已满时 restore 软删的 chart 应抛 cap 错。
+    # 原命名 "_at_15_cap_raises" 来自 plan 引入前的全局 15 上限。
     from app.db_types import user_dek_context
     from app.services import chart as chart_service
     from app.services.exceptions import ChartLimitExceeded
@@ -197,10 +201,10 @@ async def test_restore_at_15_cap_raises(db_session, user_and_dek):
     with user_dek_context(dek):
         victim = await _make_chart(db_session, user, label="victim")
         await chart_service.soft_delete(db_session, user, victim.id)
-        # Fill up 15 active after the soft-delete
-        for _ in range(15):
+        # Fill up cap (20 for pro) active after the soft-delete
+        for _ in range(20):
             await _make_chart(db_session, user)
-        # Restore would make 16 active → 409
+        # Restore would make 21 active → 409
         with pytest.raises(ChartLimitExceeded):
             await chart_service.restore(db_session, user, victim.id)
 

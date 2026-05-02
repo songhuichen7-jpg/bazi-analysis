@@ -34,9 +34,11 @@ async def user(db_session):
 
 @pytest.mark.asyncio
 async def test_snapshot_empty_returns_all_kinds_used_0(db_session, user):
+    # NOTE: migration 0008 把 plan 集合从 {free, pro} 重命名成
+    # {lite, standard, pro}，新用户默认 'lite'。这条测试当时没改。
     from app.services.quota import get_snapshot
     snap = await get_snapshot(db_session, user)
-    assert snap.plan == "free"
+    assert snap.plan == "lite"
     assert set(snap.usage.keys()) == {"chat_message","section_regen","verdicts_regen",
                                        "dayun_regen","liunian_regen","gua","sms_send"}
     for u in snap.usage.values():

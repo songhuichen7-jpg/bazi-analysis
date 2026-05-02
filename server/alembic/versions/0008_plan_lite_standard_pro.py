@@ -49,10 +49,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # 顺序很关键：必须先 DROP 现行的 plan_enum (lite/standard/pro) 约束，
+    # 才能 UPDATE 把 lite/standard → free（不然 'free' 不在新枚举里立即违
+    # 反约束被拒）。原版"先 UPDATE 后 DROP"在 DB 里实际没 lite 行的环境
+    # 蒙混过去，但 testcontainers 跑过 register_user 之后会撞到。
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS plan_enum")
     # 把 lite / standard 都映射回 free（pro 维持）— 不可逆地丢失档位差异。
     op.execute("UPDATE users SET plan = 'free' WHERE plan IN ('lite','standard')")
     op.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'free'")
-    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS plan_enum")
     op.execute(
         "ALTER TABLE users "
         "ADD CONSTRAINT plan_enum "

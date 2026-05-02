@@ -52,6 +52,12 @@ def downgrade() -> None:
     op.drop_column("users", "guest_token")
 
     op.drop_constraint("ck_chart_cache_kind_enum", "chart_cache", type_="check")
+    # 数据迁移要在加 CHECK 之前 — 上线后 chart_cache 已经写入了 kind='classics'
+    # 行（GET /charts/{id}/classics 第一次访问就缓存）。直接 ADD CHECK 不
+    # 含 classics 会被现有 classics 行违反约束 → ALTER TABLE 拒掉。
+    # 安全 fallback：把 classics 行直接删掉（缓存层数据，可重建，不会丢
+    # 业务）。
+    op.execute("DELETE FROM chart_cache WHERE kind = 'classics'")
     op.create_check_constraint(
         "ck_chart_cache_kind_enum",
         "chart_cache",

@@ -12,7 +12,10 @@ async def test_config_shape(client):
     assert set(body.keys()) == {"require_invite", "engine_version", "max_charts_per_user", "guest_login_enabled"}
     assert isinstance(body["require_invite"], bool)
     assert body["guest_login_enabled"] is True
-    assert body["max_charts_per_user"] == 15
+    # NOTE: max_charts_per_user 之前是全局 15；Plan 5 之后改成 plan-tiered，
+    # /api/config 在没有 user 上下文时（公共路由，未鉴权）返回 lite 默认 2。
+    # 同 server/app/core/quotas.py:MAX_CHARTS_PER_USER。
+    assert body["max_charts_per_user"] == 2
     import paipan
     assert body["engine_version"] == paipan.VERSION
 

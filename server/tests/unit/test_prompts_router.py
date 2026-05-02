@@ -17,11 +17,15 @@ from app.prompts.router import (
 
 
 def test_intents_list_complete():
+    # NOTE: "media" 是后加的 intent — "用一首歌/电影/书形容我" 类比喻题
+    # 走这个标签，前端把答里的 [[song:...]] / [[movie:...]] / [[book:...]]
+    # token 渲染成媒体卡片。当时 INTENTS 加了 media 但这条测试没改。
     expected = {
         "relationship", "career", "wealth", "timing",
         "personality", "health", "meta", "chitchat", "other",
         "dayun_step", "liunian", "appearance", "special_geju",
         "divination",
+        "media",
     }
     assert set(INTENTS) == expected
 

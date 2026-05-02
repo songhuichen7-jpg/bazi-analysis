@@ -40,13 +40,15 @@ def test_quota_kind_usage_shape():
 
 
 def test_quota_response_accepts_all_7_kinds():
+    # NOTE: migration 0008 / schemas/quota.py — plan 是 {lite, standard, pro}，
+    # 旧名 "free" 在 0010 已经从 DB CHECK 移除。
     from app.schemas.quota import QuotaResponse, QuotaKindUsage
     from datetime import datetime, timezone
     now = datetime.now(tz=timezone.utc)
     kinds = ("chat_message","section_regen","verdicts_regen",
              "dayun_regen","liunian_regen","gua","sms_send")
     usage = {k: QuotaKindUsage(used=0, limit=1, resets_at=now) for k in kinds}
-    r = QuotaResponse(plan="free", usage=usage)
+    r = QuotaResponse(plan="lite", usage=usage)
     assert set(r.usage.keys()) == set(kinds)
 
 

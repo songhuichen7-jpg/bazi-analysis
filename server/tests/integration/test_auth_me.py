@@ -21,7 +21,16 @@ async def test_me_returns_current_user(client):
     assert r.status_code == 200
     body = r.json()
     assert body["user"]["id"] == user["id"]
-    assert body["quota_snapshot"] == {}
+    # NOTE: 早期 /me 返 quota_snapshot={} 占位；Plan 5 之后 me_endpoint 真实
+    # 跑 get_snapshot 把当日 quota 一次性塞回来（省用户中心首次打开多一次
+    # round-trip）。这里改成验结构而非空 dict。
+    snap = body["quota_snapshot"]
+    assert snap["plan"] in {"lite", "standard", "pro"}
+    assert "usage" in snap
+    assert set(snap["usage"].keys()) == {
+        "chat_message", "section_regen", "verdicts_regen",
+        "dayun_regen", "liunian_regen", "gua", "sms_send",
+    }
 
 
 @pytest.mark.asyncio

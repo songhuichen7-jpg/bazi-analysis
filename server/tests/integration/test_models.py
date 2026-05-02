@@ -33,6 +33,8 @@ def test_dek() -> bytes:
 
 async def test_insert_user(db_session: AsyncSession):
     """users.dek_ciphertext is LargeBinary (KEK-wrapped) — no DEK context needed."""
+    # NOTE: migration 0008 — plan 集合从 {free, pro} → {lite, standard, pro}，
+    # 新用户 server_default 是 'lite'。
     from app.models import User
     u = User(phone="+8613800000001", dek_ciphertext=b"\x00" * 44)
     db_session.add(u)
@@ -40,7 +42,7 @@ async def test_insert_user(db_session: AsyncSession):
     assert u.id is not None
     assert u.status == "active"
     assert u.role == "user"
-    assert u.plan == "free"
+    assert u.plan == "lite"
 
 
 async def test_insert_chart_with_fk_user(db_session: AsyncSession, test_dek):
