@@ -601,6 +601,16 @@
   background: rgba(255, 255, 255, 0.11);
 }
 
+/* Landing 是预览上下文 — book 卡片在 chat 里有"豆瓣搜索"CTA,但首页
+ * 三张氛围卡 (weather/scent/book) 应该是同一种语言:封面 + 题目 + 副题。
+ * 把 book 的 CTA 也隐掉,跟 weather/scent 视觉权重对齐。*/
+.landing-play-card .media-card-book .media-card-cta {
+  display: none;
+}
+.landing-play-card .media-card-book {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+
 .landing-play-gua {
   width: 100%;
   padding: 14px 16px;

@@ -124,9 +124,9 @@ const PLAY_CARDS = [
     kind: 'book',
     mark: 'BOOK',
     prompt: '推荐一本书让我读懂自己。',
-    title: '瓦尔登湖',
-    subtitle: '亨利·梭罗',
-    note: '不是标准书单，是把此刻的你递给一页文字。',
+    title: '传道书',
+    subtitle: '凡事都有定时',
+    note: '「有时」二字也是从这一段里取来。',
   },
 ];
 
