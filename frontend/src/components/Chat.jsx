@@ -73,15 +73,18 @@ function ThinkingIndicator({ trace }) {
     }
   }
   // Step 3: model
+  // 一旦进入 streaming / 已有输出，"调用模型中" 就被 "正在回复" 吃掉 —
+  // 否则 model 名字还没从 SSE meta 里解析出来时两条 active 会同时挂着。
+  const streamingStarted = hasOutput || phase === 'streaming';
   if (!redirected) {
     if (model) {
       steps.push({
         key: 'model',
-        state: hasOutput ? 'done' : 'done',
+        state: 'done',
         label: '起笔',
         detail: model,
       });
-    } else if (trace?.hasRetrieval || skipRetrieval) {
+    } else if ((trace?.hasRetrieval || skipRetrieval) && !streamingStarted) {
       steps.push({
         key: 'model',
         state: 'active',
