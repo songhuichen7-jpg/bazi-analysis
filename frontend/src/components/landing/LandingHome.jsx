@@ -13,7 +13,7 @@
 // 设计语言: 超大宋体衬线 (Songti SC) + 黑/暖灰为主 + 暖米底 + 大留白.
 // 卡片本身保留产品标志性的暖色, 但页面 chrome 几乎是黑白灰.
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore.js';
 import { cardIllustrationSrc } from '../../lib/cardArt.js';
@@ -223,10 +223,15 @@ export function LandingHome() {
   const [nextIdx, setNextIdx] = useState(0);
   const [displayIdx, setDisplayIdx] = useState(0);
   const [phase, setPhase] = useState('in');
+  // 滚动期间暂停 hero 轮播 — 让出主线程给 rAF,避免重渲染抢帧。
+  const isScrollingRef = useRef(false);
 
   useEffect(() => {
     const id = setInterval(
-      () => setNextIdx(i => (i + 1) % HERO_SCENES.length),
+      () => {
+        if (isScrollingRef.current) return;
+        setNextIdx(i => (i + 1) % HERO_SCENES.length);
+      },
       HERO_SCENE_INTERVAL_MS,
     );
     return () => clearInterval(id);
@@ -253,27 +258,43 @@ export function LandingHome() {
 
   // 滚到第一个介绍 section (二十种人格)。
   //
-  // 三版迭代终于定位到根因:
-  //   v1 ease-in-out cubic    → "生硬",头部 4t³ 几乎不动
-  //   v2 easeOutQuint         → "卡顿",头部速度峰值=5 burst 后蜗行
-  //   v3 cubic-bezier 自定义  → "掉帧",rAF + window.scrollTo 在主
-  //                              线程跟 hero scene 轮播 + persona
-  //                              marquee 抢资源,主线程一卡帧就丢
-  //
-  // 真正的修法是把动画从主线程挪到合成线程 — 用浏览器原生的
-  // scrollIntoView({ behavior: 'smooth' }):
-  // - 浏览器在 compositor 上做插值,跟 React 重渲染并行
-  // - 主线程再忙都不会丢帧
-  // - 时长由距离自适应 (Chrome ~400ms 短跳, 800ms+ 远跳),刚好
-  //   够"被引导"的体感,不需要手动调 1.x 秒
-  //
-  // 落点偏移走 CSS scroll-margin-top (在 #intro 上声明 24px),
-  // 这样原生 smooth 也能在 section 顶上方留透气。
-  // reduced-motion 偏好下原生 smooth 自动退化为 instant,无需 JS 兜底。
+  // 演化:
+  //   v1-v3 自定义 rAF → 都因为主线程被 hero 轮播 / 重渲染抢占而掉帧;
+  //   v4 原生 scrollIntoView smooth → 合成线程跑不丢帧,但时长由
+  //      浏览器决定,Chrome 默认偏快 (~400ms),想慢一点没接口;
+  //   v5 (本次) — rAF + 滚动期间暂停 hero 轮播。
+  //   isScrollingRef 在 setInterval 里被检查,滚动那 1.3s 内 hero
+  //   不再 setNextIdx → 不再触发 React 重渲染 → 主线程腾出来给 rAF。
+  //   easing 用 easeOutCubic (vel(0)=3, 平滑减速),duration 1.3s,
+  //   够慢但不拖。reduced-motion 偏好下退回 instant。
   function scrollToIntro() {
     const target = document.getElementById('intro');
     if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const top = target.getBoundingClientRect().top + window.scrollY - 24;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      window.scrollTo(0, top);
+      return;
+    }
+    const startY = window.scrollY;
+    const distance = top - startY;
+    if (Math.abs(distance) < 4) return;
+    isScrollingRef.current = true;
+    const duration = 1300;
+    const startTime = performance.now();
+    // easeOutCubic — 起步速度=3 (够快不感觉滞后),持续平滑减速到 0
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    function tick(now) {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      window.scrollTo(0, startY + distance * ease(t));
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        isScrollingRef.current = false;
+      }
+    }
+    requestAnimationFrame(tick);
   }
 
   // 返客 vs 新人分流:
