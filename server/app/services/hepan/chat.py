@@ -13,13 +13,13 @@ LLM 已经"知道"这段关系，不需要用户每次重新解释背景。
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import AsyncIterator, Optional
 
 from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.distributed_lock import LockBusyError, named_lock
 from app.llm.client import chat_stream_with_fallback
 from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
@@ -35,17 +35,9 @@ from app.services.hepan.mapping import (
 
 
 # 同一个 hepan slug 同时只允许一条 stream — 跟 conversation_chat 同款防护。
-# 创建者只有 1 个，跨标签发同一条 hepan chat 的概率不大，但万一中招 DB
-# 会写入错位的消息序列。in-memory 进程级锁，单 worker 完美防护。
-_SLUG_LOCKS: dict[str, asyncio.Lock] = {}
-
-
-def _slug_lock(slug: str) -> asyncio.Lock:
-    lock = _SLUG_LOCKS.get(slug)
-    if lock is None:
-        lock = asyncio.Lock()
-        _SLUG_LOCKS[slug] = lock
-    return lock
+# 创建者只有 1 个,跨标签发同一条 hepan chat 的概率不大,但万一中招 DB
+# 会写入错位的消息序列。锁实现走 app.core.distributed_lock,Redis 可用
+# 时跨 worker 共享。
 
 
 # 上下文里塞多少历史消息进 LLM。再老的对话由 LLM 用 reading 兜底，
@@ -138,18 +130,17 @@ async def stream_chat(
     成一条 interrupted=True 的 assistant 行 — 用户在屏幕上看到过的内容
     不会因为关页/网络断而丢。
     """
-    lock = _slug_lock(invite.slug)
-    if lock.locked():
+    try:
+        async with named_lock(f"hepan:{invite.slug}", ttl=180):
+            async for chunk in _stream_chat_locked(db, user, invite, user_message, ticket=ticket):
+                yield chunk
+    except LockBusyError:
         yield sse_pack({
             "type": "error",
             "code": "CONVERSATION_BUSY",
-            "message": "这条合盘对话另一个回答正在生成中，请等它完成或停止后再发。",
+            "message": "这条合盘对话另一个回答正在生成中,请等它完成或停止后再发。",
         })
         return
-
-    async with lock:
-        async for chunk in _stream_chat_locked(db, user, invite, user_message, ticket=ticket):
-            yield chunk
 
 
 async def _stream_chat_locked(

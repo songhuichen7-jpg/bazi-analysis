@@ -102,6 +102,21 @@ class Settings(BaseSettings):
     # 0 = 完全不挂 middleware（test / 极端场景）
     rate_limit_enabled: bool = True
 
+    # ── Redis（可选）──────────────────────────────────────────────────
+    # 设了走 Redis 共享 rate-limit + 跨 worker 锁;不设走 in-memory,
+    # 跟之前一致。生产多 worker 必须设;本地 dev / 单 worker prod 都
+    # 可以留空。例: REDIS_URL=redis://localhost:6379/0
+    redis_url: str = ""
+
+    # ── DB 连接池 ─────────────────────────────────────────────────────
+    # 默认 5 + 10 (单 worker dev 够);生产多 worker 推荐 20 + 30 (50 总
+    # 连接 / worker)。每条 SSE 流持有一条连接到 stream 完成 — 想支持
+    # N 个并发聊天 + M 个普通 API,池要 ≥ N+M。
+    # PG 端 max_connections 默认 100,部署时算 (worker 数 × pool 总数)
+    # 不要超过该值的 70%,留出 monitoring/migration 等连接。
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+
     @property
     def mimo_api_key(self) -> str:
         """Backward-compatible alias for older call sites and docs."""

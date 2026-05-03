@@ -20,6 +20,10 @@ dependencies = [
     "zhconv>=1.4",
     "colorthief>=0.2.1",
     "uvicorn>=0.46.0",
+    # 可选 — 设了 REDIS_URL 才用。多 worker 部署下做共享 rate-limit
+    # + 跨进程 conv/hepan 锁;没设(本地 dev / 单 worker prod)自动退回
+    # in-memory 实现,行为不变。
+    "redis>=5.0",
 ]
 
 [project.optional-dependencies]

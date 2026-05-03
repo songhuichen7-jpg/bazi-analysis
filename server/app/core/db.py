@@ -26,12 +26,18 @@ def create_engine_from_settings(url: str | None = None, **kwargs: Any) -> AsyncE
         url: overrides ``settings.database_url`` (used by tests).
         **kwargs: merged into engine kwargs.
 
-    Default pool config: 5 + 10, pre-ping on.
+    pool 默认 5 + 10 (单 worker dev 友好);生产多 worker 部署应该按
+    "(同时活跃 SSE 数 + 留 spare 给短 API)/worker 数" 估算,典型 prod
+    值 pool_size=20 + max_overflow=30 = 50 总连接 / worker。设环境变量
+    DB_POOL_SIZE / DB_MAX_OVERFLOW 即可调整,不用改代码。
     """
     defaults = {
         "pool_pre_ping": True,
-        "pool_size": 5,
-        "max_overflow": 10,
+        "pool_size": settings.db_pool_size,
+        "max_overflow": settings.db_max_overflow,
+        # idle 连接闲置 30 分钟回收 — 防止 PG 那边 idle_in_transaction
+        # 或者 cloud PG 5-15 分钟自动断开导致下次拿到失效连接。
+        "pool_recycle": 1800,
     }
     defaults.update(kwargs)
     return create_async_engine(url or str(settings.database_url), **defaults)

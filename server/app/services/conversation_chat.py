@@ -4,7 +4,6 @@ Pattern mirrors app.services.chart_llm.stream_chart_llm: commit-before-done.
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import AsyncIterator
 from uuid import UUID
@@ -12,6 +11,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.distributed_lock import LockBusyError, named_lock
 from app.llm.client import chat_stream_with_fallback
 from app.llm.events import sse_pack
 from app.llm.logs import insert_llm_usage_log
@@ -26,22 +26,16 @@ from app.services.exceptions import UpstreamLLMError
 from app.services.quota import QuotaTicket
 
 
-# 跨标签 / 跨请求并发保护：同一个 conversation_id 同一时间只允许一条
-# stream 在跑。多标签场景（用户两标签同时发同一 conv 的消息）以前会
-# 在服务端交错插 user/assistant 行，DB 里就出现 [u1, u2, a2, a1] 这种
-# 错位顺序。锁是 in-memory 进程级 — 单 worker 完美防护，多 worker 兜
-# 不住但场景非常少见（同一用户跨标签发同一对话，且两个请求落到不同
-# worker 上）。要做到完美需要 redis lock 或 db row lock，复杂度跟价
-# 值不成比例，先用 asyncio.Lock 就够。
-_CONV_LOCKS: dict[UUID, asyncio.Lock] = {}
-
-
-def _conv_lock(conversation_id: UUID) -> asyncio.Lock:
-    lock = _CONV_LOCKS.get(conversation_id)
-    if lock is None:
-        lock = asyncio.Lock()
-        _CONV_LOCKS[conversation_id] = lock
-    return lock
+# 跨标签 / 跨请求并发保护:同一个 conversation_id 同一时间只允许一条
+# stream 在跑。多标签场景(用户两标签同时发同一 conv 的消息)以前会
+# 在服务端交错插 user/assistant 行,DB 里就出现 [u1, u2, a2, a1] 这种
+# 错位顺序。
+#
+# 锁实现走 app.core.distributed_lock — Redis 可用时跨 worker 共享 (生
+# 产多 worker 部署的正确语义),不可用时退化到 in-memory asyncio.Lock
+# (本地 dev / 单 worker prod 行为跟改造前一致)。
+# TTL 设 180s — 比最长合理 stream 时长稍宽,worker 崩溃也能在 3 分钟内
+# 自动释放,不会出现"锁泄露用户永远发不出消息"。
 
 
 async def stream_message(
@@ -51,24 +45,23 @@ async def stream_message(
     client_context: dict | None = None,
 ) -> AsyncIterator[bytes]:
     """Generator yielding SSE-encoded bytes. NOTE: spec §5."""
-    lock = _conv_lock(conversation_id)
-    if lock.locked():
-        # 已经有一条 stream 在跑这个 conv — 拒绝并发，避免 DB 错位写入
+    try:
+        async with named_lock(f"conv:{conversation_id}", ttl=180):
+            async for chunk in _stream_message_locked(
+                db=db, user=user, conversation_id=conversation_id,
+                chart=chart, message=message,
+                bypass_divination=bypass_divination,
+                ticket=ticket, client_context=client_context,
+            ):
+                yield chunk
+    except LockBusyError:
+        # 已经有一条 stream 在跑这个 conv — 拒绝并发,避免 DB 错位写入
         yield sse_pack({
             "type": "error",
             "code": "CONVERSATION_BUSY",
-            "message": "这条对话另一个回答正在生成中，请等它完成或停止后再发。",
+            "message": "这条对话另一个回答正在生成中,请等它完成或停止后再发。",
         })
         return
-
-    async with lock:
-        async for chunk in _stream_message_locked(
-            db=db, user=user, conversation_id=conversation_id,
-            chart=chart, message=message,
-            bypass_divination=bypass_divination,
-            ticket=ticket, client_context=client_context,
-        ):
-            yield chunk
 
 
 async def _stream_message_locked(
