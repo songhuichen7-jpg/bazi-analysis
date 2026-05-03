@@ -18,8 +18,8 @@ export function RefChip({ id, label }) {
   );
 }
 
-/** Render a string that may contain [[ref|label]] or [[song:…|…]] markers
- *  as a mix of text + RefChip + MediaCard.
+/** Render a string that may contain [[ref|label]] or artifact markers
+ *  ([[song:…]], [[weather:…]], etc.) as a mix of text + RefChip + MediaCard.
  *  ``context`` (e.g. the preceding user question) lets parseRef rescue
  *  《XX》 → media token when the question was "用一首歌/一部电影/一本书 形容…"
  *  but the LLM fell back to 书名号 instead of the structured token. */

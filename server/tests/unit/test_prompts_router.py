@@ -40,6 +40,9 @@ def test_intents_list_complete():
     ("七杀是啥意思", "meta"),
     ("我这个人是不是太敏感", "personality"),
     ("最近压力大失眠", "health"),
+    ("用一种天气形容我现在的状态", "media"),
+    ("用一种气味形容我这盘", "media"),
+    ("用香水形容我的关系模式", "media"),
 ])
 def test_classify_by_keywords_priority(text, expected_intent):
     r = classify_by_keywords(text)
@@ -56,6 +59,13 @@ def test_classify_by_keywords_chitchat_only_when_short():
     long_msg = "你好我想问问我的事业方向"
     r = classify_by_keywords(long_msg)
     assert r is None or r["intent"] != "chitchat"
+
+
+def test_media_keywords_require_an_explicit_artifact_kind():
+    """防误触发：普通"形容我"应回到性格，不要因为泛词直接出卡片。"""
+    r = classify_by_keywords("形容一下我的性格")
+    assert r is not None
+    assert r["intent"] == "personality"
 
 
 def test_classify_by_keywords_no_match_returns_none():

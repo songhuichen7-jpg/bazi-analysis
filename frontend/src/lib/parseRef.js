@@ -2,12 +2,15 @@ import { useAppStore } from '../store/useAppStore.js';
 
 // Two token shapes share the [[…]] syntax:
 //   [[ref.id|label]]                 — chart-internal cross-references
-//   [[song:title|subtitle?]]         — pop-culture media cards (song / movie / book)
+//   [[song:title|subtitle?]]         — answer artifact cards
 //   [[movie:title|director?]]
 //   [[book:title|author?]]
-// Subtitle is optional for media tokens (artist/director/author can be absent
-// when the LLM isn't sure).
-const TOKEN_RE = /\[\[(?:(song|movie|book):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]/g;
+//   [[weather:name|subtitle?]]
+//   [[scent:name|notes?]]
+// Subtitle is optional for artifact tokens (artist/director/author/notes can be
+// absent when the LLM isn't sure).
+const ARTIFACT_KINDS = 'song|movie|book|weather|scent';
+const TOKEN_RE = new RegExp(String.raw`\[\[(?:(${ARTIFACT_KINDS}):([^|\]]+)(?:\|([^\]]+))?|([\w.一-鿿]+)\|([^\]]+))\]\]`, 'g');
 // Media cards render as their own paragraph; the LLM almost always wraps
 // them in \n\n which our pre-wrap parent renders as visible blank lines,
 // stacking on top of the card's own margin. Strip the surrounding
@@ -30,9 +33,9 @@ const FIXUP_PATTERNS = [
       return id ? `[[${id}|${label}]]` : _m;
     },
   },
-  // Single-bracket media token: [song:歌|艺] → [[song:歌|艺]]
+  // Single-bracket artifact token: [song:歌|艺] → [[song:歌|艺]]
   {
-    re: /(^|[^[])\[(song|movie|book):([^|\]]+)(?:\|([^\]]+))?](?!])/g,
+    re: /(^|[^[])\[(song|movie|book|weather|scent):([^|\]]+)(?:\|([^\]]+))?](?!])/g,
     repl: (_m, head, kind, title, sub) =>
       `${head}[[${kind}:${title}${sub ? '|' + sub : ''}]]`,
   },
@@ -55,6 +58,8 @@ function inferMediaKind(context) {
   if (/(一首|一支)?\s*(歌|曲)/.test(c)) return 'song';
   if (/(一部|一本)?\s*(电影|影片|片|纪录片|剧)/.test(c)) return 'movie';
   if (/(一本)?\s*(书|小说|散文|诗集|诗)/.test(c)) return 'book';
+  // 天气 / 气味不做 《XX》 rescue：日常回答里这些词太常见，必须由 LLM
+  // 明确输出 [[weather:...]] / [[scent:...]] 才渲染，避免误触发。
   return null;
 }
 

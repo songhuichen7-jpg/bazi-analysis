@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.admin import router as admin_router
@@ -97,6 +98,32 @@ app = FastAPI(
     docs_url="/api/docs" if settings.env == "dev" else None,
     redoc_url=None,
 )
+
+# ── CORS ──────────────────────────────────────────────────────────────
+# 同源部署（nginx 反代前后端到同一 origin）→ settings.cors_origins 留空
+# 不挂 middleware，省一份开销 + 减少调试时的"为什么 OPTIONS 也走 ASGI"
+# 困扰。跨域部署填 cors_origins 逗号分隔列表。
+if settings.cors_origins:
+    _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    if _origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=_origins,
+            allow_credentials=True,   # cookie auth 需要
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+            expose_headers=["Retry-After"],
+        )
+
+# ── 全局 API rate-limit（in-memory 滑动窗口） ────────────────────────
+# 优先级 < CORS（middleware 添加顺序倒过来生效），意思是 CORS 先匹配，
+# 然后到 rate-limit。避免预检 OPTIONS 直接撞 429。
+if settings.rate_limit_enabled:
+    from app.core.rate_limit import RateLimitMiddleware
+    app.add_middleware(
+        RateLimitMiddleware,
+        limit_per_minute=settings.rate_limit_per_minute,
+    )
 
 _CARDS_DATA_DIR = Path(__file__).parent / "data" / "cards"
 app.mount(

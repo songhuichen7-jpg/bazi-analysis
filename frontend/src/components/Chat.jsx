@@ -11,6 +11,7 @@ import { buildChatWorkspace, mergePromptChips } from '../lib/chatWorkspace';
 import { buildChatClientContext } from '../lib/chatClientContext';
 import { applyChatProgressEvent, createChatProgress, intentLabel } from '../lib/chatProgress';
 import { PROMPT_EXAMPLES, PROMPT_ROTATE_INTERVAL_MS } from '../lib/chatPromptExamples';
+import { devLog } from '../lib/devLog';
 
 /** Compact phase-aware progress: shows real backend SSE events as a vertical
  *  step list (intent → retrieval → model → streaming). Each step appears
@@ -530,7 +531,7 @@ export default function Chat() {
     const q = String(text ?? inputRef.current?.value ?? input).trim();
     if (!q || chatStreaming || guaStreaming) return;
     const sendStartedAt = Date.now();
-    console.log(`[chat] send:start retry=${retry} at=${sendStartedAt}`);
+    devLog(`[chat] send:start retry=${retry} at=${sendStartedAt}`);
     setChatError(null);
 
     if (!llmEnabled) {
@@ -546,9 +547,9 @@ export default function Chat() {
       return;
     }
 
-    console.log(`[chat] ensureConversation:start dt=0ms`);
+    devLog(`[chat] ensureConversation:start dt=0ms`);
     const convId = await ensureConversationId();
-    console.log(`[chat] ensureConversation:ready conv=${convId || 'none'} dt=${Date.now() - sendStartedAt}ms`);
+    devLog(`[chat] ensureConversation:ready conv=${convId || 'none'} dt=${Date.now() - sendStartedAt}ms`);
     if (retry) {
       replaceLastAssistant('');
     } else {
@@ -568,7 +569,7 @@ export default function Chat() {
     beginTrace();
     const controller = bindStreamController();
     try {
-      console.log(`[chat] stream:start conv=${convId} dt=${Date.now() - sendStartedAt}ms`);
+      devLog(`[chat] stream:start conv=${convId} dt=${Date.now() - sendStartedAt}ms`);
       await streamMessage(convId, { message: q, bypass_divination: false, client_context: clientContext }, {
         signal: controller.signal,
         onDelta: (_t, running) => {
@@ -578,7 +579,7 @@ export default function Chat() {
         },
         onIntent: (intent, reason, source) =>
         {
-          console.log(`[chat] intent=${intent} reason=${reason} source=${source}`);
+          devLog(`[chat] intent=${intent} reason=${reason} source=${source}`);
           updateTrace({ type: 'intent', intent, reason, source });
         },
         onRedirect: (to, redirQ) => {
@@ -587,11 +588,11 @@ export default function Chat() {
           forceFollowNextRender();
         },
         onModel: (m) => {
-          console.log('[chat] modelUsed=' + m);
+          devLog('[chat] modelUsed=' + m);
           updateTrace({ type: 'model', modelUsed: m });
         },
         onRetrieval: (src) => {
-          console.log('[chat] retrieval=' + src);
+          devLog('[chat] retrieval=' + src);
           updateTrace({ type: 'retrieval', source: src });
         },
         onDone: (full) => {
@@ -641,7 +642,7 @@ export default function Chat() {
           updateLastGuaCard(running, false);
           forceFollowNextRender();
         },
-        onModel: (m) => console.log('[gua] model=' + m),
+        onModel: (m) => devLog('[gua] model=' + m),
       });
       const finalBody = final || runningBody;
       updateLastGuaCard(finalBody, true);
@@ -687,15 +688,15 @@ export default function Chat() {
           updateTrace({ type: 'delta' });
         },
         onIntent: (intent, reason, source) => {
-          console.log(`[chat] analyze intent=${intent} reason=${reason} source=${source}`);
+          devLog(`[chat] analyze intent=${intent} reason=${reason} source=${source}`);
           updateTrace({ type: 'intent', intent, reason, source });
         },
         onModel: (m) => {
-          console.log('[chat] analyze model=' + m);
+          devLog('[chat] analyze model=' + m);
           updateTrace({ type: 'model', modelUsed: m });
         },
         onRetrieval: (src) => {
-          console.log('[chat] retrieval=' + src);
+          devLog('[chat] retrieval=' + src);
           updateTrace({ type: 'retrieval', source: src });
         },
         onDone: (full) => {

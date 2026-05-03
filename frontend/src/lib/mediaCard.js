@@ -1,14 +1,16 @@
-/** Helpers for rendering pop-culture media cards (song / movie / book).
+/** Helpers for rendering answer artifact cards.
  *
  *  - Search jump URLs (网易云 / 豆瓣)
- *  - Cover fetch via backend /api/media/cover (only for songs in Phase 2;
- *    movies and books fall back to icon-only cards).
+ *  - Cover fetch via backend /api/media/cover for songs / movies.
+ *  - Weather and scent are local semantic cards; they never hit external APIs.
  */
 
 export const MEDIA_LABELS = {
   song: '歌曲',
   movie: '电影',
   book: '书籍',
+  weather: '天气',
+  scent: '气味',
 };
 
 export function buildSearchUrl(kind, title, subtitle) {
@@ -38,7 +40,7 @@ export function buildSearchUrl(kind, title, subtitle) {
 const coverCache = new Map();
 
 /** Fetch a media cover (url + dominant colors + optional year) from the backend.
- *  Supports ``kind`` ∈ { song, movie }. Books fall back to the icon-only card.
+ *  Supports ``kind`` ∈ { song, movie }. Other card kinds fall back locally.
  *  Returns null on any failure so the caller can render the icon-only fallback.
  *  Memoised across the session so repeated mentions don't re-hit the backend. */
 export async function fetchMediaCover(kind, title, subtitle) {

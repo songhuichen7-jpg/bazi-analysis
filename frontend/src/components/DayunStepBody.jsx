@@ -6,6 +6,7 @@ import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import { buildDayunPanel } from '../lib/timingPanels';
+import { devLog } from '../lib/devLog';
 
 function isAbort(e) {
   return e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || e));
@@ -63,8 +64,8 @@ export default function DayunStepBody({ idx }) {
           signal: controller.signal,
           // 实时把 delta 写进 text — 字逐段冒出来
           onDelta: (_t, running) => { if (!cancelled) setText(running); },
-          onModel: (model) => console.log('[dayun-step] modelUsed=' + model),
-          onRetrieval: (source) => console.log('[dayun-step] retrieval=' + source),
+          onModel: (model) => devLog('[dayun-step] modelUsed=' + model),
+          onRetrieval: (source) => devLog('[dayun-step] retrieval=' + source),
         });
         if (cancelled) return;
         if (!full.trim()) throw new Error('empty response');

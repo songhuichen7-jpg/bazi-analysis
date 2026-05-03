@@ -5,6 +5,7 @@ import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
 import { buildLiunianPanel } from '../lib/timingPanels';
+import { devLog } from '../lib/devLog';
 
 function isAbort(e) {
   return e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || e));
@@ -57,8 +58,8 @@ export default function LiunianBody({ dayunIdx, yearIdx }) {
         const full = await streamLiunian(currentId, { dayun_index: dayunIdx, year_index: yearIdx }, {
           signal: controller.signal,
           onDelta: (_t, running) => { if (!cancelled) setText(running); },
-          onModel: (model) => console.log('[liunian] modelUsed=' + model),
-          onRetrieval: (source) => console.log('[liunian] retrieval=' + source),
+          onModel: (model) => devLog('[liunian] modelUsed=' + model),
+          onRetrieval: (source) => devLog('[liunian] retrieval=' + source),
         });
         if (cancelled) return;
         if (!full.trim()) throw new Error('empty response');

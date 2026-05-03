@@ -507,13 +507,14 @@
 
 .landing-play-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
   margin-top: 54px;
   text-align: left;
 }
 
 .landing-play-card {
+  grid-column: span 2;
   min-width: 0;
   min-height: 314px;
   display: flex;
@@ -598,6 +599,80 @@
   padding: 5px 8px;
   font-size: 10.5px;
   background: rgba(255, 255, 255, 0.11);
+}
+
+.landing-visual-artifact {
+  width: 100%;
+  min-height: 136px;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 11px;
+  border: 1px solid rgba(38, 32, 24, 0.14);
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow:
+    0 18px 32px rgba(31, 24, 18, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  overflow: hidden;
+}
+
+.landing-visual-artifact img {
+  width: 104px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 7px;
+  display: block;
+  filter: saturate(1.02) contrast(1.02);
+  box-shadow: 0 12px 22px rgba(34, 30, 24, 0.14);
+}
+
+.landing-visual-artifact-copy {
+  min-width: 0;
+}
+
+.landing-visual-artifact-title {
+  color: #2e2921;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+}
+
+.landing-visual-artifact-sub {
+  margin-top: 5px;
+  color: #8a8173;
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+}
+
+.landing-visual-artifact-weather {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(113, 142, 150, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(245, 249, 248, 0.98), rgba(232, 239, 237, 0.92) 55%, rgba(250, 247, 239, 0.94));
+}
+
+.landing-visual-artifact-perfume {
+  background:
+    radial-gradient(circle at 17% 22%, rgba(196, 166, 112, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(252, 249, 242, 0.98), rgba(238, 229, 214, 0.92) 58%, rgba(255, 253, 248, 0.96));
+}
+
+.landing-visual-artifact-book {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(188, 28, 33, 0.22), transparent 34%),
+    linear-gradient(135deg, #1c1512, #443128 58%, #161312);
+}
+
+.landing-visual-artifact-book .landing-visual-artifact-title {
+  color: rgba(255, 251, 242, 0.96);
+}
+
+.landing-visual-artifact-book .landing-visual-artifact-sub {
+  color: rgba(255, 246, 228, 0.66);
 }
 
 .landing-play-gua {
@@ -883,6 +958,10 @@
   }
 
   .landing-play-card {
+    grid-column: auto;
+  }
+
+  .landing-play-card {
     min-height: auto;
   }
 
@@ -933,6 +1012,16 @@
     grid-column: 1 / -1;
     justify-self: start;
     max-width: none;
+  }
+
+  .landing-visual-artifact {
+    grid-template-columns: 64px minmax(0, 1fr);
+    min-height: 106px;
+  }
+
+  .landing-visual-artifact img {
+    width: 64px;
+    height: 64px;
   }
 
   .landing-play-object {

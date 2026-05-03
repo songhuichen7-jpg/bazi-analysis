@@ -1096,6 +1096,65 @@
     font-size: 12px;
   }
 
+  /* ── ErrorBoundary 兜底全屏 — 任何 render 异常的视觉 fallback ──
+     不依赖 store/router，纯静态。色板跟主站一致：白底、黑墨、暖灰。 */
+  .error-boundary-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    background: var(--bg);
+  }
+  .error-boundary-wrap {
+    max-width: 480px;
+    text-align: center;
+  }
+  .error-boundary-eyebrow {
+    margin: 0 0 12px;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--mute);
+  }
+  .error-boundary-title {
+    margin: 0 0 16px;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .error-boundary-detail {
+    margin: 0 0 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  .error-boundary-trace {
+    margin: 0 0 20px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .error-boundary-trace summary {
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  .error-boundary-trace pre {
+    padding: 10px 12px;
+    background: #f7f3e9;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .error-boundary-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
   /* 订阅方案页 */
   .pricing-screen { background: var(--bg); }
   .pricing-wrap {
@@ -2495,6 +2554,28 @@
     white-space: nowrap;
   }
   .media-card-cta-arrow { opacity: 0.78; }
+  .media-card-weather,
+  .media-card-scent {
+    color: rgba(255, 255, 255, 0.95);
+  }
+  .media-card-weather::before {
+    background:
+      radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(7, 17, 23, 0.2));
+  }
+  .media-card-scent::before {
+    background:
+      radial-gradient(circle at 20% 22%, rgba(255, 231, 186, 0.14), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(22, 14, 8, 0.18));
+  }
+  .media-card-weather .media-card-cta,
+  .media-card-scent .media-card-cta {
+    display: none;
+  }
+  .media-card-weather .media-card-thumb,
+  .media-card-scent .media-card-thumb {
+    background: rgba(255, 255, 255, 0.12);
+  }
   @media (prefers-reduced-motion: reduce) {
     .media-card { transition: none; }
     .media-card:hover { transform: none; }

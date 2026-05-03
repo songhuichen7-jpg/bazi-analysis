@@ -10,6 +10,7 @@ import { scrollAndFlash } from '../lib/parseRef';
 import ErrorState from './ErrorState';
 import UserMenu from './UserMenu';
 import { CLASSICS_VERSION } from '../store/useAppStore';
+import { devLog } from '../lib/devLog';
 
 export default function AppShell() {
   const screen = useAppStore(s => s.screen);
@@ -37,7 +38,7 @@ export default function AppShell() {
     fetchHealth().then(j => {
       const llmEnabled = typeof j.llm?.hasKey === 'boolean' ? j.llm.hasKey : true;
       useAppStore.getState().setLlmStatus(llmEnabled);
-      if (j.llm?.hasKey) console.log('[LLM] enabled:', j.llm.model);
+      if (j.llm?.hasKey) devLog('[LLM] enabled:', j.llm.model);
     }).catch(() => {});
 
     ['conversations','chatHistory','gua','gua-history'].forEach(k => {

@@ -85,6 +85,23 @@ class Settings(BaseSettings):
     # cron loop（lifespan task）每多少秒扫一次到期订阅；0 = 禁用，单元测试用。
     subscription_expire_loop_seconds: int = 3600
 
+    # ── CORS（默认同源，跨域时显式列出）──────────────────────────────
+    # 逗号分隔的 allowed origin 列表。空 = 不挂 CORSMiddleware（同源部署
+    # 用，nginx 反代到前后端共用一个 origin 时不需要）。跨域部署时填
+    # 完整 origin（含 scheme + host + port），eg.
+    # CORS_ORIGINS="https://youshi.app,https://beta.youshi.app"
+    cors_origins: str = ""
+
+    # ── 全局 API rate-limit ──────────────────────────────────────────
+    # 简单 in-memory 滑动窗口。key = user_id（已登录）/ remote IP（未登录）。
+    # 仅作用于 /api/ 路径下的 mutating endpoint（POST/PUT/PATCH/DELETE）+
+    # 流式 endpoint，GET 公共数据（cities/config/health）跳过。
+    # 默认值是"温和但能挡住脚本循环压测"的水平，单 worker 内存够用；
+    # 多 worker 没共享会让上限实际变成 N×limit，但 spam 还是被早期阻断。
+    rate_limit_per_minute: int = 60
+    # 0 = 完全不挂 middleware（test / 极端场景）
+    rate_limit_enabled: bool = True
+
     @property
     def mimo_api_key(self) -> str:
         """Backward-compatible alias for older call sites and docs."""

@@ -5,12 +5,16 @@ const KIND_ICON = {
   song: '♪',
   movie: '🎬',
   book: '📖',
+  weather: '☁',
+  scent: '◌',
 };
 
 const KIND_FALLBACK_GRADIENT = {
   song:  ['#3a4d6f', '#7b9ec5'],   // 冷海蓝
   movie: ['#5a3e2c', '#a87a4a'],   // 暖木色
   book:  ['#4d4a36', '#a89c66'],   // 沙金
+  weather: ['#314452', '#94a8a8'],  // 雨后灰蓝
+  scent: ['#473c32', '#b7a179'],    // 冷茶木香
 };
 
 export function MediaCard({ kind, title, subtitle }) {
@@ -20,9 +24,10 @@ export function MediaCard({ kind, title, subtitle }) {
   const { url, label } = safeTitle
     ? buildSearchUrl(kind, safeTitle, safeSub)
     : { url: '', label: '' };
+  const isSemanticCard = kind === 'weather' || kind === 'scent';
 
   useEffect(() => {
-    if (!safeTitle) {
+    if (!safeTitle || isSemanticCard) {
       return undefined;
     }
     let cancelled = false;
@@ -30,7 +35,7 @@ export function MediaCard({ kind, title, subtitle }) {
       if (!cancelled) setCover(data || null);
     });
     return () => { cancelled = true; };
-  }, [kind, safeTitle, safeSub]);
+  }, [kind, safeTitle, safeSub, isSemanticCard]);
 
   if (!safeTitle) return null;
 
@@ -46,12 +51,14 @@ export function MediaCard({ kind, title, subtitle }) {
   const cardStyle = {
     background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
   };
+  const CardTag = url ? 'a' : 'div';
+  const cardLinkProps = url
+    ? { href: url, target: '_blank', rel: 'noopener noreferrer' }
+    : { role: 'group' };
 
   return (
-    <a
-      href={url || '#'}
-      target="_blank"
-      rel="noopener noreferrer"
+    <CardTag
+      {...cardLinkProps}
       className={`media-card media-card-${kind}`}
       style={cardStyle}
       onClick={(e) => { if (!url) e.preventDefault(); }}
@@ -71,6 +78,6 @@ export function MediaCard({ kind, title, subtitle }) {
         <span className="media-card-cta-label">{label || `${MEDIA_LABELS[kind] || ''}搜索`}</span>
         <span className="media-card-cta-arrow">↗</span>
       </div>
-    </a>
+    </CardTag>
   );
 }

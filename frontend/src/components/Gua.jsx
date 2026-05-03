@@ -4,6 +4,7 @@ import { streamGua } from '../lib/api';
 import { RichText } from './RefChip';
 import ErrorState from './ErrorState';
 import { friendlyError } from '../lib/errorMessages';
+import { devLog } from '../lib/devLog';
 
 export default function Gua() {
   const current = useAppStore(s => s.gua?.current);
@@ -46,7 +47,7 @@ export default function Gua() {
           setTimeout(() => guaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
         },
         onDelta: (_t, running) => { full = running; setStreamingText(running); },
-        onModel: (m) => console.log('[gua] modelUsed=' + m),
+        onModel: (m) => devLog('[gua] modelUsed=' + m),
       });
       const finalEntry = { ...gua, question: txt, body: final || full, ts: Date.now() };
       setGuaCurrent(finalEntry);
