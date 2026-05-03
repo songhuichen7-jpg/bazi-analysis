@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { parseRef } from '../src/lib/parseRef.js';
+import { ATMOSPHERE_ASSETS, pickAtmosphereAsset } from '../src/lib/mediaCard.js';
 
 test('media questions render only one primary media card for repeated movie tokens', () => {
   const segments = parseRef(
@@ -87,4 +88,23 @@ test('semantic weather and scent cards stay local and non-clickable', () => {
   assert.match(mediaCard, /if \(!safeTitle \|\| isSemanticCard\)/);
   assert.match(mediaCard, /const CardTag = url \? 'a' : 'div'/);
   assert.match(mediaCard, /url[\s\S]*href:\s*url[\s\S]*role:\s*'group'/);
+  assert.match(mediaCard, /pickAtmosphereAsset\(kind,\s*safeTitle,\s*displaySub\)/);
+  assert.match(mediaCard, /--media-atmosphere/);
+});
+
+test('semantic card atmosphere pool has multiple assets and keyword matching', () => {
+  assert.equal(ATMOSPHERE_ASSETS.weather.length, 15);
+  assert.equal(ATMOSPHERE_ASSETS.scent.length, 15);
+
+  assert.equal(pickAtmosphereAsset('weather', '初雪', '冷白的早晨')?.id, 'first-snow');
+  assert.equal(pickAtmosphereAsset('weather', '台风前夜', '风雨快到了')?.id, 'typhoon-eve');
+  assert.equal(pickAtmosphereAsset('weather', '夕照', '慢慢变暖')?.id, 'sunset-glow');
+  assert.equal(pickAtmosphereAsset('scent', '冷茶白花', '雨后石板 · 淡淡焚香')?.id, 'cold-tea');
+  assert.equal(pickAtmosphereAsset('scent', '红茶', '深茶汤')?.id, 'black-tea');
+  assert.equal(pickAtmosphereAsset('scent', '檀木', '温热的木质底色')?.id, 'sandalwood');
+  assert.equal(pickAtmosphereAsset('scent', '柑橘皮', '明亮但不吵')?.id, 'citrus-peel');
+
+  const fallbackA = pickAtmosphereAsset('weather', '柔软的灰蓝', '需要慢下来')?.id;
+  const fallbackB = pickAtmosphereAsset('weather', '柔软的灰蓝', '需要慢下来')?.id;
+  assert.equal(fallbackA, fallbackB);
 });

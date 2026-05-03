@@ -2560,13 +2560,21 @@
   }
   .media-card-weather::before {
     background:
+      linear-gradient(90deg, rgba(12, 18, 22, 0.7) 0%, rgba(20, 28, 33, 0.44) 52%, rgba(9, 13, 16, 0.18) 100%),
+      var(--media-atmosphere),
       radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18), transparent 34%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(7, 17, 23, 0.2));
+    background-size: cover;
+    background-position: center;
   }
   .media-card-scent::before {
     background:
+      linear-gradient(90deg, rgba(22, 14, 9, 0.72) 0%, rgba(35, 26, 18, 0.46) 54%, rgba(12, 8, 5, 0.18) 100%),
+      var(--media-atmosphere),
       radial-gradient(circle at 20% 22%, rgba(255, 231, 186, 0.14), transparent 36%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(22, 14, 8, 0.18));
+    background-size: cover;
+    background-position: center;
   }
   .media-card-weather .media-card-cta,
   .media-card-scent .media-card-cta {
@@ -2575,6 +2583,9 @@
   .media-card-weather .media-card-thumb,
   .media-card-scent .media-card-thumb {
     background: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.12),
+      0 8px 20px rgba(0, 0, 0, 0.2);
   }
   @media (prefers-reduced-motion: reduce) {
     .media-card { transition: none; }

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { buildSearchUrl, fetchMediaCover, MEDIA_LABELS } from '../lib/mediaCard';
+import {
+  buildSearchUrl,
+  fetchMediaCover,
+  MEDIA_LABELS,
+  pickAtmosphereAsset,
+} from '../lib/mediaCard';
 
 const KIND_ICON = {
   song: '♪',
@@ -47,9 +52,13 @@ export function MediaCard({ kind, title, subtitle }) {
   const colors = cover?.dominantHex && cover?.secondaryHex
     ? [cover.dominantHex, cover.secondaryHex]
     : (KIND_FALLBACK_GRADIENT[kind] || KIND_FALLBACK_GRADIENT.song);
+  const atmosphereAsset = isSemanticCard
+    ? pickAtmosphereAsset(kind, safeTitle, displaySub)
+    : null;
 
   const cardStyle = {
     background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
+    ...(atmosphereAsset ? { '--media-atmosphere': `url("${atmosphereAsset.src}")` } : {}),
   };
   const CardTag = url ? 'a' : 'div';
   const cardLinkProps = url
@@ -64,7 +73,9 @@ export function MediaCard({ kind, title, subtitle }) {
       onClick={(e) => { if (!url) e.preventDefault(); }}
     >
       <div className="media-card-thumb" aria-hidden="true">
-        {cover?.url ? (
+        {atmosphereAsset?.src ? (
+          <img src={atmosphereAsset.src} alt="" loading="lazy" />
+        ) : cover?.url ? (
           <img src={cover.url} alt="" loading="lazy" />
         ) : (
           <span className="media-card-icon">{KIND_ICON[kind] || '·'}</span>
