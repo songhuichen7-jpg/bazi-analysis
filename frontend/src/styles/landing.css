@@ -73,6 +73,13 @@
   border-top: 1px solid var(--landing-rule);
 }
 
+/* 副 CTA 平滑滚到 #intro 时,落点上方留 24px 透气 — section 自带
+ * 140px padding-top 已经很足,但浏览器 scrollIntoView 默认贴顶,
+ * scroll-margin-top 把"逻辑顶"上推 24px,让 eyebrow 不被卡边。*/
+#intro {
+  scroll-margin-top: 24px;
+}
+
 /* ── Hero ─────────────────────────────────────────────────────────── */
 .landing-display-title {
   margin: 0 0 40px;

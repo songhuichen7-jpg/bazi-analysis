@@ -253,56 +253,27 @@ export function LandingHome() {
 
   // 滚到第一个介绍 section (二十种人格)。
   //
-  // 经过两轮迭代:
-  //   v1 ease-in-out cubic → "生硬",头部太慢像卡了一下;
-  //   v2 easeOutQuint     → "卡顿",头部速度峰值=5,前 200ms
-  //                          冲过 70% 距离,后 900ms 蜗行,看起来
-  //                          像 "burst → 停顿" 两段式;
-  //   v3 (本次) — 自定义 cubic-bezier(0.22, 0.61, 0.36, 1)。
-  //   这是 Material/iOS 风格的"标准减速"曲线,头部 velocity 不是
-  //   峰值而是平滑过渡,中段保持中等速度,尾段才开始明显减速,
-  //   整条曲线无明显的速度断点。视觉上像被慢慢拉过去,不是被
-  //   弹/推/拽。
+  // 三版迭代终于定位到根因:
+  //   v1 ease-in-out cubic    → "生硬",头部 4t³ 几乎不动
+  //   v2 easeOutQuint         → "卡顿",头部速度峰值=5 burst 后蜗行
+  //   v3 cubic-bezier 自定义  → "掉帧",rAF + window.scrollTo 在主
+  //                              线程跟 hero scene 轮播 + persona
+  //                              marquee 抢资源,主线程一卡帧就丢
   //
-  // bezier 求值用 Newton-Raphson 反求 t,4 次迭代足够 60fps 精度。
-  // duration 也做了调整:基础 900ms,根据距离 sqrt 收敛到 800-1300。
+  // 真正的修法是把动画从主线程挪到合成线程 — 用浏览器原生的
+  // scrollIntoView({ behavior: 'smooth' }):
+  // - 浏览器在 compositor 上做插值,跟 React 重渲染并行
+  // - 主线程再忙都不会丢帧
+  // - 时长由距离自适应 (Chrome ~400ms 短跳, 800ms+ 远跳),刚好
+  //   够"被引导"的体感,不需要手动调 1.x 秒
+  //
+  // 落点偏移走 CSS scroll-margin-top (在 #intro 上声明 24px),
+  // 这样原生 smooth 也能在 section 顶上方留透气。
+  // reduced-motion 偏好下原生 smooth 自动退化为 instant,无需 JS 兜底。
   function scrollToIntro() {
     const target = document.getElementById('intro');
     if (!target) return;
-    const top = target.getBoundingClientRect().top + window.scrollY - 24;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) {
-      window.scrollTo(0, top);
-      return;
-    }
-    const startY = window.scrollY;
-    const distance = top - startY;
-    if (Math.abs(distance) < 4) return;
-    const duration = Math.min(1300, Math.max(800, 180 * Math.sqrt(Math.abs(distance) / 100)));
-    const startTime = performance.now();
-    // cubic-bezier(0.22, 0.61, 0.36, 1) 求 y(t) — Newton-Raphson 反 x→t
-    const bezier = (() => {
-      const x1 = 0.22, y1 = 0.61, x2 = 0.36, y2 = 1;
-      const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-      const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-      return (t) => {
-        let x = t;
-        for (let i = 0; i < 4; i += 1) {
-          const fx = ((ax * x + bx) * x + cx) * x - t;
-          const dfx = (3 * ax * x + 2 * bx) * x + cx;
-          if (Math.abs(dfx) < 1e-6) break;
-          x -= fx / dfx;
-        }
-        return ((ay * x + by) * x + cy) * x;
-      };
-    })();
-    function tick(now) {
-      const elapsed = now - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      window.scrollTo(0, startY + distance * bezier(t));
-      if (t < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // 返客 vs 新人分流:
