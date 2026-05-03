@@ -105,6 +105,13 @@
   padding-bottom: 1px;
 }
 
+.landing-cta-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
 .landing-cta-row {
   display: flex;
   gap: 14px;
@@ -133,6 +140,42 @@
 
 .landing-cta-primary:active {
   transform: translateY(1px);
+}
+
+/* 副链接:给"先看看再决定"的访客一条不打扰的明路。muted 灰
+ * + 小字号,跟 primary CTA 拉开权重差;箭头 1.8s 慢节奏呼吸,
+ * 暗示"下面还有",不闪不喊。reduced-motion 下停止动画。*/
+.landing-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a39c8d;
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  padding: 4px 6px;
+  transition: color 0.2s;
+}
+
+.landing-cta-secondary:hover {
+  color: #1a1a1a;
+}
+
+.landing-cta-secondary-arrow {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1;
+  animation: landing-cta-arrow-bob 1.8s ease-in-out infinite;
+}
+
+@keyframes landing-cta-arrow-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50%      { transform: translateY(3px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta-secondary-arrow { animation: none; opacity: 0.7; }
 }
 
 /* Hero mockup — 命盘档案 + 对话 双框 (复刻参考稿底部双 panel) */

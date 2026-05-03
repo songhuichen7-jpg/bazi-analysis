@@ -266,8 +266,29 @@ export function LandingHome() {
           人也在自己的时序里慢慢展开。
         </p>
 
-        <div className="landing-cta-row">
-          <button type="button" className="landing-cta-primary" onClick={handleStart}>开始排盘 →</button>
+        <div className="landing-cta-stack">
+          <div className="landing-cta-row">
+            <button type="button" className="landing-cta-primary" onClick={handleStart}>开始排盘 →</button>
+          </div>
+          {/* 副链接 — 给"想先看看再决定"的访客一条不打扰的明路。
+           * 锚到 #gallery (二十种人格那一节),让他们顺着滚下去把后面
+           * 介绍都看完。不点的人完全不被打扰。
+           * 用 smooth scroll 而不是默认硬跳,跟整体沉静调性匹配;
+           * reduced-motion 偏好时退回 instant。 */}
+          <a
+            href="#gallery"
+            className="landing-cta-secondary"
+            onClick={(e) => {
+              const target = document.getElementById('gallery');
+              if (!target) return;
+              e.preventDefault();
+              const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+              target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+            }}
+          >
+            <span>先看看「有时」是什么</span>
+            <span className="landing-cta-secondary-arrow" aria-hidden="true">↓</span>
+          </a>
         </div>
 
         {/* 命盘档案 + 对话 mockup — 双面板按 HERO_SCENES 同步轮播 */}
