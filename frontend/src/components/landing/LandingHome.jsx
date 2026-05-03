@@ -108,16 +108,16 @@ const PLAY_CARDS = [
     prompt: '用一种天气形容我现在的状态。',
     title: '雨后初雾',
     subtitle: '慢下来，光会回来',
-    image: '/static/landing/artifacts/weather-mist-dawn.jpg',
     note: '不是低气压，是身体在重新调光。',
   },
   {
-    kind: 'perfume',
+    // 注意 kind: 'scent' — MediaCard 的 atmosphere asset map 用的是 scent，
+    // 之前 landing 用 'perfume' 不会被 pickAtmosphereAsset 命中。
+    kind: 'scent',
     mark: 'SCENT',
     prompt: '用一种气味形容我这盘。',
     title: '冷茶白花',
     subtitle: '雨后石板 · 淡淡焚香',
-    image: '/static/landing/artifacts/perfume-cold-tea.jpg',
     note: '清冷，但靠近之后有很柔软的余温。',
   },
   {
@@ -126,25 +126,12 @@ const PLAY_CARDS = [
     prompt: '推荐一本书让我读懂自己。',
     title: '夜读手记',
     subtitle: '慢一点，答案会浮上来',
-    image: '/static/landing/artifacts/book-quiet-page.jpg',
     note: '不是标准书单，是把此刻的你递给一页文字。',
   },
 ];
 
 function Eyebrow({ children }) {
   return <p className="landing-eyebrow">{children}</p>;
-}
-
-function MiniVisualArtifactCard({ card }) {
-  return (
-    <div className={`landing-visual-artifact landing-visual-artifact-${card.kind}`}>
-      <img src={card.image} alt="" loading="lazy" draggable="false" />
-      <div className="landing-visual-artifact-copy">
-        <div className="landing-visual-artifact-title">{card.title}</div>
-        <div className="landing-visual-artifact-sub">{card.subtitle}</div>
-      </div>
-    </div>
-  );
 }
 
 function MiniGuaCard({ card }) {
@@ -175,8 +162,6 @@ function PlayCardPreview({ card }) {
       <div className="landing-play-object">
         {card.kind === 'gua' ? (
           <MiniGuaCard card={card} />
-        ) : card.image ? (
-          <MiniVisualArtifactCard card={card} />
         ) : (
           <MediaCard kind={card.kind} title={card.title} subtitle={card.subtitle} />
         )}
