@@ -252,12 +252,20 @@ export function LandingHome() {
   }
 
   // 滚到第一个介绍 section (二十种人格)。
-  // 用 rAF + easeOutQuint 自定义动画,1.4s 慢推 + 软着陆。
-  // - 立刻有响应 (不像 ease-in-out 头 100ms 几乎没动),
-  // - 中后段持续减速,落点像被慢慢"放下来",不是被推到。
-  // - 距离按 log 缩放,远的目标不会变成 5 秒史诗,近的也不会
-  //   只有 0.2 秒生硬一闪 — 距离 vs 时间维持人体感的尺度。
-  // - prefers-reduced-motion 偏好下退回 instant 跳转。
+  //
+  // 经过两轮迭代:
+  //   v1 ease-in-out cubic → "生硬",头部太慢像卡了一下;
+  //   v2 easeOutQuint     → "卡顿",头部速度峰值=5,前 200ms
+  //                          冲过 70% 距离,后 900ms 蜗行,看起来
+  //                          像 "burst → 停顿" 两段式;
+  //   v3 (本次) — 自定义 cubic-bezier(0.22, 0.61, 0.36, 1)。
+  //   这是 Material/iOS 风格的"标准减速"曲线,头部 velocity 不是
+  //   峰值而是平滑过渡,中段保持中等速度,尾段才开始明显减速,
+  //   整条曲线无明显的速度断点。视觉上像被慢慢拉过去,不是被
+  //   弹/推/拽。
+  //
+  // bezier 求值用 Newton-Raphson 反求 t,4 次迭代足够 60fps 精度。
+  // duration 也做了调整:基础 900ms,根据距离 sqrt 收敛到 800-1300。
   function scrollToIntro() {
     const target = document.getElementById('intro');
     if (!target) return;
@@ -270,16 +278,28 @@ export function LandingHome() {
     const startY = window.scrollY;
     const distance = top - startY;
     if (Math.abs(distance) < 4) return;
-    // 距离短 → 0.9s,长 → 1.6s,用 sqrt 收敛避免线性放大
-    const duration = Math.min(1600, Math.max(900, 220 * Math.sqrt(Math.abs(distance) / 100)));
+    const duration = Math.min(1300, Math.max(800, 180 * Math.sqrt(Math.abs(distance) / 100)));
     const startTime = performance.now();
-    // easeOutQuint:1 - (1-t)^5。立刻起速,后段大幅减速,
-    // 视觉上像翻一页很重的纸 — 头有轻推,尾有沉降。
-    const ease = (t) => 1 - Math.pow(1 - t, 5);
+    // cubic-bezier(0.22, 0.61, 0.36, 1) 求 y(t) — Newton-Raphson 反 x→t
+    const bezier = (() => {
+      const x1 = 0.22, y1 = 0.61, x2 = 0.36, y2 = 1;
+      const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+      const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+      return (t) => {
+        let x = t;
+        for (let i = 0; i < 4; i += 1) {
+          const fx = ((ax * x + bx) * x + cx) * x - t;
+          const dfx = (3 * ax * x + 2 * bx) * x + cx;
+          if (Math.abs(dfx) < 1e-6) break;
+          x -= fx / dfx;
+        }
+        return ((ay * x + by) * x + cy) * x;
+      };
+    })();
     function tick(now) {
       const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
-      window.scrollTo(0, startY + distance * ease(t));
+      window.scrollTo(0, startY + distance * bezier(t));
       if (t < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
