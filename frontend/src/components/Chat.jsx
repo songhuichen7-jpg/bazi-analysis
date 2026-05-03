@@ -13,19 +13,19 @@ import { applyChatProgressEvent, createChatProgress, intentLabel } from '../lib/
 import { PROMPT_EXAMPLES, PROMPT_ROTATE_INTERVAL_MS } from '../lib/chatPromptExamples';
 import { devLog } from '../lib/devLog';
 
-/** Claude-客户端风格的思考状态指示器:只显示"当前正在做什么"一行,
- *  完成的步骤(意图/古籍来源)折叠成上方一条 muted summary,不再列流水线
- *  四步骤。一旦回答开始流出 (hasOutput=true),整个 indicator 消失 ——
- *  让 stream 内容自己说话,不要双重信号。
+/** 思考状态指示器:逐步显示"识别意图 → 翻阅古籍 → 生成回答"三段流水。
  *
- *  痛点纠正:
- *    - 之前不管什么问题都"识别意图 → 翻阅古籍 → 调用模型 → 正在回复"
- *      四行流水线挂着,简单问题(闲聊/形容比喻/外貌)也要假装查古籍,
- *      ceremony 太重。
- *    - 现在按 intent 决定是否真去翻古籍,UI 也只反映实际工作。
+ *  - 已完成的步骤用 ✓ 标记 + 淡色文字(不抢主视线)
+ *  - 当前 active 步骤用脉动小点 + 主权重
+ *  - 简单问题(chitchat/media/appearance)跳过古籍那一步,只显示意图 +
+ *    生成回答两步
+ *  - 一旦 stream 第一字到达,整个 indicator return null 让回答自己说话
+ *
+ *  文案选用日常技术性词汇,不写"起笔"这种文艺词 — "正在生成回答…"
+ *  比"起笔…"清楚得多。
  *
  *  Intent 不需要古籍的列表跟后端 (services/conversation_chat.py 的
- *  _NO_RETRIEVAL_INTENTS) 一致 — chitchat/media/appearance。
+ *  _NO_RETRIEVAL_INTENTS) 一致。
  */
 const _NO_RETRIEVAL_INTENTS = new Set(['chitchat', 'media', 'appearance']);
 
@@ -51,74 +51,96 @@ function ThinkingIndicator({ trace }) {
     ? Math.max(0, Math.floor((now - startedAt) / 1000))
     : 0;
 
-  // ━━ 主活跃文案 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 单行,反映"此刻正在做什么"。redirect / stopped 是终态各占一行;
-  // 否则按 intent + retrieval 状态推断。
-  let activeLabel = null;
-  let activeKind = 'thinking';   // CSS 类区分 spinner / dot / × icon
+  // 一旦回答开始流出,整个 indicator 消失 — 不要状态行 + 流式回答双重信号
+  if (hasOutput || phase === 'done') {
+    return null;
+  }
+
+  // ━━ 终态:redirect / stopped 各自一行 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (redirected) {
-    activeLabel = '此问题适合起卦,已为你转入占卜流程';
-    activeKind = 'redirect';
-  } else if (stopped) {
-    activeLabel = '已停止';
-    activeKind = 'stopped';
-  } else if (!hasOutput && phase !== 'done') {
-    // 还没第一字 — 选择文案
-    if (!intent) {
-      activeLabel = '思考中…';
-    } else if (_NO_RETRIEVAL_INTENTS.has(intent)) {
-      // 不需要古籍 — 直接思考
-      activeLabel = '思考中…';
-    } else if (!hasRetrieval) {
-      activeLabel = '翻阅古籍中…';
+    return (
+      <div className="thinking-steps" role="status" aria-live="polite">
+        <div className="thinking-step thinking-step-active">
+          <span className="thinking-step-marker" aria-hidden="true" />
+          <div className="thinking-step-body">
+            <div className="thinking-step-label">此问题适合起卦,已为你转入占卜流程</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (stopped) {
+    return (
+      <div className="thinking-steps" role="status" aria-live="polite">
+        <div className="thinking-step thinking-step-stopped">
+          <span className="thinking-step-marker" aria-hidden="true">×</span>
+          <div className="thinking-step-body">
+            <div className="thinking-step-label">已停止</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ━━ 三步流水线 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 不需要古籍的 intent (chitchat/media/appearance) 跳过 step 2,
+  // 直接 step 1 → step 3。
+  const skipRetrieval = intent ? _NO_RETRIEVAL_INTENTS.has(intent) : false;
+  const steps = [];
+
+  // Step 1: 识别意图
+  steps.push({
+    key: 'intent',
+    state: intent ? 'done' : 'active',
+    label: intent ? `已识别意图  ${intentLabel(intent)}` : '正在识别意图…',
+  });
+
+  // Step 2: 翻阅古籍 (仅对需要的 intent 显示)
+  if (intent && !skipRetrieval) {
+    if (hasRetrieval) {
+      const srcText = sources.length > 3
+        ? sources.slice(0, 3).join('  ·  ') + `  …等 ${sources.length} 条`
+        : sources.join('  ·  ');
+      steps.push({
+        key: 'retrieval',
+        state: 'done',
+        label: `翻阅古籍  ${sources.length} 段`,
+        detail: srcText,
+      });
     } else {
-      // 古籍拿到了,等模型起笔(通常 ms 级,这条几乎一闪而过)
-      activeLabel = '起笔…';
+      steps.push({ key: 'retrieval', state: 'active', label: '翻阅古籍中…' });
     }
   }
-  // hasOutput=true 或 phase=done 时 activeLabel 保持 null → 整个 indicator 不显示
 
-  // ━━ 上方 muted summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 已经完成的事实(意图分类、古籍来源条目)在 active 行上方做一行淡色
-  // chip,跟 active 行的视觉权重明显拉开 — 用户扫一眼能看到 "AI 知道这是
-  // 性格问题,翻了 6 段古籍",但视线主体还是在"翻阅古籍中…"。
-  const summaryParts = [];
-  if (intent && intent !== 'other' && !redirected) {
-    summaryParts.push(intentLabel(intent));
-  }
-  if (hasRetrieval && sources.length > 0) {
-    // 来源 chip:超过 3 条折叠
-    const srcText = sources.length > 3
-      ? sources.slice(0, 3).join(' · ') + ` 等 ${sources.length} 段`
-      : sources.join(' · ');
-    summaryParts.push(srcText);
+  // Step 3: 生成回答 (intent 拿到 + 古籍状态明确才显示)
+  // 古籍状态明确 = (跳过古籍) OR (已经拿到古籍)。否则不显示 step 3,
+  // 让 step 2 的 active 独自承担"现在 AI 在干啥"信号,避免双 active。
+  const retrievalSettled = skipRetrieval || hasRetrieval;
+  if (intent && retrievalSettled) {
+    steps.push({ key: 'compose', state: 'active', label: '正在生成回答…' });
   }
 
-  const showSlowHint = !stopped && !hasOutput && !redirected && elapsedSec >= 12;
+  // 给当前 active step 附上耗时(超过 5s 才挂)
+  const stepsWithTime = steps.map((s) => {
+    if (s.state !== 'active' || elapsedSec < 5) return s;
+    return { ...s, label: `${s.label}  · ${elapsedSec}s` };
+  });
 
-  // 啥都不显示就不渲染,避免空 div 占位
-  if (!activeLabel && summaryParts.length === 0) return null;
+  const showSlowHint = elapsedSec >= 12;
 
   return (
     <div className="thinking-steps" role="status" aria-live="polite">
-      {summaryParts.length > 0 ? (
-        <div className="thinking-summary">
-          {summaryParts.join('  ·  ')}
-        </div>
-      ) : null}
-      {activeLabel ? (
-        <div className={`thinking-active thinking-active-${activeKind}`}>
+      {stepsWithTime.map((step) => (
+        <div className={`thinking-step thinking-step-${step.state}`} key={step.key}>
           <span className="thinking-step-marker" aria-hidden="true">
-            {activeKind === 'stopped' ? '×' : ''}
+            {step.state === 'done' ? '✓' : ''}
           </span>
-          <span className="thinking-step-label">
-            {activeLabel}
-            {elapsedSec >= 5 && !stopped && !hasOutput ? (
-              <span className="thinking-step-time">  · {elapsedSec}s</span>
-            ) : null}
-          </span>
+          <div className="thinking-step-body">
+            <div className="thinking-step-label">{step.label}</div>
+            {step.detail ? <div className="thinking-step-detail">{step.detail}</div> : null}
+          </div>
         </div>
-      ) : null}
+      ))}
       {showSlowHint ? (
         <div className="thinking-slow-hint">
           模型还在思考，比平时多用了点时间，再稍等几秒。
