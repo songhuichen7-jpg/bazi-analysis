@@ -579,7 +579,7 @@
 .landing-play-card .media-card-thumb {
   width: 58px;
   height: 58px;
-  border-radius: 7px;
+  border-radius: 8px;
 }
 
 .landing-play-card .media-card-title {
@@ -622,7 +622,7 @@
   width: 104px;
   height: 104px;
   object-fit: cover;
-  border-radius: 7px;
+  border-radius: 8px;
   display: block;
   filter: saturate(1.02) contrast(1.02);
   box-shadow: 0 12px 22px rgba(34, 30, 24, 0.14);

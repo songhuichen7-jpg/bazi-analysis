@@ -4,8 +4,21 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
+    /* core palette */
     --ink: #111; --ink-2: #2a2a2a; --mute: #6b6b6b;
     --line: #e5e5e5; --bg: #fafafa; --bg-2: #fff;
+    /* semantic alias used by skeleton + share card */
+    --muted-fg: #6b6b6b;
+    --muted-bg: #e5e7eb;
+    /* type stack */
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    --font-serif: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+    /* radius scale */
+    --radius-sm: 4px; --radius-md: 8px; --radius-lg: 14px; --radius-pill: 999px;
+    /* elevation */
+    --shadow-sm: 0 1px 2px rgba(17,17,17,.04);
+    --shadow-md: 0 4px 14px rgba(17,17,17,.06);
+    --shadow-lg: 0 18px 40px rgba(17,17,17,.10);
   }
   html, body { height: 100%; }
   body {
@@ -26,6 +39,14 @@
     padding: 8px 2px; width: 100%;
     transition: border-color .2s;
   }
+  /* custom select arrow — replaces browser default to keep cool/ink palette */
+  select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23111' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    padding-right: 18px;
+  }
   /* 让 checkbox / radio 用墨色，跟 app 整体黑/暖灰调性统一，避免浏览器默认蓝跳出来 */
   input[type="checkbox"], input[type="radio"] {
     accent-color: var(--ink);
@@ -33,12 +54,19 @@
   textarea { border: 1px solid var(--line); padding: 12px; line-height: 1.7; resize: vertical; }
   input:focus, select:focus, textarea:focus { border-color: var(--ink); }
 
-  .btn-primary { background: var(--ink); color: #fff; padding: 10px 18px; font-size: 14px; letter-spacing: .05em; transition: opacity .15s; }
+  .btn-primary { background: var(--ink); color: #fff; padding: 10px 18px; font-size: 14px; letter-spacing: .05em; transition: opacity .15s, transform .1s; }
   .btn-primary:hover { opacity: .85; }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .btn-primary:disabled, .btn-primary[disabled] { opacity: .4; cursor: not-allowed; transform: none; }
   .btn-ghost { border: 1px solid var(--line); padding: 8px 14px; font-size: 13px; color: var(--ink-2); background: var(--bg-2); transition: all .15s; }
   .btn-ghost:hover { border-color: var(--ink); }
+  .btn-ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .btn-ghost:disabled, .btn-ghost[disabled] { opacity: .4; cursor: not-allowed; }
   .btn-inline { border: 1px solid var(--ink); padding: 6px 12px; font-size: 12px; color: var(--ink); background: #fff; transition: all .15s; letter-spacing: .05em; }
   .btn-inline:hover { background: var(--ink); color: #fff; }
+  .btn-inline:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .btn-inline:disabled, .btn-inline[disabled] { opacity: .4; cursor: not-allowed; }
 
   .screen { display: none; min-height: 100vh; }
   .screen.active { display: block; }
@@ -1958,7 +1986,7 @@
   .left-pane::-webkit-scrollbar-thumb,
   .right-pane::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.10);
-    border-radius: 3px;
+    border-radius: 4px;
     border: none;
   }
   .left-pane:hover::-webkit-scrollbar-thumb,
@@ -2498,7 +2526,7 @@
   .media-card-thumb {
     width: 56px;
     height: 56px;
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.18);
     display: grid;
@@ -2523,7 +2551,7 @@
     min-width: 0;
   }
   .media-card-title {
-    font-family: "Songti SC", "STSongti", serif;
+    font-family: "Songti SC", "STSong", serif;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.25;
@@ -2573,6 +2601,15 @@
       var(--media-atmosphere),
       radial-gradient(circle at 20% 22%, rgba(255, 231, 186, 0.14), transparent 36%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(22, 14, 8, 0.18));
+    background-size: cover;
+    background-position: center;
+  }
+  .media-card-book::before {
+    background:
+      linear-gradient(90deg, rgba(28, 20, 12, 0.7) 0%, rgba(51, 38, 24, 0.44) 54%, rgba(20, 14, 8, 0.18) 100%),
+      var(--media-atmosphere),
+      radial-gradient(circle at 20% 24%, rgba(255, 239, 204, 0.16), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(29, 20, 12, 0.18));
     background-size: cover;
     background-position: center;
   }
@@ -2884,7 +2921,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: "Songti SC", "STSongti", serif;
+    font-family: "Songti SC", "STSong", serif;
     font-size: 18px;
     color: #5a4521;
     letter-spacing: 4px;
@@ -2950,7 +2987,7 @@
     100%      { transform: rotateY(-178deg); }
   }
   .classics-loader-text {
-    font-family: "Songti SC", "STSongti", serif;
+    font-family: "Songti SC", "STSong", serif;
     font-size: 13px;
     color: #6a604c;
     letter-spacing: 4px;
