@@ -29,7 +29,7 @@ async def test_chat_quota_precheck_429(client, database_url):
                            cookies={"session": cookie}, json={})
     conv_id = r.json()["id"]
 
-    limit = QUOTAS["free"]["chat_message"]
+    limit = QUOTAS[user["plan"]]["chat_message"]
     engine = create_async_engine(str(database_url))
     async with async_sessionmaker(engine, expire_on_commit=False)() as s:
         await s.execute(text("""

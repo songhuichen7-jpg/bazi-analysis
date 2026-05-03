@@ -33,7 +33,7 @@ async def test_gua_quota_precheck_429_when_saturated(client, monkeypatch):
 
     # Saturate the gua quota directly in the DB
     from app.core.quotas import QUOTAS, today_beijing
-    limit = QUOTAS["free"]["gua"]
+    limit = QUOTAS[user["plan"]]["gua"]
     engine = create_async_engine(os.environ["DATABASE_URL"])
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as s:

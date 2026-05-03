@@ -104,7 +104,7 @@ async def test_verdicts_force_regen_quota_exceeded_429(client, database_url):
     cid = await _make(client, cookie)
 
     from app.core.quotas import QUOTAS, today_beijing
-    limit = QUOTAS["free"]["verdicts_regen"]
+    limit = QUOTAS[user["plan"]]["verdicts_regen"]
     engine = create_async_engine(str(database_url))
     async with async_sessionmaker(engine, expire_on_commit=False)() as s:
         await s.execute(text("""

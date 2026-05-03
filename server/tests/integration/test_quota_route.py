@@ -15,13 +15,14 @@ async def test_quota_unauthenticated_401(client):
 
 @pytest.mark.asyncio
 async def test_quota_happy(client):
-    # NOTE: migration 0008 把 plan 集合从 {free, pro} 重命名 {lite, standard, pro}，
-    # 新注册用户默认 'lite'。
+    # NOTE: migration 0008 把 plan 集合改成 {lite, standard, pro};0015 内测期
+    # 应用层把新注册用户默认升到 'pro' (services/auth.py),让试用者拿到完整
+    # 配额。付费上线时去掉 services 里的覆盖,这里相应改回 'lite'。
     cookie, user = await register_user(client, f"+86138{uuid.uuid4().int % 10**8:08d}")
     r = await client.get("/api/quota", cookies={"session": cookie})
     assert r.status_code == 200
     body = r.json()
-    assert body["plan"] == "lite"
+    assert body["plan"] == "pro"
     assert set(body["usage"].keys()) == {"chat_message","section_regen","verdicts_regen",
                                           "dayun_regen","liunian_regen","gua","sms_send"}
     for v in body["usage"].values():

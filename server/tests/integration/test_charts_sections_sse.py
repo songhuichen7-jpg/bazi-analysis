@@ -61,7 +61,7 @@ async def test_sections_force_regen_429_when_exhausted(client, database_url):
     cookie, user = await register_user(client, f"+86138{uuid.uuid4().int % 10**8:08d}")
     cid = await _make(client, cookie)
     from app.core.quotas import QUOTAS, today_beijing
-    limit = QUOTAS["free"]["section_regen"]
+    limit = QUOTAS[user["plan"]]["section_regen"]
     engine = create_async_engine(str(database_url))
     async with async_sessionmaker(engine, expire_on_commit=False)() as s:
         await s.execute(text("""

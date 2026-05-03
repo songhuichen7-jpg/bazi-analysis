@@ -100,6 +100,9 @@ async def register(
         dek_ciphertext=dek_ciphertext,
         dek_key_version=1,
         agreed_to_terms_at=datetime.now(tz=timezone.utc),
+        # 内测期默认给 pro 资格 — 让试用者拿到完整体验,不被 lite 配额卡住。
+        # 付费上线时这一行去掉,让 DB server_default('lite') 生效。
+        plan="pro",
     )
     db.add(user)
     await db.flush()
@@ -247,6 +250,8 @@ async def login_guest(
         dek_key_version=1,
         agreed_to_terms_at=datetime.now(tz=timezone.utc),
         guest_token=normalized,
+        # 内测期默认给 pro 资格 — 同上,让游客也拿到完整体验。
+        plan="pro",
     )
     db.add(user)
     await db.flush()
