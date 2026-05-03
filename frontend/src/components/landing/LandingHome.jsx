@@ -252,11 +252,12 @@ export function LandingHome() {
   }
 
   // 滚到第一个介绍 section (二十种人格)。
-  // 不用原生 scrollIntoView({ behavior: 'smooth' }) — 浏览器默认
-  // 大约 300ms 硬切,跟"沉静慢回应"的调性不搭;改用 rAF + cubic
-  // ease-in-out,~1.1s 慢推,头尾都柔。锚点放在 section 顶部上方
-  // 留 24px 透气,让眼睛先看到 eyebrow 再吃到标题。
-  // reduced-motion 偏好下退回 instant 跳转。
+  // 用 rAF + easeOutQuint 自定义动画,1.4s 慢推 + 软着陆。
+  // - 立刻有响应 (不像 ease-in-out 头 100ms 几乎没动),
+  // - 中后段持续减速,落点像被慢慢"放下来",不是被推到。
+  // - 距离按 log 缩放,远的目标不会变成 5 秒史诗,近的也不会
+  //   只有 0.2 秒生硬一闪 — 距离 vs 时间维持人体感的尺度。
+  // - prefers-reduced-motion 偏好下退回 instant 跳转。
   function scrollToIntro() {
     const target = document.getElementById('intro');
     if (!target) return;
@@ -269,10 +270,12 @@ export function LandingHome() {
     const startY = window.scrollY;
     const distance = top - startY;
     if (Math.abs(distance) < 4) return;
-    const duration = 1100;
+    // 距离短 → 0.9s,长 → 1.6s,用 sqrt 收敛避免线性放大
+    const duration = Math.min(1600, Math.max(900, 220 * Math.sqrt(Math.abs(distance) / 100)));
     const startTime = performance.now();
-    // ease-in-out cubic:慢起 → 中段加速 → 慢落
-    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    // easeOutQuint:1 - (1-t)^5。立刻起速,后段大幅减速,
+    // 视觉上像翻一页很重的纸 — 头有轻推,尾有沉降。
+    const ease = (t) => 1 - Math.pow(1 - t, 5);
     function tick(now) {
       const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
