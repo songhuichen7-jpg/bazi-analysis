@@ -125,33 +125,31 @@ export default function HepanInviteButton() {
     }
   }
 
-  function handleGenerateInviteMouseDown(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    void generateInvite();
-  }
-
+  // 单一 click 入口 — 之前 mousedown + click + popover 冒泡三个 handler
+  // 都调 generateInvite,React 19 dev StrictMode 又把第一个 invocation
+  // 的 ref 没及时同步给后续,实测点一下竟然连发 2 条 POST /invite。
+  // 现在只保留 onClick,creatingRef + creating state 双重 gate 把重入卡死。
   function handleGenerateInviteClick(event) {
     event.stopPropagation();
     void generateInvite();
   }
 
   function handlePopoverClick(event) {
+    // 阻止冒泡到 document mousedown 把弹层关掉,但不再代为触发 generateInvite
+    // (避免跟按钮自己的 onClick 重复)
     event.stopPropagation();
-    if (invite || creating) return;
-    const target = event.target;
-    const insideGenerateButton = target?.closest?.('.hepan-invite-generate');
-    if (insideGenerateButton || target === event.currentTarget) {
-      void generateInvite();
-    }
   }
 
   function handleTriggerClick() {
-    const nextOpen = !open;
-    setOpen(nextOpen);
-    if (nextOpen && !invite) {
-      void generateInvite();
-    }
+    // 之前这里会 auto-fire generateInvite —— 跟弹层 useEffect 拉的 /mine 同
+    // 时打两条并发请求,在 chart-load 期间 (classics 走 LLM 润色, conv 创建,
+    // 多次 messages 拉取) Chrome HTTP/1 连接池被挤满,新请求会被排到末尾,
+    // 实测过单条 POST 在浏览器侧滞留 51 秒才返回。
+    //
+    // 现在改成"用户主动点'生成邀请链接'才发请求" — 弹层先显示历史 + 描述,
+    // 让用户有节奏地操作,顺便也能让"我只是想看历史"的人不被拖一条无用 POST。
+    // 用户点"生成"时,bootstrap 早已跑完,连接池空闲,POST 直接秒回。
+    setOpen(!open);
   }
 
   // 复制时带上一句邀请话 — 用户粘到微信 / 飞书里直接就是 "@昵称 邀请你来
@@ -258,7 +256,6 @@ export default function HepanInviteButton() {
             <button
               type="button"
               className="btn-primary hepan-invite-generate"
-              onMouseDown={handleGenerateInviteMouseDown}
               onClick={handleGenerateInviteClick}
               disabled={creating}
             >{creating ? '生成中…' : '生成邀请链接'}</button>

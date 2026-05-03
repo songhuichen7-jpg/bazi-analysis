@@ -4,6 +4,7 @@ import { fetchConfig, guestLogin } from '../lib/api';
 import { setAuthSessionHint } from '../lib/authSessionHint.js';
 import { clearAuthPhoneHint, writeAuthPhoneHint } from '../lib/authPhoneHint.js';
 import { ensureGuestToken, readGuestToken, writeGuestToken } from '../lib/guestToken.js';
+import { checkHepanInbox } from '../lib/hepanInbox.js';
 import SmsSendForm from './SmsSendForm';
 import RegisterForm from './RegisterForm';
 import LoginForm from './LoginForm';
@@ -12,6 +13,7 @@ import { friendlyError } from '../lib/errorMessages.js';
 export default function AuthScreen() {
   const setUser = useAppStore(s => s.setUser);
   const enterFromLanding = useAppStore(s => s.enterFromLanding);
+  const setAppNotice = useAppStore(s => s.setAppNotice);
 
   const [mode, setMode] = useState('register');
   const [phone, setPhone] = useState('');
@@ -39,6 +41,12 @@ export default function AuthScreen() {
     setAuthSessionHint();
     writeAuthPhoneHint(normalizedPhone);
     setUser(normalizedPhone ? { ...user, phone: normalizedPhone } : user);
+    // 跟 onGuestLogin 一致:fire-and-forget 预热 /api/hepan/mine 缓存,
+    // 让用户后续点"合盘"弹层时直接走 cache,不被 chart-load 期间的
+    // 连接池挤压。
+    void Promise.resolve().then(() =>
+      checkHepanInbox({ setAppNotice }).catch(() => { /* 静默 */ })
+    );
     // 让 enterFromLanding 决定下一屏：有命盘 → shell（带数据），没有 → input。
     // 直接 setScreen('input') 会让回访用户错过自己的命盘历史。
     await enterFromLanding();
@@ -59,6 +67,13 @@ export default function AuthScreen() {
       setAuthSessionHint();
       clearAuthPhoneHint();
       setUser(result.user || null);
+      // 后台预热 /api/hepan/mine 缓存 — fire-and-forget。
+      // 不挂在 await 上,因为登录跳转流不能等它;但提前打,等用户后续
+      // 点开"合盘"弹层时缓存大概率已经填好,免去那个最坏 51s 的卡顿
+      // (chart-load 期间 Chrome HTTP/1 连接池被挤满,/mine 拉不下来)。
+      void Promise.resolve().then(() =>
+        checkHepanInbox({ setAppNotice }).catch(() => { /* 静默 */ })
+      );
       // 复用主入口的"决定下一屏"逻辑：回访 + 后端有命盘 → shell；
       // 全新访客或服务端没数据 → input。直接 setScreen('input')
       // 会让"继续我的命盘"按钮等于"重新填生辰"，与按钮文案矛盾。
