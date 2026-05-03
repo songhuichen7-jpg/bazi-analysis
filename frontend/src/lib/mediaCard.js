@@ -168,6 +168,28 @@ export const ATMOSPHERE_ASSETS = {
       keywords: ['纸', '麝香', '书页', '棉纸', '干净', '皂感'],
     },
   ],
+  book: [
+    {
+      id: 'quiet-page',
+      src: '/static/card-atmospheres/book/quiet-page.jpg',
+      keywords: ['书', '书籍', '小说', '散文', '文学', '阅读', '纸页'],
+    },
+    {
+      id: 'linen-stack',
+      src: '/static/card-atmospheres/book/linen-stack.jpg',
+      keywords: ['旧书', '藏书', '书房', '雨窗', '书堆', '经典'],
+    },
+    {
+      id: 'poetry-ink',
+      src: '/static/card-atmospheres/book/poetry-ink.jpg',
+      keywords: ['诗', '诗集', '诗歌', '诗意', '墨', '毛笔'],
+    },
+    {
+      id: 'night-reading',
+      src: '/static/card-atmospheres/book/night-reading.jpg',
+      keywords: ['夜读', '灯下', '深夜', '睡前', '台灯', '夜晚'],
+    },
+  ],
 };
 
 function stableIndex(input, length) {

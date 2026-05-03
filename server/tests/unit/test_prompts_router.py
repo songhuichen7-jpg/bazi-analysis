@@ -68,6 +68,17 @@ def test_media_keywords_require_an_explicit_artifact_kind():
     assert r["intent"] == "personality"
 
 
+@pytest.mark.parametrize("text", [
+    "最近天气不好会影响我吗",
+    "这段关系的味道有点复杂",
+    "我今天闻到香水以后有点头晕",
+])
+def test_weather_scent_casual_mentions_do_not_route_to_media(text):
+    """只有明确要求"用天气/气味形容"才走媒体卡，普通闲聊不误触发。"""
+    r = classify_by_keywords(text)
+    assert r is None or r["intent"] != "media"
+
+
 def test_classify_by_keywords_no_match_returns_none():
     assert classify_by_keywords("ahsdjkfhakjsdf 无关词") is None
 

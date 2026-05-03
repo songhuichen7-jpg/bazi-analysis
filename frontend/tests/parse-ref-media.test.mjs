@@ -95,6 +95,7 @@ test('semantic weather and scent cards stay local and non-clickable', () => {
 test('semantic card atmosphere pool has multiple assets and keyword matching', () => {
   assert.equal(ATMOSPHERE_ASSETS.weather.length, 15);
   assert.equal(ATMOSPHERE_ASSETS.scent.length, 15);
+  assert.equal(ATMOSPHERE_ASSETS.book.length, 4);
 
   assert.equal(pickAtmosphereAsset('weather', '初雪', '冷白的早晨')?.id, 'first-snow');
   assert.equal(pickAtmosphereAsset('weather', '台风前夜', '风雨快到了')?.id, 'typhoon-eve');
@@ -103,8 +104,21 @@ test('semantic card atmosphere pool has multiple assets and keyword matching', (
   assert.equal(pickAtmosphereAsset('scent', '红茶', '深茶汤')?.id, 'black-tea');
   assert.equal(pickAtmosphereAsset('scent', '檀木', '温热的木质底色')?.id, 'sandalwood');
   assert.equal(pickAtmosphereAsset('scent', '柑橘皮', '明亮但不吵')?.id, 'citrus-peel');
+  assert.equal(pickAtmosphereAsset('book', '诗集', '安静的下午')?.id, 'poetry-ink');
+  assert.equal(pickAtmosphereAsset('book', '夜读', '灯下翻页')?.id, 'night-reading');
 
   const fallbackA = pickAtmosphereAsset('weather', '柔软的灰蓝', '需要慢下来')?.id;
   const fallbackB = pickAtmosphereAsset('weather', '柔软的灰蓝', '需要慢下来')?.id;
   assert.equal(fallbackA, fallbackB);
+});
+
+test('book cards use a local literary fallback image while keeping search behavior', () => {
+  const mediaCard = fs.readFileSync(new URL('../src/components/MediaCard.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+
+  assert.match(mediaCard, /const isAtmosphereCard = kind === 'weather' \|\| kind === 'scent' \|\| kind === 'book'/);
+  assert.match(mediaCard, /atmosphereAsset\?\.src/);
+  assert.match(mediaCard, /const CardTag = url \? 'a' : 'div'/);
+  assert.match(css, /\.media-card-book::before[\s\S]*var\(--media-atmosphere\)/);
+  assert.doesNotMatch(css, /\.media-card-book \.media-card-cta[\s\S]*display:\s*none/);
 });

@@ -179,6 +179,21 @@ def test_build_messages_chitchat_skips_chart_context():
     assert "【命盘上下文】" not in sys
 
 
+def test_build_messages_artifact_rules_gate_weather_and_scent_cards():
+    msgs = build_messages(
+        paipan=_SAMPLE_PAIPAN,
+        history=[],
+        user_message="最近天气不好会影响我吗",
+        intent="other",
+        retrieved=[],
+    )
+    sys = msgs[0]["content"]
+
+    assert "天气 → [[weather:天气名|一句短说明]]，只在用户明确要求用天气形容时使用" in sys
+    assert "气味/香水 → [[scent:气味名|两三个气味层次]]，只在用户明确要求用气味/味道/香水形容时使用" in sys
+    assert "书籍 → [[book:书名|作者]]" in sys
+
+
 def test_build_messages_includes_intent_guide():
     msgs = build_messages(
         paipan=_SAMPLE_PAIPAN, history=[],

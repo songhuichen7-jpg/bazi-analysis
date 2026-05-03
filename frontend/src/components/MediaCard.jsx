@@ -30,6 +30,7 @@ export function MediaCard({ kind, title, subtitle }) {
     ? buildSearchUrl(kind, safeTitle, safeSub)
     : { url: '', label: '' };
   const isSemanticCard = kind === 'weather' || kind === 'scent';
+  const isAtmosphereCard = kind === 'weather' || kind === 'scent' || kind === 'book';
 
   useEffect(() => {
     if (!safeTitle || isSemanticCard) {
@@ -52,7 +53,7 @@ export function MediaCard({ kind, title, subtitle }) {
   const colors = cover?.dominantHex && cover?.secondaryHex
     ? [cover.dominantHex, cover.secondaryHex]
     : (KIND_FALLBACK_GRADIENT[kind] || KIND_FALLBACK_GRADIENT.song);
-  const atmosphereAsset = isSemanticCard
+  const atmosphereAsset = isAtmosphereCard
     ? pickAtmosphereAsset(kind, safeTitle, displaySub)
     : null;
 
