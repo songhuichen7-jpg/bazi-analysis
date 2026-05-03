@@ -253,27 +253,27 @@ export function LandingHome() {
 
   // 滚到第一个介绍 section (二十种人格)。
   //
-  // 三版迭代终于定位到根因:
-  //   v1 ease-in-out cubic    → "生硬",头部 4t³ 几乎不动
-  //   v2 easeOutQuint         → "卡顿",头部速度峰值=5 burst 后蜗行
-  //   v3 cubic-bezier 自定义  → "掉帧",rAF + window.scrollTo 在主
-  //                              线程跟 hero scene 轮播 + persona
-  //                              marquee 抢资源,主线程一卡帧就丢
+  // 实现演进:
+  //   v1 ease-in-out cubic     → "生硬",头部 4t³ 几乎不动
+  //   v2 easeOutQuint          → "卡顿",头部 burst 后蜗行
+  //   v3 cubic-bezier rAF       → "掉帧",主线程跟 hero/marquee 抢资源
+  //   v4 native scrollIntoView  → 看着流畅但落点不稳:#intro 内有 lazy
+  //                                <img> 在 scroll 期间逐张 decode 触发
+  //                                layout shift,浏览器跟着 target 调,
+  //                                结果停在"伪稳定点" (实测 scrollY=225,
+  //                                目标 866,差 641px)
+  //   v5 (本次) — window.scrollTo({top, behavior:'smooth'}) 用固定数值。
+  //   target 是 click 瞬间快照下的绝对位置,中途 layout shift 不影响,
+  //   compositor 还是合成线程跑 (跟 scrollIntoView 同套优化路径)。
   //
-  // 真正的修法是把动画从主线程挪到合成线程 — 用浏览器原生的
-  // scrollIntoView({ behavior: 'smooth' }):
-  // - 浏览器在 compositor 上做插值,跟 React 重渲染并行
-  // - 主线程再忙都不会丢帧
-  // - 时长由距离自适应 (Chrome ~400ms 短跳, 800ms+ 远跳),刚好
-  //   够"被引导"的体感,不需要手动调 1.x 秒
-  //
-  // 落点偏移走 CSS scroll-margin-top (在 #intro 上声明 24px),
-  // 这样原生 smooth 也能在 section 顶上方留透气。
-  // reduced-motion 偏好下原生 smooth 自动退化为 instant,无需 JS 兜底。
+  // 落点上方留 24px 透气,跟 CSS 的 scroll-margin-top 行为一致。
+  // reduced-motion 偏好下退回 behavior:'auto' (instant)。
   function scrollToIntro() {
     const target = document.getElementById('intro');
     if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 24);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
   }
 
   // 返客 vs 新人分流:
