@@ -170,7 +170,7 @@ function MineRow({ item, busy, onCopy, onDelete }) {
   const completed = item.status === 'completed';
   const created = formatYearMonthDay(item.created_at);
   const aName = item.a_nickname || '我';
-  const bName = item.b_nickname || (completed ? '对方' : '?');
+  const bName = item.b_nickname || '对方';
   return (
     <li
       className={'mine-row mine-row-' + item.status}
@@ -178,17 +178,24 @@ function MineRow({ item, busy, onCopy, onDelete }) {
     >
       <div className="mine-row-left">
         <div className="mine-row-headline">
+          {/* 等回复时只显示 A 一侧 — 没填生日的对方拿不到 cosmic_name,
+            * 之前显示 "小夜灯 × ?" 那个问号像 bug。完成后才出 A × B 配对。*/}
           <span className="mine-row-pair">
-            <span className="serif">{item.a_cosmic_name || '?'}</span>
-            <span className="mine-row-x"> × </span>
-            <span className="serif">{item.b_cosmic_name || '?'}</span>
+            <span className="serif">{item.a_cosmic_name || '我'}</span>
+            {completed ? (
+              <>
+                <span className="mine-row-x"> × </span>
+                <span className="serif">{item.b_cosmic_name || '对方'}</span>
+              </>
+            ) : null}
           </span>
           {completed && item.label ? (
             <span className="mine-row-label">「{item.label}」</span>
           ) : null}
         </div>
         <div className="mine-row-meta muted">
-          <span>@{aName} × @{bName}</span>
+          {/* 同样:等回复时不写 "@我 × @?" 那种半边对子,改成 "@昵称 邀请"。*/}
+          <span>{completed ? `@${aName} × @${bName}` : `@${aName} 邀请`}</span>
           <span className="mine-row-dot">·</span>
           <span>发于 {created}</span>
           {item.share_count > 0 ? (
