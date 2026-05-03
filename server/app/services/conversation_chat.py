@@ -135,8 +135,16 @@ async def _stream_message_locked(
     # introduce drift and force the UI to show "翻阅古籍 6 段" twice in a
     # short exchange. The model can still cite the earlier classics through
     # conversation history.
+    #
+    # Intent 白名单 — 这几类问题不需要古籍旁证,无脑查不仅是浪费(~3-5s
+    # 检索 + LLM 润色),还会让前端思考状态被强行推进到"翻阅古籍中"造成
+    # ceremony 感:
+    #   - chitchat        闲聊,不沾命理
+    #   - media           "用电影/音乐形容这盘" — 是创作而非论断
+    #   - appearance      外貌描述,主要靠 paipan 已有的状态字段
+    _NO_RETRIEVAL_INTENTS = {"chitchat", "media", "appearance"}
     skip_retrieval = bool(inherited_intent)
-    if effective_intent != "chitchat" and not skip_retrieval:
+    if effective_intent not in _NO_RETRIEVAL_INTENTS and not skip_retrieval:
         try:
             paipan_for_retrieval = dict(chart.paipan or {})
             paipan_for_retrieval["gender"] = (chart.birth_input or {}).get("gender", "")

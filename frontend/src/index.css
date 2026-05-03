@@ -2634,15 +2634,71 @@
      已完成步打 ✓,当前步呼吸,左侧用细线串成时间轴. */
   .thinking-steps {
     display: grid;
-    gap: 4px;
+    gap: 6px;
     max-width: 36rem;
     color: #4d4538;
     font-size: 13px;
     line-height: 1.55;
   }
+  /* 上方 muted summary — 已经完成的事实(意图、古籍来源)折叠成单行,
+   * 视觉上明显比下方 active 行轻,扫一眼能看到但不抢主视线。*/
+  .thinking-summary {
+    color: #8a8270;
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    line-height: 1.45;
+    padding-left: 28px;
+    animation: thinking-step-in 0.32s ease both;
+  }
+  /* 主活跃行 — 单行,左侧脉动小点,文字主权重。一旦 stream 第一字到达,
+   * 整个 indicator 在 React 层面 return null 移除,不需要状态切换 CSS。*/
+  .thinking-active {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    color: #2c2418;
+    font-weight: 500;
+    animation: thinking-step-in 0.32s ease both;
+  }
+  .thinking-active .thinking-step-marker {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 1px solid #3b3328;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    position: relative;
+  }
+  .thinking-active .thinking-step-marker::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #3b3328;
+    animation: thinking-pulse 1.5s ease-in-out infinite;
+  }
+  .thinking-active-stopped .thinking-step-marker {
+    border-color: #9a5a5a;
+    color: #9a5a5a;
+    background: #fff;
+    font-size: 11px;
+  }
+  .thinking-active-stopped .thinking-step-marker::before {
+    display: none;
+  }
+  .thinking-active-stopped { color: #9a5a5a; font-weight: 400; }
+  /* redirect 跳占卜的提示 — 不脉动,弱化版黑点 */
+  .thinking-active-redirect .thinking-step-marker::before {
+    animation: none;
+    background: #6d6353;
+  }
+  .thinking-step-time { color: #8a8270; font-weight: 400; margin-left: 2px; }
   /* 超过 12s 仍未拿到首个 delta 时出现的"还在算"友好兜底 */
   .thinking-slow-hint {
-    margin-top: 10px;
+    margin-top: 6px;
     padding-left: 28px;
     color: #8a7e63;
     font-size: 12px;

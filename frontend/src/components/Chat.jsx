@@ -13,26 +13,32 @@ import { applyChatProgressEvent, createChatProgress, intentLabel } from '../lib/
 import { PROMPT_EXAMPLES, PROMPT_ROTATE_INTERVAL_MS } from '../lib/chatPromptExamples';
 import { devLog } from '../lib/devLog';
 
-/** Compact phase-aware progress: shows real backend SSE events as a vertical
- *  step list (intent → retrieval → model → streaming). Each step appears
- *  the moment its event arrives — pending steps are not rendered, so the
- *  indicator grows downward as the request progresses. */
+/** Claude-客户端风格的思考状态指示器:只显示"当前正在做什么"一行,
+ *  完成的步骤(意图/古籍来源)折叠成上方一条 muted summary,不再列流水线
+ *  四步骤。一旦回答开始流出 (hasOutput=true),整个 indicator 消失 ——
+ *  让 stream 内容自己说话,不要双重信号。
+ *
+ *  痛点纠正:
+ *    - 之前不管什么问题都"识别意图 → 翻阅古籍 → 调用模型 → 正在回复"
+ *      四行流水线挂着,简单问题(闲聊/形容比喻/外貌)也要假装查古籍,
+ *      ceremony 太重。
+ *    - 现在按 intent 决定是否真去翻古籍,UI 也只反映实际工作。
+ *
+ *  Intent 不需要古籍的列表跟后端 (services/conversation_chat.py 的
+ *  _NO_RETRIEVAL_INTENTS) 一致 — chitchat/media/appearance。
+ */
+const _NO_RETRIEVAL_INTENTS = new Set(['chitchat', 'media', 'appearance']);
+
 function ThinkingIndicator({ trace }) {
   const phase = trace?.phase || 'idle';
   const stopped = phase === 'stopped';
   const redirected = phase === 'redirect';
   const intent = trace?.intent || null;
   const sources = Array.isArray(trace?.retrievalSources) ? trace.retrievalSources : [];
-  const model = trace?.modelUsed || '';
   const hasOutput = !!trace?.hasOutput;
-  const skipRetrieval = intent === 'chitchat' || redirected;
-  const past = (target) => {
-    const order = ['idle', 'routing', 'retrieving', 'composing', 'streaming', 'done'];
-    return order.indexOf(phase) > order.indexOf(target);
-  };
+  const hasRetrieval = !!trace?.hasRetrieval;
 
-  // 整体已经等了多少秒 — 当前 active 步骤超过 5s 就在它旁边附一个时长
-  // hint，超过 12s 在底部出一行"还在算，可能要再等几秒"的友好兜底。
+  // 计时 — 当前 active 超过 5s 在右侧附 "· Ns",超过 12s 底部出耐心提示
   const startedAt = trace?.startedAt;
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -45,94 +51,74 @@ function ThinkingIndicator({ trace }) {
     ? Math.max(0, Math.floor((now - startedAt) / 1000))
     : 0;
 
-  const steps = [];
-  // Step 1: intent
-  steps.push({
-    key: 'intent',
-    state: intent ? (past('routing') || phase === 'routing' && hasOutput ? 'done' : (phase === 'routing' && !past('routing') ? 'done' : 'done')) : 'active',
-    label: intent ? `已识别意图  ${intentLabel(intent)}` : '正在识别意图…',
-  });
-  // Step 2: retrieval (skip for chitchat / divination redirect)
-  if (!skipRetrieval) {
-    if (trace?.hasRetrieval) {
-      const hint = sources.length > 3
-        ? sources.slice(0, 3).join('  ·  ') + `  …等 ${sources.length} 条`
-        : sources.join('  ·  ');
-      steps.push({
-        key: 'retrieval',
-        state: past('retrieving') ? 'done' : 'done',
-        label: `翻阅古籍  ${sources.length} 段`,
-        detail: hint,
-      });
-    } else if (intent && !redirected) {
-      steps.push({
-        key: 'retrieval',
-        state: 'active',
-        label: '翻阅古籍中…',
-      });
-    }
-  }
-  // Step 3: model
-  // 一旦进入 streaming / 已有输出，"调用模型中" 就被 "正在回复" 吃掉 —
-  // 否则 model 名字还没从 SSE meta 里解析出来时两条 active 会同时挂着。
-  const streamingStarted = hasOutput || phase === 'streaming';
-  if (!redirected) {
-    if (model) {
-      steps.push({
-        key: 'model',
-        state: 'done',
-        label: '起笔',
-        detail: model,
-      });
-    } else if ((trace?.hasRetrieval || skipRetrieval) && !streamingStarted) {
-      steps.push({
-        key: 'model',
-        state: 'active',
-        label: '调用模型中…',
-      });
-    }
-  }
-  // Step 4: streaming / done / stopped / redirect
+  // ━━ 主活跃文案 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 单行,反映"此刻正在做什么"。redirect / stopped 是终态各占一行;
+  // 否则按 intent + retrieval 状态推断。
+  let activeLabel = null;
+  let activeKind = 'thinking';   // CSS 类区分 spinner / dot / × icon
   if (redirected) {
-    steps.push({
-      key: 'redirect',
-      state: 'active',
-      label: '此问题适合起卦,已为你转入占卜流程',
-    });
+    activeLabel = '此问题适合起卦,已为你转入占卜流程';
+    activeKind = 'redirect';
   } else if (stopped) {
-    steps.push({
-      key: 'stopped',
-      state: 'stopped',
-      label: '已停止',
-    });
-  } else if (hasOutput || phase === 'streaming') {
-    steps.push({
-      key: 'streaming',
-      state: 'active',
-      label: '正在回复',
-    });
+    activeLabel = '已停止';
+    activeKind = 'stopped';
+  } else if (!hasOutput && phase !== 'done') {
+    // 还没第一字 — 选择文案
+    if (!intent) {
+      activeLabel = '思考中…';
+    } else if (_NO_RETRIEVAL_INTENTS.has(intent)) {
+      // 不需要古籍 — 直接思考
+      activeLabel = '思考中…';
+    } else if (!hasRetrieval) {
+      activeLabel = '翻阅古籍中…';
+    } else {
+      // 古籍拿到了,等模型起笔(通常 ms 级,这条几乎一闪而过)
+      activeLabel = '起笔…';
+    }
+  }
+  // hasOutput=true 或 phase=done 时 activeLabel 保持 null → 整个 indicator 不显示
+
+  // ━━ 上方 muted summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 已经完成的事实(意图分类、古籍来源条目)在 active 行上方做一行淡色
+  // chip,跟 active 行的视觉权重明显拉开 — 用户扫一眼能看到 "AI 知道这是
+  // 性格问题,翻了 6 段古籍",但视线主体还是在"翻阅古籍中…"。
+  const summaryParts = [];
+  if (intent && intent !== 'other' && !redirected) {
+    summaryParts.push(intentLabel(intent));
+  }
+  if (hasRetrieval && sources.length > 0) {
+    // 来源 chip:超过 3 条折叠
+    const srcText = sources.length > 3
+      ? sources.slice(0, 3).join(' · ') + ` 等 ${sources.length} 段`
+      : sources.join(' · ');
+    summaryParts.push(srcText);
   }
 
-  // 给 active 步骤附上耗时 — 超过 5s 才显示，避免快回复时干扰。
-  const stepsWithTiming = steps.map((step) => {
-    if (step.state !== 'active' || elapsedSec < 5 || stopped || hasOutput) return step;
-    return { ...step, label: `${step.label}  · ${elapsedSec}s` };
-  });
   const showSlowHint = !stopped && !hasOutput && !redirected && elapsedSec >= 12;
+
+  // 啥都不显示就不渲染,避免空 div 占位
+  if (!activeLabel && summaryParts.length === 0) return null;
 
   return (
     <div className="thinking-steps" role="status" aria-live="polite">
-      {stepsWithTiming.map((step) => (
-        <div className={`thinking-step thinking-step-${step.state}`} key={step.key}>
-          <span className="thinking-step-marker" aria-hidden="true">
-            {step.state === 'done' ? '✓' : step.state === 'stopped' ? '×' : ''}
-          </span>
-          <div className="thinking-step-body">
-            <div className="thinking-step-label">{step.label}</div>
-            {step.detail ? <div className="thinking-step-detail">{step.detail}</div> : null}
-          </div>
+      {summaryParts.length > 0 ? (
+        <div className="thinking-summary">
+          {summaryParts.join('  ·  ')}
         </div>
-      ))}
+      ) : null}
+      {activeLabel ? (
+        <div className={`thinking-active thinking-active-${activeKind}`}>
+          <span className="thinking-step-marker" aria-hidden="true">
+            {activeKind === 'stopped' ? '×' : ''}
+          </span>
+          <span className="thinking-step-label">
+            {activeLabel}
+            {elapsedSec >= 5 && !stopped && !hasOutput ? (
+              <span className="thinking-step-time">  · {elapsedSec}s</span>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
       {showSlowHint ? (
         <div className="thinking-slow-hint">
           模型还在思考，比平时多用了点时间，再稍等几秒。
