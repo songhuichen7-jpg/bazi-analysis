@@ -142,19 +142,22 @@
   transform: translateY(1px);
 }
 
-/* 副链接:给"先看看再决定"的访客一条不打扰的明路。muted 灰
- * + 小字号,跟 primary CTA 拉开权重差;箭头 1.8s 慢节奏呼吸,
- * 暗示"下面还有",不闪不喊。reduced-motion 下停止动画。*/
+/* 新访客 secondary CTA — primary 是"看看怎么读你 (探索)",
+ * secondary 是"或 直接开始排盘 (跳过)"。给已知道想干嘛的人
+ * 一个直达出口,但权重要明显轻于 primary,避免抢戏。
+ * 用 button 而不是 a,因为它触发 navigate 而非 anchor 跳转。*/
 .landing-cta-secondary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #a39c8d;
+  color: #8a8479;
+  background: none;
+  border: none;
+  cursor: pointer;
   font-family: -apple-system, "PingFang SC", sans-serif;
   font-size: 12px;
   letter-spacing: 0.12em;
-  text-decoration: none;
-  padding: 4px 6px;
+  padding: 6px 8px;
   transition: color 0.2s;
 }
 
@@ -164,18 +167,13 @@
 
 .landing-cta-secondary-arrow {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
-  animation: landing-cta-arrow-bob 1.8s ease-in-out infinite;
+  transition: transform 0.2s;
 }
 
-@keyframes landing-cta-arrow-bob {
-  0%, 100% { transform: translateY(0); opacity: 0.55; }
-  50%      { transform: translateY(3px); opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-cta-secondary-arrow { animation: none; opacity: 0.7; }
+.landing-cta-secondary:hover .landing-cta-secondary-arrow {
+  transform: translateX(2px);
 }
 
 /* Hero mockup — 命盘档案 + 对话 双框 (复刻参考稿底部双 panel) */

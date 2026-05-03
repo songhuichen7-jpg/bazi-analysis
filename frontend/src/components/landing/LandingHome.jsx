@@ -19,6 +19,7 @@ import { useAppStore } from '../../store/useAppStore.js';
 import { cardIllustrationSrc } from '../../lib/cardArt.js';
 import { MediaCard } from '../MediaCard.jsx';
 import { HepanCardPreview } from './HepanCardPreview.jsx';
+import { readGuestToken } from '../../lib/guestToken.js';
 
 // Hero mockup 轮播：左边一柱日干 + 日支 + 格局，右边配一句"有意思"的问题。
 // 每条 scene 都展示产品的一种用法，让访客一眼看到能问什么。
@@ -250,6 +251,23 @@ export function LandingHome() {
     navigate('/app');
   }
 
+  // 滚到第一个介绍 section (二十种人格)。Smooth scroll 跟整体沉静
+  // 调性对齐;reduced-motion 偏好下退回 instant。
+  function scrollToIntro() {
+    const target = document.getElementById('gallery');
+    if (!target) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  // 返客 vs 新人分流:
+  //   - 已经有 guest_token 或登录账户 → 直接 "继续我的命盘 →"
+  //   - 全新访客 → primary CTA 改成"探索"调性 (看看「有时」怎么读你)
+  //     先把人引到介绍区,旁边给一条 "或 直接开始排盘 →" 给已经
+  //     知道想干嘛的人留出口。
+  const user = useAppStore(s => s.user);
+  const isReturning = !!user || !!readGuestToken();
+
   return (
     <main className="landing-home">
 
@@ -266,30 +284,43 @@ export function LandingHome() {
           人也在自己的时序里慢慢展开。
         </p>
 
-        <div className="landing-cta-stack">
-          <div className="landing-cta-row">
-            <button type="button" className="landing-cta-primary" onClick={handleStart}>开始排盘 →</button>
+        {isReturning ? (
+          // 返客:已经体验过 — 直接给"继续"入口,不绕介绍。
+          <div className="landing-cta-stack">
+            <div className="landing-cta-row">
+              <button
+                type="button"
+                className="landing-cta-primary"
+                onClick={handleStart}
+              >
+                继续我的命盘 →
+              </button>
+            </div>
           </div>
-          {/* 副链接 — 给"想先看看再决定"的访客一条不打扰的明路。
-           * 锚到 #gallery (二十种人格那一节),让他们顺着滚下去把后面
-           * 介绍都看完。不点的人完全不被打扰。
-           * 用 smooth scroll 而不是默认硬跳,跟整体沉静调性匹配;
-           * reduced-motion 偏好时退回 instant。 */}
-          <a
-            href="#gallery"
-            className="landing-cta-secondary"
-            onClick={(e) => {
-              const target = document.getElementById('gallery');
-              if (!target) return;
-              e.preventDefault();
-              const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-              target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-            }}
-          >
-            <span>先看看「有时」是什么</span>
-            <span className="landing-cta-secondary-arrow" aria-hidden="true">↓</span>
-          </a>
-        </div>
+        ) : (
+          // 新访客:primary CTA 是探索 (滚到介绍区),secondary
+          // 是直接开始 — 让"想先看看"和"已知道想干嘛"两种人都
+          // 有自己的入口,不互相打扰。
+          <div className="landing-cta-stack">
+            <div className="landing-cta-row">
+              <button
+                type="button"
+                className="landing-cta-primary"
+                onClick={scrollToIntro}
+              >
+                看看「有时」怎么读你 →
+              </button>
+            </div>
+            <button
+              type="button"
+              className="landing-cta-secondary"
+              onClick={handleStart}
+            >
+              <span>或 直接开始排盘</span>
+              <span className="landing-cta-secondary-arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+        )}
 
         {/* 命盘档案 + 对话 mockup — 双面板按 HERO_SCENES 同步轮播 */}
         <div className="landing-hero-mockup">
