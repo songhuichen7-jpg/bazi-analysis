@@ -251,13 +251,35 @@ export function LandingHome() {
     navigate('/app');
   }
 
-  // 滚到第一个介绍 section (二十种人格)。Smooth scroll 跟整体沉静
-  // 调性对齐;reduced-motion 偏好下退回 instant。
+  // 滚到第一个介绍 section (二十种人格)。
+  // 不用原生 scrollIntoView({ behavior: 'smooth' }) — 浏览器默认
+  // 大约 300ms 硬切,跟"沉静慢回应"的调性不搭;改用 rAF + cubic
+  // ease-in-out,~1.1s 慢推,头尾都柔。锚点放在 section 顶部上方
+  // 留 24px 透气,让眼睛先看到 eyebrow 再吃到标题。
+  // reduced-motion 偏好下退回 instant 跳转。
   function scrollToIntro() {
-    const target = document.getElementById('gallery');
+    const target = document.getElementById('intro');
     if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 24;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    if (reduce) {
+      window.scrollTo(0, top);
+      return;
+    }
+    const startY = window.scrollY;
+    const distance = top - startY;
+    if (Math.abs(distance) < 4) return;
+    const duration = 1100;
+    const startTime = performance.now();
+    // ease-in-out cubic:慢起 → 中段加速 → 慢落
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    function tick(now) {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      window.scrollTo(0, startY + distance * ease(t));
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
   }
 
   // 返客 vs 新人分流:
@@ -345,7 +367,9 @@ export function LandingHome() {
       </section>
 
       {/* ── 2. 二十种人格 ──────────────────────────────────────────── */}
-      <section className="landing-section">
+      {/* id="intro" 挂在 section 上,而不是内层 marquee — 副 CTA 平滑
+       * 滚到这里时落在 eyebrow + 标题之上,避免越过标题直接掉到马戏团。*/}
+      <section id="intro" className="landing-section">
         <Eyebrow>二十种命盘人格</Eyebrow>
         <h2 className="landing-section-title">
           给你的命盘<br />
